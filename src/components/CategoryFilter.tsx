@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     gap: 5,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: 8,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.full,
     borderWidth: 1.5,
     borderColor: theme.colors.primary,

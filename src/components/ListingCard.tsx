@@ -105,7 +105,7 @@ export function ListingCard({ listing, isSaved, onToggleSave }: ListingCardProps
             )}
             {listing.website && (
               <TouchableOpacity style={[styles.actionBtn, styles.actionBtnPrimary]} onPress={handleWebsite}>
-                <Ionicons name="globe-outline" size={13} color={theme.colors.surface} />
+                <Ionicons name="globe-outline" size={13} color="#FFFFFF" />
                 <Text style={styles.actionTextPrimary}>Website</Text>
               </TouchableOpacity>
             )}

@@ -37,13 +37,6 @@ async function toggleSaved(id: string, current: string[]): Promise<string[]> {
   return next;
 }
 
-function getTodayGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Guten Morgen';
-  if (hour < 18) return 'Guten Tag';
-  return 'Guten Abend';
-}
-
 function getFormattedDate(): string {
   return new Date().toLocaleDateString('de-CH', {
     weekday: 'long',

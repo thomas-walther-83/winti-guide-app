@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     height: '65%',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: theme.colors.heroBannerOverlay,
   },
   categoryBadge: {
     position: 'absolute',
