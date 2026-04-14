@@ -124,7 +124,7 @@ export function MapScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>🗺️ Karte</Text>
+        <Text style={styles.title}>Karte</Text>
         <Text style={styles.subtitle}>
           {listings.length > 0
             ? `${listings.length} Orte in Winterthur`
@@ -180,9 +180,10 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   title: {
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: '800',
     color: theme.colors.text,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 13,
