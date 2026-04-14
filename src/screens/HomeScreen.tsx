@@ -12,6 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useListings } from '../hooks/useListings';
 import { ListingCard } from '../components/ListingCard';
 import { CategoryFilter } from '../components/CategoryFilter';
+import { SubCategoryFilter } from '../components/SubCategoryFilter';
 import { SearchBar } from '../components/SearchBar';
 import { FeaturedRow } from '../components/FeaturedRow';
 import { SectionHeader } from '../components/SectionHeader';
@@ -50,12 +51,14 @@ type HeaderSection =
   | { type: 'search' }
   | { type: 'featured' }
   | { type: 'categories' }
+  | { type: 'subcategories' }
   | { type: 'section-title'; title: string };
 
 type ListItem = HeaderSection | { type: 'listing'; data: Listing };
 
 export function HomeScreen() {
   const [category, setCategory] = useState<ListingCategory | 'all'>('all');
+  const [subType, setSubType] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [savedIds, setSavedIds] = useState<string[]>([]);
 
@@ -63,21 +66,32 @@ export function HomeScreen() {
     loadSaved().then(setSavedIds);
   }, []);
 
+  // Reset subcategory whenever the main category changes
+  React.useEffect(() => {
+    setSubType('all');
+  }, [category]);
+
   const { listings, loading, error, refresh } = useListings({
     category: category === 'all' ? undefined : category,
     search: search.trim() || undefined,
   });
 
   const filteredListings = useMemo(() => {
-    if (!search.trim()) return listings;
-    const q = search.toLowerCase();
-    return listings.filter(
-      (l) =>
-        l.name.toLowerCase().includes(q) ||
-        (l.address ?? '').toLowerCase().includes(q) ||
-        (l.sub_type ?? '').toLowerCase().includes(q),
-    );
-  }, [listings, search]);
+    let result = listings;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (l) =>
+          l.name.toLowerCase().includes(q) ||
+          (l.address ?? '').toLowerCase().includes(q) ||
+          (l.sub_type ?? '').toLowerCase().includes(q),
+      );
+    }
+    if (subType !== 'all') {
+      result = result.filter((l) => l.sub_type === subType);
+    }
+    return result;
+  }, [listings, search, subType]);
 
   // Pick up to 6 featured listings (premium first, then others)
   const featuredListings = useMemo(() => {
@@ -111,6 +125,11 @@ export function HomeScreen() {
       { type: 'categories' },
     ];
 
+    // Show subcategory chips when a specific category is selected
+    if (category !== 'all') {
+      items.push({ type: 'subcategories' });
+    }
+
     // Show featured row only when no search active
     if (!search.trim() && !loading && featuredListings.length > 0) {
       items.push({ type: 'featured' });
@@ -122,7 +141,7 @@ export function HomeScreen() {
     }
 
     return items;
-  }, [search, loading, error, featuredListings, filteredListings, categoryLabel]);
+  }, [search, loading, error, featuredListings, filteredListings, categoryLabel, category]);
 
   const renderItem = ({ item }: { item: ListItem }) => {
     switch (item.type) {
@@ -150,6 +169,15 @@ export function HomeScreen() {
 
       case 'categories':
         return <CategoryFilter selected={category} onSelect={setCategory} />;
+
+      case 'subcategories':
+        return category !== 'all' ? (
+          <SubCategoryFilter
+            category={category}
+            selected={subType}
+            onSelect={setSubType}
+          />
+        ) : null;
 
       case 'featured':
         return (
@@ -210,6 +238,7 @@ export function HomeScreen() {
             return `${item.type}-${index}`;
           }}
           renderItem={renderItem}
+          extraData={{ category, subType, savedIds }}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           onRefresh={refresh}
