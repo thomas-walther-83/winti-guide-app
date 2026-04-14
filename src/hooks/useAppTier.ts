@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../config/supabase';
 import { useAuth } from '../context/AuthContext';
 import type { AppTier } from '../types';
@@ -15,7 +15,7 @@ export function useAppTier(): UseAppTierResult {
   const [tier, setTier] = useState<AppTier>('free');
   const [loading, setLoading] = useState(true);
 
-  const fetchTier = async () => {
+  const fetchTier = useCallback(async () => {
     if (!user) {
       setTier('free');
       setLoading(false);
@@ -50,12 +50,11 @@ export function useAppTier(): UseAppTierResult {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchTier();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [fetchTier]);
 
   return {
     tier,

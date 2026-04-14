@@ -59,9 +59,11 @@ export function HomeScreen({ onNavigateToAccount }: { onNavigateToAccount?: () =
   // Load partner ads for free users
   useEffect(() => {
     if (!isPremium) {
-      fetchPartnerAds().catch(console.error).then((ads) => {
-        if (ads) setPartnerAds(ads);
-      });
+      fetchPartnerAds()
+        .then((ads) => {
+          if (ads) setPartnerAds(ads);
+        })
+        .catch(console.error);
     } else {
       setPartnerAds([]);
     }

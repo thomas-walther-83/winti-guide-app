@@ -100,6 +100,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: theme.colors.surface,
-    whiteSpace: 'nowrap',
-  } as any,
+  },
 });
