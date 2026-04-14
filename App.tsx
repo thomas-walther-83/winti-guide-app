@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { registerRootComponent } from 'expo';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -62,5 +61,3 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
-
-registerRootComponent(App);
