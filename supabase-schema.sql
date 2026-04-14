@@ -492,7 +492,7 @@ values
 
   ('manual','m_g8','geschaefte','Elektronik','Media Markt Winterthur',
    'Neumarkt 3','Mo–Sa 09:00–19:00','+41 52 508 40 00','mediamarkt.ch',
-   'Grosses Angebot an Elektronik, IT, Foto und Haushaltsgräten.')
+   'Grosses Angebot an Elektronik, IT, Foto und Haushaltsgeräten.')
 on conflict (source_id) do nothing;
 
 
