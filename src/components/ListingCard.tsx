@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Linking,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import type { Listing } from '../types';
 
@@ -21,6 +22,18 @@ const CATEGORY_EMOJI: Record<string, string> = {
   touren: '🗺️',
 };
 
+const CATEGORY_BG: Record<string, string> = {
+  restaurants: '#C0392B',
+  cafes: '#8B6914',
+  bars: '#6C3483',
+  hotels: '#1A5276',
+  sightseeing: '#1E8449',
+  kultur: '#C0392B',
+  geschaefte: '#A04000',
+  sport: '#117A65',
+  touren: '#2E4057',
+};
+
 interface ListingCardProps {
   listing: Listing;
   isSaved: boolean;
@@ -29,6 +42,7 @@ interface ListingCardProps {
 
 export function ListingCard({ listing, isSaved, onToggleSave }: ListingCardProps) {
   const emoji = CATEGORY_EMOJI[listing.category] ?? '📍';
+  const bgColor = CATEGORY_BG[listing.category] ?? theme.colors.primary;
 
   const handleWebsite = () => {
     if (listing.website) {
@@ -46,122 +60,121 @@ export function ListingCard({ listing, isSaved, onToggleSave }: ListingCardProps
   };
 
   return (
-    <View style={[styles.card, listing.is_premium && styles.cardPremium]}>
-      <View style={styles.header}>
-        <View style={styles.iconContainer}>
-          <Text style={styles.emoji}>{emoji}</Text>
-        </View>
-        <View style={styles.info}>
-          <View style={styles.titleRow}>
-            <Text style={styles.name} numberOfLines={1}>
-              {listing.name}
-            </Text>
-            {listing.is_premium && (
-              <View style={styles.premiumBadge}>
-                <Text style={styles.premiumText}>⭐</Text>
-              </View>
-            )}
-          </View>
-          {listing.sub_type ? (
-            <Text style={styles.subType} numberOfLines={1}>
-              {listing.sub_type}
-            </Text>
-          ) : null}
-          {listing.address ? (
-            <Text style={styles.address} numberOfLines={1}>
-              📍 {listing.address}
-            </Text>
-          ) : null}
-        </View>
-        <TouchableOpacity
-          style={styles.saveButton}
-          onPress={() => onToggleSave(listing)}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Text style={styles.saveIcon}>{isSaved ? '❤️' : '🤍'}</Text>
-        </TouchableOpacity>
+    <View style={styles.card}>
+      {/* Left: colored emoji block */}
+      <View style={[styles.iconBlock, { backgroundColor: bgColor }]}>
+        <Text style={styles.emoji}>{emoji}</Text>
       </View>
 
-      {listing.hours ? (
-        <Text style={styles.detail}>🕐 {listing.hours}</Text>
-      ) : null}
-
-      {listing.description ? (
-        <Text style={styles.description} numberOfLines={2}>
-          {listing.description}
-        </Text>
-      ) : null}
-
-      {(listing.website || listing.phone) && (
-        <View style={styles.actions}>
-          {listing.phone && (
-            <TouchableOpacity style={styles.actionBtn} onPress={handlePhone}>
-              <Text style={styles.actionText}>📞 Anrufen</Text>
-            </TouchableOpacity>
-          )}
-          {listing.website && (
-            <TouchableOpacity style={[styles.actionBtn, styles.actionBtnPrimary]} onPress={handleWebsite}>
-              <Text style={styles.actionTextPrimary}>🌐 Website</Text>
-            </TouchableOpacity>
+      {/* Right: content */}
+      <View style={styles.content}>
+        <View style={styles.titleRow}>
+          <Text style={styles.name} numberOfLines={1}>
+            {listing.name}
+          </Text>
+          {listing.is_premium && (
+            <View style={styles.premiumDot} />
           )}
         </View>
-      )}
+
+        {listing.sub_type ? (
+          <Text style={styles.subType} numberOfLines={1}>
+            {listing.sub_type}
+          </Text>
+        ) : null}
+
+        {listing.address ? (
+          <Text style={styles.address} numberOfLines={1}>
+            {listing.address}
+          </Text>
+        ) : null}
+
+        {listing.hours ? (
+          <Text style={styles.hours} numberOfLines={1}>
+            {listing.hours}
+          </Text>
+        ) : null}
+
+        {(listing.website || listing.phone) && (
+          <View style={styles.actions}>
+            {listing.phone && (
+              <TouchableOpacity style={styles.actionBtn} onPress={handlePhone}>
+                <Ionicons name="call-outline" size={13} color={theme.colors.text} />
+                <Text style={styles.actionText}>Anrufen</Text>
+              </TouchableOpacity>
+            )}
+            {listing.website && (
+              <TouchableOpacity style={[styles.actionBtn, styles.actionBtnPrimary]} onPress={handleWebsite}>
+                <Ionicons name="globe-outline" size={13} color={theme.colors.surface} />
+                <Text style={styles.actionTextPrimary}>Website</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+      </View>
+
+      {/* Save button */}
+      <TouchableOpacity
+        style={styles.saveButton}
+        onPress={() => onToggleSave(listing)}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        <Ionicons
+          name={isSaved ? 'heart' : 'heart-outline'}
+          size={20}
+          color={isSaved ? theme.colors.primary : theme.colors.textMuted}
+        />
+      </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.md,
-    marginHorizontal: theme.spacing.md,
-    marginVertical: theme.spacing.sm,
-    ...theme.shadow.medium,
-  },
-  cardPremium: {
-    borderWidth: 1.5,
-    borderColor: theme.colors.premium,
-  },
-  header: {
+    backgroundColor: theme.colors.background,
     flexDirection: 'row',
     alignItems: 'flex-start',
+    marginHorizontal: theme.spacing.md,
+    marginVertical: theme.spacing.xs,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    ...theme.shadow.small,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
-  iconContainer: {
-    width: 44,
-    height: 44,
+  iconBlock: {
+    width: 52,
+    height: 52,
     borderRadius: theme.borderRadius.md,
-    backgroundColor: theme.colors.background,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: theme.spacing.sm,
+    marginRight: theme.spacing.md,
+    flexShrink: 0,
   },
   emoji: {
-    fontSize: 22,
+    fontSize: 24,
   },
-  info: {
+  content: {
     flex: 1,
     gap: 2,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.xs,
+    gap: 6,
   },
   name: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: theme.colors.text,
     flex: 1,
   },
-  premiumBadge: {
-    backgroundColor: theme.colors.premium,
-    borderRadius: theme.borderRadius.sm,
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-  },
-  premiumText: {
-    fontSize: 10,
+  premiumDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: theme.colors.primary,
+    flexShrink: 0,
   },
   subType: {
     fontSize: 13,
@@ -170,51 +183,43 @@ const styles = StyleSheet.create({
   address: {
     fontSize: 12,
     color: theme.colors.textMuted,
-    marginTop: 2,
+  },
+  hours: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
   },
   saveButton: {
     padding: theme.spacing.xs,
     marginLeft: theme.spacing.xs,
-  },
-  saveIcon: {
-    fontSize: 20,
-  },
-  detail: {
-    fontSize: 13,
-    color: theme.colors.textSecondary,
-    marginTop: theme.spacing.sm,
-  },
-  description: {
-    fontSize: 13,
-    color: theme.colors.textSecondary,
-    marginTop: theme.spacing.xs,
-    lineHeight: 18,
+    flexShrink: 0,
   },
   actions: {
     flexDirection: 'row',
     gap: theme.spacing.sm,
-    marginTop: theme.spacing.md,
+    marginTop: theme.spacing.sm,
   },
   actionBtn: {
-    flex: 1,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.borderRadius.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 5,
+    paddingHorizontal: theme.spacing.sm,
+    borderRadius: theme.borderRadius.sm,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    alignItems: 'center',
   },
   actionBtnPrimary: {
     backgroundColor: theme.colors.primary,
     borderColor: theme.colors.primary,
   },
   actionText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
     color: theme.colors.text,
   },
   actionTextPrimary: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
-    color: theme.colors.surface,
+    color: '#FFFFFF',
   },
 });

@@ -9,21 +9,24 @@ import {
   ScrollView,
   SafeAreaView,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useEvents } from '../hooks/useEvents';
 import { EventCard } from '../components/EventCard';
 import { theme } from '../styles/theme';
 import type { EventCategory } from '../types';
 
-const EVENT_CATEGORIES: { key: EventCategory | 'all'; label: string; emoji: string }[] = [
-  { key: 'all', label: 'Alle', emoji: '📅' },
-  { key: 'festival', label: 'Festival', emoji: '🎪' },
-  { key: 'musik', label: 'Musik', emoji: '🎵' },
-  { key: 'kultur', label: 'Kultur', emoji: '🎨' },
-  { key: 'markt', label: 'Markt', emoji: '🛍️' },
-  { key: 'theater', label: 'Theater', emoji: '🎭' },
-  { key: 'tour', label: 'Tour', emoji: '🗺️' },
-  { key: 'kulinarik', label: 'Kulinarik', emoji: '🍷' },
-  { key: 'sport', label: 'Sport', emoji: '🏅' },
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
+const EVENT_CATEGORIES: { key: EventCategory | 'all'; label: string; icon: IoniconName }[] = [
+  { key: 'all', label: 'Alle', icon: 'calendar-outline' },
+  { key: 'festival', label: 'Festival', icon: 'musical-notes-outline' },
+  { key: 'musik', label: 'Musik', icon: 'headset-outline' },
+  { key: 'kultur', label: 'Kultur', icon: 'color-palette-outline' },
+  { key: 'markt', label: 'Markt', icon: 'storefront-outline' },
+  { key: 'theater', label: 'Theater', icon: 'film-outline' },
+  { key: 'tour', label: 'Tour', icon: 'footsteps-outline' },
+  { key: 'kulinarik', label: 'Kulinarik', icon: 'restaurant-outline' },
+  { key: 'sport', label: 'Sport', icon: 'bicycle-outline' },
 ];
 
 function getToday(): string {
@@ -56,7 +59,7 @@ export function CalendarScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>📅 Kalender</Text>
+        <Text style={styles.title}>Kalender</Text>
         <Text style={styles.subtitle}>Kommende Events in Winterthur</Text>
       </View>
 
@@ -75,7 +78,11 @@ export function CalendarScreen() {
               onPress={() => setCategory(cat.key)}
               activeOpacity={0.7}
             >
-              <Text style={styles.chipEmoji}>{cat.emoji}</Text>
+              <Ionicons
+                name={cat.icon}
+                size={15}
+                color={isActive ? '#FFFFFF' : theme.colors.primary}
+              />
               <Text style={[styles.chipLabel, isActive && styles.chipLabelActive]}>
                 {cat.label}
               </Text>
@@ -158,9 +165,10 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.sm,
   },
   title: {
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: '800',
     color: theme.colors.text,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 13,
@@ -178,29 +186,25 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
     paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    backgroundColor: theme.colors.surface,
+    paddingVertical: 8,
+    backgroundColor: theme.colors.background,
     borderRadius: theme.borderRadius.full,
     borderWidth: 1.5,
-    borderColor: theme.colors.border,
-    ...theme.shadow.small,
+    borderColor: theme.colors.primary,
   },
   chipActive: {
     backgroundColor: theme.colors.primary,
     borderColor: theme.colors.primary,
   },
-  chipEmoji: {
-    fontSize: 14,
-  },
   chipLabel: {
     fontSize: 13,
-    fontWeight: '500',
-    color: theme.colors.text,
+    fontWeight: '600',
+    color: theme.colors.primary,
   },
   chipLabelActive: {
-    color: theme.colors.surface,
+    color: '#FFFFFF',
   },
   list: {
     paddingBottom: theme.spacing.xl,
@@ -240,7 +244,7 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.sm,
   },
   retryText: {
-    color: theme.colors.surface,
+    color: '#FFFFFF',
     fontWeight: '600',
   },
   emptyEmoji: {
