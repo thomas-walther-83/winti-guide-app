@@ -10,9 +10,12 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useEvents } from '../hooks/useEvents';
+import { useAppTier } from '../hooks/useAppTier';
 import { EventCard } from '../components/EventCard';
 import { theme } from '../styles/theme';
 import type { EventCategory } from '../types';
+
+const FREE_TIER_DAYS = 7; // Free users see events for the next 7 days
 
 const EVENT_CATEGORIES: { key: EventCategory | 'all'; label: string; emoji: string }[] = [
   { key: 'all', label: 'Alle', emoji: '📅' },
@@ -30,18 +33,34 @@ function getToday(): string {
   return new Date().toISOString().split('T')[0];
 }
 
-export function CalendarScreen() {
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split('T')[0];
+}
+
+export function CalendarScreen({ onNavigateToAccount }: { onNavigateToAccount?: () => void }) {
   const [category, setCategory] = useState<EventCategory | 'all'>('all');
+  const { isPremium } = useAppTier();
 
   const { events, loading, error, refresh } = useEvents({
     category: category === 'all' ? undefined : category,
     from: getToday(),
   });
 
+  // Free tier: limit to next FREE_TIER_DAYS days
+  const visibleEvents = useMemo(() => {
+    if (isPremium) return events;
+    const cutoff = addDays(getToday(), FREE_TIER_DAYS);
+    return events.filter((e) => e.event_date <= cutoff);
+  }, [events, isPremium]);
+
+  const hasHiddenEvents = !isPremium && events.length > visibleEvents.length;
+
   const groupedEvents = useMemo(() => {
-    const groups: { date: string; events: typeof events }[] = [];
+    const groups: { date: string; events: typeof visibleEvents }[] = [];
     const seen = new Set<string>();
-    for (const event of events) {
+    for (const event of visibleEvents) {
       if (!seen.has(event.event_date)) {
         seen.add(event.event_date);
         groups.push({ date: event.event_date, events: [event] });
@@ -51,7 +70,7 @@ export function CalendarScreen() {
       }
     }
     return groups;
-  }, [events]);
+  }, [visibleEvents]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -100,7 +119,7 @@ export function CalendarScreen() {
         </View>
       )}
 
-      {!loading && !error && events.length === 0 && (
+      {!loading && !error && visibleEvents.length === 0 && (
         <View style={styles.center}>
           <Text style={styles.emptyEmoji}>🎭</Text>
           <Text style={styles.emptyText}>Keine Events gefunden</Text>
@@ -108,7 +127,7 @@ export function CalendarScreen() {
         </View>
       )}
 
-      {!loading && !error && events.length > 0 && (
+      {!loading && !error && visibleEvents.length > 0 && (
         <FlatList
           data={groupedEvents}
           keyExtractor={(item) => item.date}
@@ -128,6 +147,26 @@ export function CalendarScreen() {
           showsVerticalScrollIndicator={false}
           onRefresh={refresh}
           refreshing={loading}
+          ListFooterComponent={
+            hasHiddenEvents ? (
+              <TouchableOpacity
+                style={styles.premiumTeaser}
+                onPress={onNavigateToAccount}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.premiumTeaserIcon}>🔒</Text>
+                <View style={styles.premiumTeaserInfo}>
+                  <Text style={styles.premiumTeaserTitle}>
+                    Weitere {events.length - visibleEvents.length} Events verfügbar
+                  </Text>
+                  <Text style={styles.premiumTeaserSub}>
+                    Upgrade auf Premium für den vollständigen Kalender
+                  </Text>
+                </View>
+                <Text style={styles.premiumTeaserArrow}>→</Text>
+              </TouchableOpacity>
+            ) : null
+          }
         />
       )}
     </SafeAreaView>
@@ -256,5 +295,40 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     fontSize: 13,
     textAlign: 'center',
+  },
+  premiumTeaser: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFBF0',
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 1.5,
+    borderColor: theme.colors.premium,
+    marginHorizontal: theme.spacing.md,
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.xl,
+    padding: theme.spacing.md,
+    gap: theme.spacing.sm,
+    ...theme.shadow.small,
+  },
+  premiumTeaserIcon: {
+    fontSize: 24,
+  },
+  premiumTeaserInfo: {
+    flex: 1,
+    gap: 3,
+  },
+  premiumTeaserTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  premiumTeaserSub: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+  },
+  premiumTeaserArrow: {
+    fontSize: 18,
+    color: theme.colors.primary,
+    fontWeight: '700',
   },
 });

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Falls keine Umgebungsvariablen gesetzt sind (z.B. auf Vercel ohne manuell konfigurierte Vars),
 // werden die Projekt-Standardwerte verwendet. Der Anon Key ist ein öffentlicher Schlüssel
@@ -9,4 +10,12 @@ const supabaseAnonKey =
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwaGhxd2lzbHVpcmlobWFoeWVlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3Njc0MDEsImV4cCI6MjA5MDM0MzQwMX0.Cdzb02RCqguPpEjkh3AI3-didfTb6gAYwg4gYylazak';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    // Persist session in AsyncStorage so it survives app restarts
+    storage: AsyncStorage,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false,
+  },
+});

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   FlatList,
@@ -10,13 +10,17 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useListings } from '../hooks/useListings';
+import { useAppTier } from '../hooks/useAppTier';
+import { fetchPartnerAds } from '../services/supabaseService';
 import { ListingCard } from '../components/ListingCard';
+import { PartnerAdBanner } from '../components/PartnerAdBanner';
 import { CategoryFilter } from '../components/CategoryFilter';
 import { SearchBar } from '../components/SearchBar';
 import { theme } from '../styles/theme';
-import type { Listing, ListingCategory } from '../types';
+import type { Listing, ListingCategory, PartnerAd } from '../types';
 
 const SAVED_KEY = 'winti_saved_listings';
+const AD_FREQUENCY = 5; // Show an ad every N listings
 
 async function loadSaved(): Promise<string[]> {
   try {
@@ -35,15 +39,33 @@ async function toggleSaved(id: string, current: string[]): Promise<string[]> {
   return next;
 }
 
-export function HomeScreen() {
+type ListItem =
+  | { type: 'listing'; data: Listing }
+  | { type: 'ad'; data: PartnerAd };
+
+export function HomeScreen({ onNavigateToAccount }: { onNavigateToAccount?: () => void }) {
   const [category, setCategory] = useState<ListingCategory | 'all'>('all');
   const [search, setSearch] = useState('');
   const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [partnerAds, setPartnerAds] = useState<PartnerAd[]>([]);
+
+  const { isPremium } = useAppTier();
 
   // Load saved IDs on mount
   React.useEffect(() => {
     loadSaved().then(setSavedIds);
   }, []);
+
+  // Load partner ads for free users
+  useEffect(() => {
+    if (!isPremium) {
+      fetchPartnerAds().catch(console.error).then((ads) => {
+        if (ads) setPartnerAds(ads);
+      });
+    } else {
+      setPartnerAds([]);
+    }
+  }, [isPremium]);
 
   const { listings, loading, error, refresh } = useListings({
     category: category === 'all' ? undefined : category,
@@ -61,6 +83,23 @@ export function HomeScreen() {
     );
   }, [listings, search]);
 
+  // Interleave ads between listings for free-tier users
+  const listItems: ListItem[] = useMemo(() => {
+    if (isPremium || partnerAds.length === 0) {
+      return filteredListings.map((l) => ({ type: 'listing', data: l }));
+    }
+    const result: ListItem[] = [];
+    let adIndex = 0;
+    filteredListings.forEach((listing, idx) => {
+      result.push({ type: 'listing', data: listing });
+      if ((idx + 1) % AD_FREQUENCY === 0 && partnerAds.length > 0) {
+        result.push({ type: 'ad', data: partnerAds[adIndex % partnerAds.length] });
+        adIndex++;
+      }
+    });
+    return result;
+  }, [filteredListings, partnerAds, isPremium]);
+
   const handleToggleSave = async (listing: Listing) => {
     const next = await toggleSaved(listing.id, savedIds);
     setSavedIds(next);
@@ -70,10 +109,15 @@ export function HomeScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.logo}>🦁</Text>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={styles.title}>Winti Guide</Text>
           <Text style={styles.subtitle}>Winterthur entdecken</Text>
         </View>
+        {!isPremium && (
+          <TouchableOpacity onPress={onNavigateToAccount} style={styles.premiumHint}>
+            <Text style={styles.premiumHintText}>⭐ Premium</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <SearchBar
@@ -108,15 +152,22 @@ export function HomeScreen() {
 
       {!loading && !error && (
         <FlatList
-          data={filteredListings}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <ListingCard
-              listing={item}
-              isSaved={savedIds.includes(item.id)}
-              onToggleSave={handleToggleSave}
-            />
-          )}
+          data={listItems}
+          keyExtractor={(item, index) =>
+            item.type === 'listing' ? item.data.id : `ad_${item.data.id}_${index}`
+          }
+          renderItem={({ item }) => {
+            if (item.type === 'ad') {
+              return <PartnerAdBanner ad={item.data} />;
+            }
+            return (
+              <ListingCard
+                listing={item.data}
+                isSaved={savedIds.includes(item.data.id)}
+                onToggleSave={handleToggleSave}
+              />
+            );
+          }}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           onRefresh={refresh}
@@ -151,6 +202,17 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 13,
     color: theme.colors.textSecondary,
+  },
+  premiumHint: {
+    backgroundColor: theme.colors.premium,
+    borderRadius: theme.borderRadius.full,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 4,
+  },
+  premiumHintText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.surface,
   },
   list: {
     paddingBottom: theme.spacing.xl,
