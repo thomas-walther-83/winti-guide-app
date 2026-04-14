@@ -1,0 +1,76 @@
+export const theme = {
+  colors: {
+    primary: '#8B0000',
+    primaryLight: '#A31515',
+    primaryDark: '#6B0000',
+    secondary: '#F5A623',
+    background: '#F7F7F7',
+    surface: '#FFFFFF',
+    text: '#1A1A1A',
+    textSecondary: '#6B6B6B',
+    textMuted: '#9B9B9B',
+    border: '#E0E0E0',
+    error: '#DC2626',
+    success: '#16A34A',
+    premium: '#F5A623',
+    saved: '#E53E3E',
+    tabBar: '#FFFFFF',
+    tabBarActive: '#8B0000',
+    tabBarInactive: '#9B9B9B',
+  },
+  spacing: {
+    xs: 4,
+    sm: 8,
+    md: 16,
+    lg: 24,
+    xl: 32,
+    xxl: 48,
+  },
+  borderRadius: {
+    sm: 6,
+    md: 12,
+    lg: 16,
+    xl: 24,
+    full: 9999,
+  },
+  typography: {
+    title: {
+      fontSize: 24,
+      fontWeight: '700' as const,
+    },
+    subtitle: {
+      fontSize: 18,
+      fontWeight: '600' as const,
+    },
+    body: {
+      fontSize: 14,
+      fontWeight: '400' as const,
+    },
+    caption: {
+      fontSize: 12,
+      fontWeight: '400' as const,
+    },
+    label: {
+      fontSize: 11,
+      fontWeight: '600' as const,
+      textTransform: 'uppercase' as const,
+      letterSpacing: 0.5,
+    },
+  },
+  shadow: {
+    small: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.08,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    medium: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.12,
+      shadowRadius: 8,
+      elevation: 4,
+    },
+  },
+} as const;

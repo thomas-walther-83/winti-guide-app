@@ -17,6 +17,15 @@
       "adaptiveIcon": {
         "backgroundColor": "#8B0000"
       }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "name": "Winti Guide",
+      "shortName": "Winti Guide",
+      "lang": "de",
+      "themeColor": "#8B0000",
+      "backgroundColor": "#F7F7F7"
     }
   }
 }
