@@ -204,6 +204,21 @@ create policy "partner_inv: service full"
 
 
 -- ═══════════════════════════════════════════════════════════════════
+-- Hilfsfunktionen (werden von Triggern referenziert)
+-- Hinweis: Diese Funktion existiert bereits in supabase-schema.sql.
+--          Das create-or-replace ist idempotent und sicher.
+-- ═══════════════════════════════════════════════════════════════════
+
+create or replace function public.update_updated_at()
+returns trigger language plpgsql as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+
+-- ═══════════════════════════════════════════════════════════════════
 -- Auto-Update Timestamps
 -- ═══════════════════════════════════════════════════════════════════
 
@@ -321,6 +336,26 @@ begin
       updated_at = now()
   where id = p_partner_id
     and status = 'pending';
+end;
+$$;
+
+-- Impressionen einer Anzeige atomar hochzählen (verhindert Race-Conditions)
+create or replace function public.increment_ad_impressions(ad_id uuid)
+returns void language plpgsql security definer as $$
+begin
+  update public.partner_ads
+  set impressions = coalesce(impressions, 0) + 1
+  where id = ad_id;
+end;
+$$;
+
+-- Klicks einer Anzeige atomar hochzählen (verhindert Race-Conditions)
+create or replace function public.increment_ad_clicks(ad_id uuid)
+returns void language plpgsql security definer as $$
+begin
+  update public.partner_ads
+  set clicks = coalesce(clicks, 0) + 1
+  where id = ad_id;
 end;
 $$;
 
