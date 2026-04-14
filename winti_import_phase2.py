@@ -2,12 +2,16 @@
 """
 ╔══════════════════════════════════════════════════════════════════╗
 ║  Winti Guide – Phase 2 Import Script                            ║
-║  Quellen: winterthur.com + myswitzerland.com (Events-Scraping)  ║
+║  Quellen: winterthur.com, myswitzerland.com, altekaserne.ch,    ║
+║           stadttheater-winterthur.ch, casinotheater.ch,         ║
+║           musikkollegium.ch, fotomuseum.ch, technorama.ch,      ║
+║           kunsthallewinterthur.ch, stadt.winterthur.ch,         ║
+║           Eventbrite API, opendata.swiss, iCal-Feeds            ║
 ║  Ziel:    Supabase events-Tabelle                                ║
 ╚══════════════════════════════════════════════════════════════════╝
 
 Installation:
-    pip install requests beautifulsoup4 supabase python-dateutil
+    pip install requests beautifulsoup4 supabase python-dateutil icalendar
 
 Ausführen:
     python3 winti_import_phase2.py
@@ -18,16 +22,34 @@ Automatisierung (wöchentlich, z.B. via cron):
 
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date as date_type
 from dateutil import parser as dateparser
 import time
 import re
 import sys
 import json
+try:
+    from icalendar import Calendar as ICalendar
+    ICAL_AVAILABLE = True
+except ImportError:
+    ICAL_AVAILABLE = False
 
 # ── Konfiguration ────────────────────────────────────────────────
 SUPABASE_URL = "https://DEINE-PROJECT-ID.supabase.co"
 SUPABASE_KEY = "DEIN-SERVICE-ROLE-KEY"
+
+# Eventbrite API-Key (https://www.eventbrite.com/platform/api)
+# Kostenloses Entwickler-Konto reicht für den Import.
+EVENTBRITE_TOKEN = "DEIN-EVENTBRITE-TOKEN"
+EVENTBRITE_MAX_PAGES = 5  # Maximale Seitenzahl beim Eventbrite-Import (à 50 Events)
+
+# Öffentliche iCal-Feeds: (URL, source_name, default_location)
+# URLs ggf. anpassen oder weitere Feeds ergänzen.
+ICAL_FEEDS = [
+    ("https://stadtbibliothek.winterthur.ch/events.ics",   "stadtbibliothek",   "Stadtbibliothek Winterthur"),
+    ("https://naturmuseum.stadtwinterthur.ch/events.ics",  "naturmuseum",       "Naturmuseum Winterthur"),
+    ("https://gewerbemuseum.ch/events.ics",                "gewerbemuseum",     "Gewerbemuseum Winterthur"),
+]
 
 HEADERS = {
     "User-Agent": "WintiGuide/1.0 (Stadtführer-App Winterthur; kontakt@wintiGuide.ch)",
@@ -389,7 +411,703 @@ def scrape_alte_kaserne() -> list[dict]:
     return events
 
 
-# ── Datum-Parser ─────────────────────────────────────────────────
+# ── Scraper 4: Stadttheater Winterthur ───────────────────────────
+def scrape_stadttheater() -> list[dict]:
+    """
+    Scrapt den Spielplan des Stadttheaters Winterthur.
+    Quelle: stadttheater-winterthur.ch/spielplan
+    """
+    print("  → stadttheater-winterthur.ch scrapen…")
+    events = []
+    base_url = "https://www.stadttheater-winterthur.ch"
+    urls = [f"{base_url}/spielplan", f"{base_url}/programm", base_url]
+
+    for url in urls:
+        try:
+            res = requests.get(url, headers=HEADERS, timeout=15)
+            if res.status_code != 200:
+                continue
+            soup = BeautifulSoup(res.text, "html.parser")
+
+            # JSON-LD zuerst
+            for script in soup.find_all("script", type="application/ld+json"):
+                try:
+                    data = json.loads(script.string or "")
+                    items = data if isinstance(data, list) else [data]
+                    for item in items:
+                        ev = jsonld_to_event(item, "stadttheater")
+                        if ev:
+                            ev["location"] = "Stadttheater Winterthur"
+                            if not ev.get("cat"):
+                                ev["cat"] = "theater"
+                            events.append(ev)
+                except Exception:
+                    pass
+
+            # HTML-Fallback
+            if not events:
+                for card in soup.select(
+                    "article, .event, .spielplan-item, .production, [class*='event'], [class*='vorstellung']"
+                )[:40]:
+                    ev = parse_event_card(card, "stadttheater", base_url)
+                    if ev:
+                        ev["location"] = "Stadttheater Winterthur"
+                        ev["cat"] = ev.get("cat") or "theater"
+                        events.append(ev)
+
+            if events:
+                break
+            time.sleep(1)
+
+        except requests.exceptions.ConnectionError:
+            print("  ⚠️  stadttheater-winterthur.ch nicht erreichbar")
+            break
+        except Exception as e:
+            print(f"  ⚠️  stadttheater: {e}")
+
+    print(f"  ✓ {len(events)} Events vom Stadttheater Winterthur")
+    return events
+
+
+# ── Scraper 5: Casinotheater Winterthur ──────────────────────────
+def scrape_casinotheater() -> list[dict]:
+    """
+    Scrapt das Programm des Casinotheaters Winterthur (Kabarett/Comedy).
+    Quelle: casinotheater.ch/programm
+    """
+    print("  → casinotheater.ch scrapen…")
+    events = []
+    base_url = "https://www.casinotheater.ch"
+    urls = [f"{base_url}/programm", f"{base_url}/spielplan", base_url]
+
+    for url in urls:
+        try:
+            res = requests.get(url, headers=HEADERS, timeout=15)
+            if res.status_code != 200:
+                continue
+            soup = BeautifulSoup(res.text, "html.parser")
+
+            for script in soup.find_all("script", type="application/ld+json"):
+                try:
+                    data = json.loads(script.string or "")
+                    items = data if isinstance(data, list) else [data]
+                    for item in items:
+                        ev = jsonld_to_event(item, "casinotheater")
+                        if ev:
+                            ev["location"] = "Casinotheater Winterthur"
+                            ev["cat"] = ev.get("cat") or "theater"
+                            events.append(ev)
+                except Exception:
+                    pass
+
+            if not events:
+                for card in soup.select(
+                    "article, .event, .programm-item, [class*='event'], [class*='show']"
+                )[:40]:
+                    ev = parse_event_card(card, "casinotheater", base_url)
+                    if ev:
+                        ev["location"] = "Casinotheater Winterthur"
+                        ev["cat"] = ev.get("cat") or "theater"
+                        events.append(ev)
+
+            if events:
+                break
+            time.sleep(1)
+
+        except requests.exceptions.ConnectionError:
+            print("  ⚠️  casinotheater.ch nicht erreichbar")
+            break
+        except Exception as e:
+            print(f"  ⚠️  casinotheater: {e}")
+
+    print(f"  ✓ {len(events)} Events vom Casinotheater Winterthur")
+    return events
+
+
+# ── Scraper 6: Musikkollegium Winterthur ─────────────────────────
+def scrape_musikkollegium() -> list[dict]:
+    """
+    Scrapt Konzerttermine des Musikkollegiums Winterthur.
+    Quelle: musikkollegium.ch/konzerte
+    """
+    print("  → musikkollegium.ch scrapen…")
+    events = []
+    base_url = "https://www.musikkollegium.ch"
+    urls = [f"{base_url}/konzerte", f"{base_url}/programm", f"{base_url}/de/konzerte"]
+
+    for url in urls:
+        try:
+            res = requests.get(url, headers=HEADERS, timeout=15)
+            if res.status_code != 200:
+                continue
+            soup = BeautifulSoup(res.text, "html.parser")
+
+            for script in soup.find_all("script", type="application/ld+json"):
+                try:
+                    data = json.loads(script.string or "")
+                    items = data if isinstance(data, list) else [data]
+                    for item in items:
+                        ev = jsonld_to_event(item, "musikkollegium")
+                        if ev:
+                            ev["location"] = ev.get("location") or "Stadthaus Winterthur"
+                            ev["cat"] = "musik"
+                            events.append(ev)
+                except Exception:
+                    pass
+
+            if not events:
+                for card in soup.select(
+                    "article, .event, .concert, .konzert-item, [class*='event'], [class*='concert']"
+                )[:40]:
+                    ev = parse_event_card(card, "musikkollegium", base_url)
+                    if ev:
+                        ev["location"] = ev.get("location") or "Stadthaus Winterthur"
+                        ev["cat"] = "musik"
+                        events.append(ev)
+
+            if events:
+                break
+            time.sleep(1)
+
+        except requests.exceptions.ConnectionError:
+            print("  ⚠️  musikkollegium.ch nicht erreichbar")
+            break
+        except Exception as e:
+            print(f"  ⚠️  musikkollegium: {e}")
+
+    print(f"  ✓ {len(events)} Events vom Musikkollegium Winterthur")
+    return events
+
+
+# ── Scraper 7: Fotomuseum Winterthur ─────────────────────────────
+def scrape_fotomuseum() -> list[dict]:
+    """
+    Scrapt Veranstaltungen des Fotomuseums Winterthur.
+    Quelle: fotomuseum.ch/de/programm
+    """
+    print("  → fotomuseum.ch scrapen…")
+    events = []
+    base_url = "https://www.fotomuseum.ch"
+    urls = [f"{base_url}/de/programm", f"{base_url}/de/events", base_url]
+
+    for url in urls:
+        try:
+            res = requests.get(url, headers=HEADERS, timeout=15)
+            if res.status_code != 200:
+                continue
+            soup = BeautifulSoup(res.text, "html.parser")
+
+            for script in soup.find_all("script", type="application/ld+json"):
+                try:
+                    data = json.loads(script.string or "")
+                    items = data if isinstance(data, list) else [data]
+                    for item in items:
+                        ev = jsonld_to_event(item, "fotomuseum")
+                        if ev:
+                            ev["location"] = "Fotomuseum Winterthur"
+                            ev["cat"] = "kultur"
+                            events.append(ev)
+                except Exception:
+                    pass
+
+            if not events:
+                for card in soup.select(
+                    "article, .event, .programm-item, [class*='event'], [class*='teaser']"
+                )[:30]:
+                    ev = parse_event_card(card, "fotomuseum", base_url)
+                    if ev:
+                        ev["location"] = "Fotomuseum Winterthur"
+                        ev["cat"] = "kultur"
+                        events.append(ev)
+
+            if events:
+                break
+            time.sleep(1)
+
+        except requests.exceptions.ConnectionError:
+            print("  ⚠️  fotomuseum.ch nicht erreichbar")
+            break
+        except Exception as e:
+            print(f"  ⚠️  fotomuseum: {e}")
+
+    print(f"  ✓ {len(events)} Events vom Fotomuseum Winterthur")
+    return events
+
+
+# ── Scraper 8: Technorama Winterthur ─────────────────────────────
+def scrape_technorama() -> list[dict]:
+    """
+    Scrapt Veranstaltungen des Technorama Winterthur.
+    Quelle: technorama.ch/de/veranstaltungen
+    """
+    print("  → technorama.ch scrapen…")
+    events = []
+    base_url = "https://www.technorama.ch"
+    urls = [f"{base_url}/de/veranstaltungen", f"{base_url}/de/events", base_url]
+
+    for url in urls:
+        try:
+            res = requests.get(url, headers=HEADERS, timeout=15)
+            if res.status_code != 200:
+                continue
+            soup = BeautifulSoup(res.text, "html.parser")
+
+            for script in soup.find_all("script", type="application/ld+json"):
+                try:
+                    data = json.loads(script.string or "")
+                    items = data if isinstance(data, list) else [data]
+                    for item in items:
+                        ev = jsonld_to_event(item, "technorama")
+                        if ev:
+                            ev["location"] = "Technorama Winterthur"
+                            ev["cat"] = "kultur"
+                            events.append(ev)
+                except Exception:
+                    pass
+
+            if not events:
+                for card in soup.select(
+                    "article, .event, [class*='event'], [class*='veranstaltung']"
+                )[:30]:
+                    ev = parse_event_card(card, "technorama", base_url)
+                    if ev:
+                        ev["location"] = "Technorama Winterthur"
+                        ev["cat"] = "kultur"
+                        events.append(ev)
+
+            if events:
+                break
+            time.sleep(1)
+
+        except requests.exceptions.ConnectionError:
+            print("  ⚠️  technorama.ch nicht erreichbar")
+            break
+        except Exception as e:
+            print(f"  ⚠️  technorama: {e}")
+
+    print(f"  ✓ {len(events)} Events vom Technorama Winterthur")
+    return events
+
+
+# ── Scraper 9: Kunsthalle Winterthur ─────────────────────────────
+def scrape_kunsthalle() -> list[dict]:
+    """
+    Scrapt Veranstaltungen der Kunsthalle Winterthur.
+    Quelle: kunsthallewinterthur.ch
+    """
+    print("  → kunsthallewinterthur.ch scrapen…")
+    events = []
+    base_url = "https://kunsthallewinterthur.ch"
+    urls = [
+        f"{base_url}/programm",
+        f"{base_url}/ausstellungen",
+        f"{base_url}/events",
+        base_url,
+    ]
+
+    for url in urls:
+        try:
+            res = requests.get(url, headers=HEADERS, timeout=15)
+            if res.status_code != 200:
+                continue
+            soup = BeautifulSoup(res.text, "html.parser")
+
+            for script in soup.find_all("script", type="application/ld+json"):
+                try:
+                    data = json.loads(script.string or "")
+                    items = data if isinstance(data, list) else [data]
+                    for item in items:
+                        ev = jsonld_to_event(item, "kunsthalle")
+                        if ev:
+                            ev["location"] = "Kunsthalle Winterthur"
+                            ev["cat"] = "kultur"
+                            events.append(ev)
+                except Exception:
+                    pass
+
+            if not events:
+                for card in soup.select(
+                    "article, .event, [class*='event'], [class*='ausstellung']"
+                )[:30]:
+                    ev = parse_event_card(card, "kunsthalle", base_url)
+                    if ev:
+                        ev["location"] = "Kunsthalle Winterthur"
+                        ev["cat"] = "kultur"
+                        events.append(ev)
+
+            if events:
+                break
+            time.sleep(1)
+
+        except requests.exceptions.ConnectionError:
+            print("  ⚠️  kunsthallewinterthur.ch nicht erreichbar")
+            break
+        except Exception as e:
+            print(f"  ⚠️  kunsthalle: {e}")
+
+    print(f"  ✓ {len(events)} Events von der Kunsthalle Winterthur")
+    return events
+
+
+# ── Scraper 10: Stadt Winterthur Veranstaltungskalender ──────────
+def scrape_stadt_winterthur() -> list[dict]:
+    """
+    Scrapt den offiziellen Veranstaltungskalender der Stadt Winterthur.
+    Quelle: stadt.winterthur.ch/themen/veranstaltungen
+    Versucht zuerst einen iCal-Export, dann JSON-LD, dann HTML.
+    """
+    print("  → stadt.winterthur.ch scrapen…")
+    events = []
+    base_url = "https://stadt.winterthur.ch"
+
+    # Mögliche iCal-Export-URLs
+    ical_candidates = [
+        f"{base_url}/themen/veranstaltungen/veranstaltungen.ics",
+        f"{base_url}/veranstaltungen.ics",
+    ]
+    for ical_url in ical_candidates:
+        ical_events = import_ical(ical_url, "stadt_winterthur", default_location="Winterthur")
+        if ical_events:
+            events.extend(ical_events)
+            break
+
+    if not events:
+        urls = [
+            f"{base_url}/themen/veranstaltungen",
+            f"{base_url}/leben-in-winterthur/freizeit-und-kultur/veranstaltungen",
+        ]
+        for url in urls:
+            try:
+                res = requests.get(url, headers=HEADERS, timeout=15)
+                if res.status_code != 200:
+                    continue
+                soup = BeautifulSoup(res.text, "html.parser")
+
+                for script in soup.find_all("script", type="application/ld+json"):
+                    try:
+                        data = json.loads(script.string or "")
+                        items = data if isinstance(data, list) else [data]
+                        for item in items:
+                            ev = jsonld_to_event(item, "stadt_winterthur")
+                            if ev:
+                                events.append(ev)
+                    except Exception:
+                        pass
+
+                if not events:
+                    for card in soup.select(
+                        "article, .event, [class*='event'], [class*='veranstaltung']"
+                    )[:40]:
+                        ev = parse_event_card(card, "stadt_winterthur", base_url)
+                        if ev:
+                            events.append(ev)
+
+                if events:
+                    break
+                time.sleep(1)
+
+            except requests.exceptions.ConnectionError:
+                print("  ⚠️  stadt.winterthur.ch nicht erreichbar")
+                break
+            except Exception as e:
+                print(f"  ⚠️  stadt_winterthur: {e}")
+
+    print(f"  ✓ {len(events)} Events von stadt.winterthur.ch")
+    return events
+
+
+# ── Scraper 11: Eventbrite API ────────────────────────────────────
+def scrape_eventbrite() -> list[dict]:
+    """
+    Lädt Events via Eventbrite API für den Standort Winterthur.
+    API-Key: EVENTBRITE_TOKEN (oben konfigurieren).
+    Dokumentation: https://www.eventbrite.com/platform/api
+    """
+    print("  → Eventbrite API abfragen…")
+    events = []
+
+    if EVENTBRITE_TOKEN == "DEIN-EVENTBRITE-TOKEN":
+        print("  ⚠️  Eventbrite-Token nicht konfiguriert – übersprungen")
+        return events
+
+    api_url = "https://www.eventbriteapi.com/v3/events/search/"
+    params = {
+        "location.address":   "Winterthur, Switzerland",
+        "location.within":    "10km",
+        "expand":             "venue,ticket_availability",
+        "start_date.range_start": datetime.now().strftime("%Y-%m-%dT00:00:00Z"),
+        "page_size":          50,
+    }
+    headers = {
+        "Authorization": f"Bearer {EVENTBRITE_TOKEN}",
+        "Accept":        "application/json",
+    }
+
+    page = 1
+    while page <= EVENTBRITE_MAX_PAGES:
+        params["page"] = page
+        try:
+            res = requests.get(api_url, headers=headers, params=params, timeout=20)
+            if res.status_code == 401:
+                print("  ⚠️  Eventbrite: Ungültiger API-Token")
+                break
+            if res.status_code != 200:
+                print(f"  ⚠️  Eventbrite HTTP {res.status_code}")
+                break
+
+            data = res.json()
+            eb_events = data.get("events", [])
+            if not eb_events:
+                break
+
+            for eb in eb_events:
+                title = eb.get("name", {}).get("text", "")
+                if not title:
+                    continue
+
+                start = eb.get("start", {}).get("local", "")
+                event_date = parse_date(start)
+                if not event_date:
+                    continue
+
+                venue = eb.get("venue") or {}
+                location = venue.get("name", "") or venue.get("address", {}).get("city", "Winterthur")
+
+                desc_raw = (eb.get("description") or {}).get("text", "")
+                desc = desc_raw[:500] if desc_raw else ""
+
+                # Preis
+                price = ""
+                ticket = eb.get("ticket_availability") or {}
+                if ticket.get("is_free"):
+                    price = "Gratis"
+                else:
+                    min_price = ticket.get("minimum_ticket_price") or {}
+                    if min_price.get("display"):
+                        price = min_price["display"]
+
+                time_str = start[11:16] if len(start) > 10 else ""
+                eb_id = eb.get("id", "")
+                source_id = f"eventbrite_{eb_id}" if eb_id else None
+                if not source_id:
+                    source_id = re.sub(r"[^\w_-]", "_", f"eventbrite_{title[:40]}_{event_date}")
+
+                events.append({
+                    "source":     "eventbrite",
+                    "source_id":  source_id[:100],
+                    "title":      title[:200],
+                    "cat":        detect_category(title, desc),
+                    "location":   str(location)[:200],
+                    "event_date": event_date,
+                    "event_time": time_str,
+                    "price":      price,
+                    "description": desc,
+                    "url":        eb.get("url", "")[:300],
+                    "is_active":  True,
+                })
+
+            pagination = data.get("pagination", {})
+            if not pagination.get("has_more_items"):
+                break
+            page += 1
+            time.sleep(1)
+
+        except requests.exceptions.ConnectionError:
+            print("  ⚠️  Eventbrite API nicht erreichbar")
+            break
+        except Exception as e:
+            print(f"  ⚠️  Eventbrite: {e}")
+            break
+
+    print(f"  ✓ {len(events)} Events von Eventbrite")
+    return events
+
+
+# ── Scraper 12: opendata.swiss ────────────────────────────────────
+def scrape_opendata_swiss() -> list[dict]:
+    """
+    Sucht Events im offenen Schweizer Behördendatenportal opendata.swiss.
+    REST-CKAN-API, kein Login nötig.
+    Dokumentation: https://opendata.swiss/de/dataset
+    """
+    print("  → opendata.swiss abfragen…")
+    events = []
+
+    # Suche nach Event-Datensätzen mit Bezug zu Winterthur
+    search_url = "https://ckan.opendata.swiss/api/3/action/package_search"
+    params = {
+        "q":            "winterthur veranstaltung OR events OR kalender",
+        "rows":         10,
+        "fq":           'res_format:"JSON" OR res_format:"CSV"',
+    }
+
+    try:
+        res = requests.get(search_url, params=params, headers=HEADERS, timeout=20)
+        res.raise_for_status()
+        results = res.json().get("result", {}).get("results", [])
+
+        for pkg in results:
+            for resource in pkg.get("resources", []):
+                fmt = resource.get("format", "").upper()
+                if fmt not in ("JSON", "CSV", "GEOJSON"):
+                    continue
+                resource_url = resource.get("url", "")
+                if not resource_url:
+                    continue
+                try:
+                    r2 = requests.get(resource_url, headers=HEADERS, timeout=20)
+                    if r2.status_code != 200:
+                        continue
+                    if fmt == "JSON":
+                        raw = r2.json()
+                        items = raw if isinstance(raw, list) else raw.get("features", raw.get("events", []))
+                        for item in items[:50]:
+                            ev = _opendata_item_to_event(item)
+                            if ev:
+                                events.append(ev)
+                    # CSV parsing omitted – most Event-datasets are JSON
+                    time.sleep(0.5)
+                except Exception:
+                    pass
+
+    except requests.exceptions.ConnectionError:
+        print("  ⚠️  opendata.swiss nicht erreichbar")
+    except Exception as e:
+        print(f"  ⚠️  opendata.swiss: {e}")
+
+    print(f"  ✓ {len(events)} Events von opendata.swiss")
+    return events
+
+
+def _opendata_item_to_event(item: dict) -> dict | None:
+    """Konvertiert ein generisches opendata.swiss-Objekt in ein Event-Dict."""
+    # Unterstützt flache Dicts und GeoJSON-Features
+    props = item.get("properties", item)
+
+    title = props.get("title") or props.get("name") or props.get("bezeichnung") or ""
+    if not title:
+        return None
+    title = str(title).strip()[:200]
+
+    date_raw = (
+        props.get("startDate") or props.get("start_date") or
+        props.get("datum") or props.get("date") or ""
+    )
+    event_date = parse_date(str(date_raw))
+    if not event_date:
+        return None
+
+    location = str(props.get("location") or props.get("ort") or "Winterthur")[:200]
+    desc = str(props.get("description") or props.get("beschreibung") or "")[:500]
+    url = str(props.get("url") or props.get("link") or "")[:300]
+
+    source_id = re.sub(r"[^\w_-]", "_", f"opendata_{title[:40]}_{event_date}")
+
+    return {
+        "source":     "opendata_swiss",
+        "source_id":  source_id[:100],
+        "title":      title,
+        "cat":        detect_category(title, desc),
+        "location":   location,
+        "event_date": event_date,
+        "event_time": "",
+        "price":      "",
+        "description": desc,
+        "url":        url,
+        "is_active":  True,
+    }
+
+
+# ── iCal-Importer (generisch) ─────────────────────────────────────
+def import_ical(url: str, source_name: str, default_location: str = "Winterthur") -> list[dict]:
+    """
+    Lädt einen öffentlichen iCal-Feed und konvertiert die Events.
+
+    Verwendungsbeispiel:
+        import_ical("https://stadtbibliothek.winterthur.ch/events.ics", "stadtbibliothek")
+
+    Bekannte Feeds in Winterthur:
+        - Stadtbibliothek:  https://stadtbibliothek.winterthur.ch  (iCal prüfen)
+        - Naturmuseum:      https://naturmuseum.stadtwinterthur.ch  (iCal prüfen)
+        - Gewerbemuseum:    https://gewerbemuseum.ch                (iCal prüfen)
+    """
+    if not ICAL_AVAILABLE:
+        print(f"  ⚠️  icalendar-Library fehlt – '{source_name}' übersprungen (pip install icalendar)")
+        return []
+
+    events = []
+    try:
+        res = requests.get(url, headers=HEADERS, timeout=15)
+        if res.status_code != 200:
+            return []
+        cal = ICalendar.from_ical(res.content)
+        today = date_type.today()
+
+        for component in cal.walk():
+            if component.name != "VEVENT":
+                continue
+            try:
+                title = str(component.get("SUMMARY", "")).strip()
+                if not title:
+                    continue
+
+                dtstart = component.get("DTSTART")
+                if not dtstart:
+                    continue
+                dt = dtstart.dt
+                if isinstance(dt, datetime):
+                    event_date_obj = dt.date()
+                    time_str = dt.strftime("%H:%M")
+                elif isinstance(dt, date_type):
+                    event_date_obj = dt
+                    time_str = ""
+                else:
+                    continue
+
+                if event_date_obj < today:
+                    continue
+
+                event_date = event_date_obj.strftime("%Y-%m-%d")
+
+                location_raw = str(component.get("LOCATION", "")).strip()
+                location = location_raw[:200] if location_raw else default_location
+
+                desc_raw = str(component.get("DESCRIPTION", "")).strip()
+                desc = re.sub(r"<[^>]+>", "", desc_raw)[:500]
+
+                url_val = str(component.get("URL", "")).strip()[:300]
+
+                uid = str(component.get("UID", "")).strip()
+                source_id = (
+                    f"{source_name}_{uid[:60]}"
+                    if uid
+                    else re.sub(r"[^\w_-]", "_", f"{source_name}_{title[:40]}_{event_date}")
+                )
+
+                events.append({
+                    "source":     source_name,
+                    "source_id":  source_id[:100],
+                    "title":      title[:200],
+                    "cat":        detect_category(title, desc),
+                    "location":   location,
+                    "event_date": event_date,
+                    "event_time": time_str,
+                    "price":      "",
+                    "description": desc,
+                    "url":        url_val,
+                    "is_active":  True,
+                })
+            except Exception:
+                pass
+
+    except requests.exceptions.ConnectionError:
+        pass
+    except Exception as e:
+        print(f"  ⚠️  iCal {source_name}: {e}")
+
+    return events
+
+
 def parse_date(date_str: str) -> str | None:
     """Parst verschiedene Datumsformate in YYYY-MM-DD."""
     if not date_str:
@@ -464,6 +1182,17 @@ def run():
     all_events += scrape_winterthur_com()
     all_events += scrape_myswitzerland()
     all_events += scrape_alte_kaserne()
+    all_events += scrape_stadttheater()
+    all_events += scrape_casinotheater()
+    all_events += scrape_musikkollegium()
+    all_events += scrape_fotomuseum()
+    all_events += scrape_technorama()
+    all_events += scrape_kunsthalle()
+    all_events += scrape_stadt_winterthur()
+    all_events += scrape_eventbrite()
+    all_events += scrape_opendata_swiss()
+    for feed_url, feed_source, feed_location in ICAL_FEEDS:
+        all_events += import_ical(feed_url, feed_source, default_location=feed_location)
 
     print(f"\n  Gesamt roh: {len(all_events)} Events")
 

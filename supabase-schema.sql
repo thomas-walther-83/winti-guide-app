@@ -51,7 +51,11 @@ create table if not exists public.events (
   id          uuid primary key default gen_random_uuid(),
 
   -- Quelle & Deduplizierung
-  source      text default 'manual',        -- manual | winterthur_com | myswitzerland | altekaserne
+  source      text default 'manual',        -- manual | winterthur_com | myswitzerland | altekaserne |
+                                             --   stadttheater | casinotheater | musikkollegium |
+                                             --   fotomuseum | technorama | kunsthalle |
+                                             --   stadt_winterthur | eventbrite | opendata_swiss |
+                                             --   stadtbibliothek | naturmuseum | gewerbemuseum
   source_id   text unique,                  -- verhindert Duplikate bei wiederholtem Import
 
   -- Inhalt
