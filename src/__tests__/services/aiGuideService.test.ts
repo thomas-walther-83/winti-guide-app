@@ -1,3 +1,20 @@
+// Mock Supabase so that fetchListingsContext resolves immediately with empty data.
+// This prevents real network calls and keeps the test suite fast.
+jest.mock('../../config/supabase', () => {
+  const builder: any = {};
+  ['select', 'eq', 'limit'].forEach((m) => {
+    builder[m] = jest.fn().mockReturnValue(builder);
+  });
+  builder.then = jest.fn((resolve: any) =>
+    Promise.resolve({ data: [], error: null }).then(resolve),
+  );
+  return {
+    supabase: {
+      from: jest.fn().mockReturnValue(builder),
+    },
+  };
+});
+
 import { askAiGuide } from '../../services/aiGuideService';
 
 // No API key is set in the test environment, so askAiGuide uses getOfflineResponse.
