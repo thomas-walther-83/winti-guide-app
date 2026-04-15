@@ -8,7 +8,9 @@ import {
 } from 'react-native';
 import { MapWebView } from '../components/MapWebView';
 import { CategoryFilter } from '../components/CategoryFilter';
+import { SubCategoryFilter } from '../components/SubCategoryFilter';
 import { fetchListingsWithCoords } from '../services/supabaseService';
+import { SUB_CATEGORY_ALIASES } from '../config/subcategories';
 import { theme } from '../styles/theme';
 import type { Listing, ListingCategory } from '../types';
 
@@ -119,6 +121,12 @@ export function MapScreen({ focusListing }: { focusListing?: Listing | null }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<ListingCategory | 'all'>('all');
+  const [selectedSubType, setSelectedSubType] = useState<string>('all');
+
+  // Reset subcategory whenever category changes
+  useEffect(() => {
+    setSelectedSubType('all');
+  }, [selectedCategory]);
 
   useEffect(() => {
     async function load() {
@@ -136,9 +144,17 @@ export function MapScreen({ focusListing }: { focusListing?: Listing | null }) {
     load();
   }, []);
 
-  const filteredListings = selectedCategory === 'all'
-    ? listings
-    : listings.filter((l) => l.category === selectedCategory);
+  const filteredListings = (() => {
+    let result = selectedCategory === 'all'
+      ? listings
+      : listings.filter((l) => l.category === selectedCategory);
+
+    if (selectedSubType !== 'all') {
+      const aliases = SUB_CATEGORY_ALIASES[selectedSubType] ?? [selectedSubType.toLowerCase()];
+      result = result.filter((l) => aliases.includes((l.sub_type ?? '').toLowerCase()));
+    }
+    return result;
+  })();
 
   const html = buildLeafletHTML(filteredListings, focusListing);
 
@@ -154,6 +170,14 @@ export function MapScreen({ focusListing }: { focusListing?: Listing | null }) {
       </View>
 
       <CategoryFilter selected={selectedCategory} onSelect={setSelectedCategory} />
+
+      {selectedCategory !== 'all' && (
+        <SubCategoryFilter
+          category={selectedCategory}
+          selected={selectedSubType}
+          onSelect={setSelectedSubType}
+        />
+      )}
 
       {loading && (
         <View style={styles.loadingOverlay}>
