@@ -43,7 +43,7 @@ SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
 
 # Eventbrite API-Key (https://www.eventbrite.com/platform/api)
 # Kostenloses Entwickler-Konto reicht für den Import.
-EVENTBRITE_TOKEN = os.environ.get("EVENTBRITE_TOKEN", "DEIN-EVENTBRITE-TOKEN")
+EVENTBRITE_TOKEN = os.environ.get("EVENTBRITE_TOKEN", "")
 EVENTBRITE_MAX_PAGES = 5  # Maximale Seitenzahl beim Eventbrite-Import (à 50 Events)
 
 # Öffentliche iCal-Feeds: (URL, source_name, default_location)
@@ -829,7 +829,7 @@ def scrape_eventbrite() -> list[dict]:
     print("  → Eventbrite API abfragen…")
     events = []
 
-    if EVENTBRITE_TOKEN == "DEIN-EVENTBRITE-TOKEN":
+    if not EVENTBRITE_TOKEN:
         print("  ⚠️  Eventbrite-Token nicht konfiguriert – übersprungen")
         return events
 
