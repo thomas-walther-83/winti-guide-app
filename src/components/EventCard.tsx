@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Linking,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import type { Event } from '../types';
 
@@ -24,16 +25,30 @@ interface EventCardProps {
   event: Event;
 }
 
-function formatDate(dateStr: string): string {
+function formatWeekday(dateStr: string): string {
   try {
     const date = new Date(dateStr + 'T00:00:00');
-    return date.toLocaleDateString('de-CH', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-    });
+    return date.toLocaleDateString('de-CH', { weekday: 'short' }).toUpperCase();
+  } catch {
+    return '';
+  }
+}
+
+function formatDay(dateStr: string): string {
+  try {
+    const date = new Date(dateStr + 'T00:00:00');
+    return String(date.getDate());
   } catch {
     return dateStr;
+  }
+}
+
+function formatMonth(dateStr: string): string {
+  try {
+    const date = new Date(dateStr + 'T00:00:00');
+    return date.toLocaleDateString('de-CH', { month: 'short' }).toUpperCase();
+  } catch {
+    return '';
   }
 }
 
@@ -51,15 +66,22 @@ export function EventCard({ event }: EventCardProps) {
 
   return (
     <View style={styles.card}>
+      {/* Date column */}
       <View style={styles.dateColumn}>
-        <Text style={styles.dateText}>{formatDate(event.event_date)}</Text>
+        <Text style={styles.weekday}>{formatWeekday(event.event_date)}</Text>
+        <Text style={styles.dayNumber}>{formatDay(event.event_date)}</Text>
+        <Text style={styles.month}>{formatMonth(event.event_date)}</Text>
         {isToday && (
           <View style={styles.todayBadge}>
             <Text style={styles.todayText}>HEUTE</Text>
           </View>
         )}
       </View>
+
+      {/* Divider */}
       <View style={styles.divider} />
+
+      {/* Content */}
       <View style={styles.content}>
         <View style={styles.titleRow}>
           <Text style={styles.emoji}>{emoji}</Text>
@@ -67,11 +89,13 @@ export function EventCard({ event }: EventCardProps) {
             {event.title}
           </Text>
         </View>
+
         {event.location ? (
           <Text style={styles.detail} numberOfLines={1}>
             📍 {event.location}
           </Text>
         ) : null}
+
         <View style={styles.meta}>
           {event.event_time ? (
             <Text style={styles.metaItem}>🕐 {event.event_time}</Text>
@@ -86,14 +110,17 @@ export function EventCard({ event }: EventCardProps) {
             </Text>
           ) : null}
         </View>
+
         {event.description ? (
           <Text style={styles.description} numberOfLines={2}>
             {event.description}
           </Text>
         ) : null}
+
         {event.url ? (
           <TouchableOpacity style={styles.linkBtn} onPress={handleUrl}>
-            <Text style={styles.linkText}>Mehr erfahren →</Text>
+            <Text style={styles.linkText}>Mehr erfahren</Text>
+            <Ionicons name="arrow-forward" size={13} color={theme.colors.primary} />
           </TouchableOpacity>
         ) : null}
       </View>
@@ -103,13 +130,15 @@ export function EventCard({ event }: EventCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.background,
     borderRadius: theme.borderRadius.lg,
     flexDirection: 'row',
     marginHorizontal: theme.spacing.md,
-    marginVertical: theme.spacing.sm,
+    marginVertical: theme.spacing.xs,
     overflow: 'hidden',
-    ...theme.shadow.medium,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    ...theme.shadow.small,
   },
   dateColumn: {
     width: 72,
@@ -117,22 +146,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: theme.spacing.sm,
-    gap: theme.spacing.xs,
+    gap: 1,
   },
-  dateText: {
-    color: theme.colors.surface,
-    fontSize: 13,
-    fontWeight: '700',
-    textAlign: 'center',
+  weekday: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  dayNumber: {
+    color: '#FFFFFF',
+    fontSize: 28,
+    fontWeight: '800',
+    lineHeight: 32,
+  },
+  month: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
   todayBadge: {
-    backgroundColor: theme.colors.secondary,
+    backgroundColor: 'rgba(255,255,255,0.25)',
     borderRadius: theme.borderRadius.sm,
     paddingHorizontal: 4,
     paddingVertical: 2,
+    marginTop: 3,
   },
   todayText: {
-    color: theme.colors.surface,
+    color: '#FFFFFF',
     fontSize: 9,
     fontWeight: '800',
     letterSpacing: 0.5,
@@ -181,6 +223,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   linkBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
     alignSelf: 'flex-start',
     marginTop: theme.spacing.xs,
   },

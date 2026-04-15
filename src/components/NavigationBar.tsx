@@ -1,6 +1,16 @@
 import React from 'react';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
+
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
+const TAB_ICONS: Record<string, { active: IoniconName; inactive: IoniconName }> = {
+  home: { active: 'compass', inactive: 'compass-outline' },
+  calendar: { active: 'calendar', inactive: 'calendar-outline' },
+  map: { active: 'map', inactive: 'map-outline' },
+  saved: { active: 'heart', inactive: 'heart-outline' },
+};
 
 interface Tab {
   key: string;
@@ -19,6 +29,12 @@ export function NavigationBar({ tabs, activeTab, onTabPress }: NavigationBarProp
     <View style={styles.container}>
       {tabs.map((tab) => {
         const isActive = activeTab === tab.key;
+        const icons = TAB_ICONS[tab.key];
+        const iconName: IoniconName = icons
+          ? isActive
+            ? icons.active
+            : icons.inactive
+          : 'ellipse-outline';
         return (
           <TouchableOpacity
             key={tab.key}
@@ -26,11 +42,15 @@ export function NavigationBar({ tabs, activeTab, onTabPress }: NavigationBarProp
             onPress={() => onTabPress(tab.key)}
             activeOpacity={0.7}
           >
-            <Text style={styles.emoji}>{tab.emoji}</Text>
+            {isActive && <View style={styles.indicator} />}
+            <Ionicons
+              name={iconName}
+              size={24}
+              color={isActive ? theme.colors.tabBarActive : theme.colors.tabBarInactive}
+            />
             <Text style={[styles.label, isActive && styles.labelActive]}>
               {tab.label}
             </Text>
-            {isActive && <View style={styles.indicator} />}
           </TouchableOpacity>
         );
       })}
@@ -54,9 +74,6 @@ const styles = StyleSheet.create({
     gap: 2,
     paddingVertical: 4,
     position: 'relative',
-  },
-  emoji: {
-    fontSize: 22,
   },
   label: {
     fontSize: 11,

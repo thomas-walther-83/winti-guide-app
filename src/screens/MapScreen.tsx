@@ -5,9 +5,8 @@ import {
   StyleSheet,
   ActivityIndicator,
   SafeAreaView,
-  Platform,
 } from 'react-native';
-import { WebView } from 'react-native-webview';
+import { MapWebView } from '../components/MapWebView';
 import { fetchListingsWithCoords } from '../services/supabaseService';
 import { theme } from '../styles/theme';
 import type { Listing } from '../types';
@@ -125,7 +124,7 @@ export function MapScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>🗺️ Karte</Text>
+        <Text style={styles.title}>Karte</Text>
         <Text style={styles.subtitle}>
           {listings.length > 0
             ? `${listings.length} Orte in Winterthur`
@@ -147,27 +146,10 @@ export function MapScreen() {
       )}
 
       {!error && (
-        <WebView
-          style={styles.webview}
-          source={{ html }}
-          javaScriptEnabled
-          originWhitelist={['*']}
-          mixedContentMode="always"
-          allowUniversalAccessFromFileURLs
-          domStorageEnabled
-          startInLoadingState={loading}
-          renderLoading={() => (
-            <View style={styles.loadingOverlay}>
-              <ActivityIndicator size="large" color={theme.colors.primary} />
-            </View>
-          )}
+        <MapWebView
+          html={html}
+          loading={loading}
           onError={(e) => setError(e.nativeEvent.description)}
-          // Required for iOS WKWebView to load remote resources
-          allowsInlineMediaPlayback
-          mediaPlaybackRequiresUserAction={false}
-          // Android scrolling fix
-          scrollEnabled={false}
-          nestedScrollEnabled={Platform.OS === 'android'}
         />
       )}
 
@@ -198,18 +180,15 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   title: {
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: '800',
     color: theme.colors.text,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 13,
     color: theme.colors.textSecondary,
     marginTop: 2,
-  },
-  webview: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,

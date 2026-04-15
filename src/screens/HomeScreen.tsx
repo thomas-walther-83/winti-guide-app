@@ -15,8 +15,12 @@ import { fetchPartnerAds } from '../services/supabaseService';
 import { ListingCard } from '../components/ListingCard';
 import { PartnerAdBanner } from '../components/PartnerAdBanner';
 import { CategoryFilter } from '../components/CategoryFilter';
+import { SubCategoryFilter } from '../components/SubCategoryFilter';
 import { SearchBar } from '../components/SearchBar';
+import { FeaturedRow } from '../components/FeaturedRow';
+import { SectionHeader } from '../components/SectionHeader';
 import { theme } from '../styles/theme';
+import { SUB_CATEGORY_ALIASES } from '../config/subcategories';
 import type { Listing, ListingCategory, PartnerAd } from '../types';
 
 const SAVED_KEY = 'winti_saved_listings';
@@ -39,19 +43,33 @@ async function toggleSaved(id: string, current: string[]): Promise<string[]> {
   return next;
 }
 
-type ListItem =
-  | { type: 'listing'; data: Listing }
-  | { type: 'ad'; data: PartnerAd };
+function getFormattedDate(): string {
+  return new Date().toLocaleDateString('de-CH', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+}
+
+type HeaderSection =
+  | { type: 'header' }
+  | { type: 'search' }
+  | { type: 'featured' }
+  | { type: 'categories' }
+  | { type: 'subcategories' }
+  | { type: 'section-title'; title: string };
+
+type ListItem = HeaderSection | { type: 'listing'; data: Listing } | { type: 'ad'; data: PartnerAd };
 
 export function HomeScreen({ onNavigateToAccount }: { onNavigateToAccount?: () => void }) {
   const [category, setCategory] = useState<ListingCategory | 'all'>('all');
+  const [subType, setSubType] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [partnerAds, setPartnerAds] = useState<PartnerAd[]>([]);
 
   const { isPremium } = useAppTier();
 
-  // Load saved IDs on mount
   React.useEffect(() => {
     loadSaved().then(setSavedIds);
   }, []);
@@ -69,21 +87,40 @@ export function HomeScreen({ onNavigateToAccount }: { onNavigateToAccount?: () =
     }
   }, [isPremium]);
 
+  // Reset subcategory whenever the main category changes
+  React.useEffect(() => {
+    setSubType('all');
+  }, [category]);
+
   const { listings, loading, error, refresh } = useListings({
     category: category === 'all' ? undefined : category,
     search: search.trim() || undefined,
   });
 
   const filteredListings = useMemo(() => {
-    if (!search.trim()) return listings;
-    const q = search.toLowerCase();
-    return listings.filter(
-      (l) =>
-        l.name.toLowerCase().includes(q) ||
-        (l.address ?? '').toLowerCase().includes(q) ||
-        (l.sub_type ?? '').toLowerCase().includes(q),
-    );
-  }, [listings, search]);
+    let result = listings;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (l) =>
+          l.name.toLowerCase().includes(q) ||
+          (l.address ?? '').toLowerCase().includes(q) ||
+          (l.sub_type ?? '').toLowerCase().includes(q),
+      );
+    }
+    if (subType !== 'all') {
+      const aliases = SUB_CATEGORY_ALIASES[subType] ?? [subType.toLowerCase()];
+      result = result.filter((l) => aliases.includes((l.sub_type ?? '').toLowerCase()));
+    }
+    return result;
+  }, [listings, search, subType]);
+
+  // Pick up to 6 featured listings (premium first, then others)
+  const featuredListings = useMemo(() => {
+    const premium = listings.filter((l) => l.is_premium);
+    const others = listings.filter((l) => !l.is_premium);
+    return [...premium, ...others].slice(0, 6);
+  }, [listings]);
 
   // Interleave ads between listings for free-tier users
   const listItems: ListItem[] = useMemo(() => {
@@ -107,31 +144,132 @@ export function HomeScreen({ onNavigateToAccount }: { onNavigateToAccount?: () =
     setSavedIds(next);
   };
 
+  const categoryLabel = category === 'all' ? 'Alle Orte' : {
+    restaurants: 'Restaurants',
+    cafes: 'Cafés',
+    bars: 'Bars',
+    hotels: 'Hotels',
+    sightseeing: 'Sightseeing',
+    kultur: 'Kultur',
+    geschaefte: 'Geschäfte',
+    sport: 'Sport',
+    touren: 'Touren',
+  }[category] ?? 'Orte';
+
+  // Build FlatList data with header sections injected
+  const listData = useMemo<ListItem[]>(() => {
+    const items: ListItem[] = [
+      { type: 'header' },
+      { type: 'search' },
+      { type: 'categories' },
+    ];
+
+    // Show subcategory chips when a specific category is selected
+    if (category !== 'all') {
+      items.push({ type: 'subcategories' });
+    }
+
+    // Show featured row only when no search active
+    if (!search.trim() && !loading && featuredListings.length > 0) {
+      items.push({ type: 'featured' });
+    }
+
+    if (!loading && !error) {
+      items.push({ type: 'section-title', title: categoryLabel });
+      let adIndex = 0;
+      filteredListings.forEach((l, idx) => {
+        items.push({ type: 'listing', data: l });
+        if (!isPremium && partnerAds.length > 0 && (idx + 1) % AD_FREQUENCY === 0) {
+          items.push({ type: 'ad', data: partnerAds[adIndex % partnerAds.length] });
+          adIndex++;
+        }
+      });
+    }
+
+    return items;
+  }, [search, loading, error, featuredListings, filteredListings, categoryLabel, category, isPremium, partnerAds]);
+
+  const renderItem = ({ item }: { item: ListItem }) => {
+    switch (item.type) {
+      case 'header':
+        return (
+          <View style={styles.header}>
+            <View style={styles.headerLeft}>
+              <Text style={styles.logo}>🦁</Text>
+              <View>
+                <Text style={styles.appName}>Winti Guide</Text>
+                <Text style={styles.headerDate}>{getFormattedDate()}</Text>
+              </View>
+            </View>
+            {!isPremium && (
+              <TouchableOpacity onPress={onNavigateToAccount} style={styles.premiumHint}>
+                <Text style={styles.premiumHintText}>⭐ Premium</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        );
+
+      case 'search':
+        return (
+          <SearchBar
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Restaurants, Cafés, Hotels..."
+          />
+        );
+
+      case 'categories':
+        return <CategoryFilter selected={category} onSelect={setCategory} />;
+
+      case 'subcategories':
+        return category !== 'all' ? (
+          <SubCategoryFilter
+            category={category}
+            selected={subType}
+            onSelect={setSubType}
+          />
+        ) : null;
+
+      case 'featured':
+        return (
+          <>
+            <SectionHeader title="Empfohlen für dich" />
+            <FeaturedRow
+              listings={featuredListings}
+              savedIds={savedIds}
+              onToggleSave={handleToggleSave}
+            />
+          </>
+        );
+
+      case 'section-title':
+        return (
+          <SectionHeader
+            title={(item as { type: 'section-title'; title: string }).title}
+          />
+        );
+
+      case 'ad':
+        return <PartnerAdBanner ad={(item as { type: 'ad'; data: PartnerAd }).data} />;
+
+      case 'listing':
+        return (
+          <ListingCard
+            listing={(item as { type: 'listing'; data: Listing }).data}
+            isSaved={savedIds.includes((item as { type: 'listing'; data: Listing }).data.id)}
+            onToggleSave={handleToggleSave}
+          />
+        );
+
+      default:
+        return null;
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.logo}>🦁</Text>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.title}>Winti Guide</Text>
-          <Text style={styles.subtitle}>Winterthur entdecken</Text>
-        </View>
-        {!isPremium && (
-          <TouchableOpacity onPress={onNavigateToAccount} style={styles.premiumHint}>
-            <Text style={styles.premiumHintText}>⭐ Premium</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      <SearchBar
-        value={search}
-        onChangeText={setSearch}
-        placeholder="Restaurants, Cafés, Hotels..."
-      />
-
-      <CategoryFilter selected={category} onSelect={setCategory} />
-
       {loading && (
-        <View style={styles.center}>
+        <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
           <Text style={styles.loadingText}>Laden...</Text>
         </View>
@@ -146,34 +284,29 @@ export function HomeScreen({ onNavigateToAccount }: { onNavigateToAccount?: () =
         </View>
       )}
 
-      {!loading && !error && filteredListings.length === 0 && (
-        <View style={styles.center}>
-          <Text style={styles.emptyText}>🔍 Keine Einträge gefunden</Text>
-        </View>
-      )}
-
-      {!loading && !error && (
+      {!error && (
         <FlatList
-          data={listItems}
-          keyExtractor={(item, index) =>
-            item.type === 'listing' ? item.data.id : `ad_${item.data.id}_${index}`
-          }
-          renderItem={({ item }) => {
-            if (item.type === 'ad') {
-              return <PartnerAdBanner ad={item.data} />;
-            }
-            return (
-              <ListingCard
-                listing={item.data}
-                isSaved={savedIds.includes(item.data.id)}
-                onToggleSave={handleToggleSave}
-              />
-            );
+          data={listData}
+          keyExtractor={(item, index) => {
+            if (item.type === 'listing') return (item as { type: 'listing'; data: Listing }).data.id;
+            if (item.type === 'ad') return `ad_${(item as { type: 'ad'; data: PartnerAd }).data.id}_${index}`;
+            return `${item.type}-${index}`;
           }}
+          renderItem={renderItem}
+          extraData={{ category, subType, savedIds }}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           onRefresh={refresh}
           refreshing={loading}
+          ListFooterComponent={
+            !loading && !error && filteredListings.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyEmoji}>🔍</Text>
+                <Text style={styles.emptyTitle}>Keine Einträge gefunden</Text>
+                <Text style={styles.emptyHint}>Probiere eine andere Kategorie oder Suche</Text>
+              </View>
+            ) : null
+          }
         />
       )}
     </SafeAreaView>
@@ -188,22 +321,30 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.sm,
+    justifyContent: 'space-between',
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.md,
-    paddingBottom: theme.spacing.sm,
+    paddingBottom: theme.spacing.xs,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
   },
   logo: {
-    fontSize: 36,
+    fontSize: 34,
   },
-  title: {
-    fontSize: 22,
+  appName: {
+    fontSize: 26,
     fontWeight: '800',
     color: theme.colors.primary,
+    letterSpacing: -0.5,
   },
-  subtitle: {
+  headerDate: {
     fontSize: 13,
     color: theme.colors.textSecondary,
+    marginTop: 1,
+    textTransform: 'capitalize',
   },
   premiumHint: {
     backgroundColor: theme.colors.premium,
@@ -219,16 +360,24 @@ const styles = StyleSheet.create({
   list: {
     paddingBottom: theme.spacing.xl,
   },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: theme.colors.background,
+    gap: theme.spacing.md,
+    zIndex: 10,
+  },
+  loadingText: {
+    color: theme.colors.textSecondary,
+    fontSize: 14,
+  },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     gap: theme.spacing.md,
     paddingHorizontal: theme.spacing.xl,
-  },
-  loadingText: {
-    color: theme.colors.textSecondary,
-    fontSize: 14,
   },
   errorText: {
     color: theme.colors.error,
@@ -242,12 +391,27 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.md,
   },
   retryText: {
-    color: theme.colors.surface,
+    color: '#FFFFFF',
     fontWeight: '600',
   },
-  emptyText: {
+  emptyState: {
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.xl,
+    paddingTop: theme.spacing.xl,
+  },
+  emptyEmoji: {
+    fontSize: 48,
+  },
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: theme.colors.text,
+    textAlign: 'center',
+  },
+  emptyHint: {
+    fontSize: 14,
     color: theme.colors.textSecondary,
-    fontSize: 15,
     textAlign: 'center',
   },
 });

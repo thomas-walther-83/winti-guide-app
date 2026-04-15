@@ -68,7 +68,7 @@ export function SavedScreen({ onNavigateToAccount }: { onNavigateToAccount?: () 
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>❤️ Gespeichert</Text>
+          <Text style={styles.title}>Gespeichert</Text>
         </View>
         <View style={styles.center}>
           <Text style={styles.loadingText}>Laden...</Text>
@@ -80,7 +80,7 @@ export function SavedScreen({ onNavigateToAccount }: { onNavigateToAccount?: () 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>❤️ Gespeichert</Text>
+        <Text style={styles.title}>Gespeichert</Text>
         {savedListings.length > 0 && (
           <Text style={styles.count}>
             {visibleListings.length}
@@ -166,9 +166,10 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.sm,
   },
   title: {
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: '800',
     color: theme.colors.text,
+    letterSpacing: -0.5,
   },
   count: {
     fontSize: 13,

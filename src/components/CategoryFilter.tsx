@@ -6,26 +6,29 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import type { ListingCategory } from '../types';
+
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 interface CategoryItem {
   key: ListingCategory | 'all';
   label: string;
-  emoji: string;
+  icon: IoniconName;
 }
 
 const CATEGORIES: CategoryItem[] = [
-  { key: 'all', label: 'Alle', emoji: '🗺️' },
-  { key: 'restaurants', label: 'Restaurants', emoji: '🍽️' },
-  { key: 'cafes', label: 'Cafés', emoji: '☕' },
-  { key: 'bars', label: 'Bars', emoji: '🍸' },
-  { key: 'hotels', label: 'Hotels', emoji: '🏨' },
-  { key: 'sightseeing', label: 'Sightseeing', emoji: '🏛️' },
-  { key: 'kultur', label: 'Kultur', emoji: '🎨' },
-  { key: 'geschaefte', label: 'Geschäfte', emoji: '🛍️' },
-  { key: 'sport', label: 'Sport', emoji: '🏊' },
-  { key: 'touren', label: 'Touren', emoji: '🗺️' },
+  { key: 'all', label: 'Alle', icon: 'grid-outline' },
+  { key: 'restaurants', label: 'Restaurants', icon: 'restaurant-outline' },
+  { key: 'cafes', label: 'Cafés', icon: 'cafe-outline' },
+  { key: 'bars', label: 'Bars', icon: 'wine-outline' },
+  { key: 'hotels', label: 'Hotels', icon: 'bed-outline' },
+  { key: 'sightseeing', label: 'Sightseeing', icon: 'camera-outline' },
+  { key: 'kultur', label: 'Kultur', icon: 'color-palette-outline' },
+  { key: 'geschaefte', label: 'Geschäfte', icon: 'bag-handle-outline' },
+  { key: 'sport', label: 'Sport', icon: 'bicycle-outline' },
+  { key: 'touren', label: 'Touren', icon: 'footsteps-outline' },
 ];
 
 interface CategoryFilterProps {
@@ -50,7 +53,11 @@ export function CategoryFilter({ selected, onSelect }: CategoryFilterProps) {
             onPress={() => onSelect(cat.key)}
             activeOpacity={0.7}
           >
-            <Text style={styles.emoji}>{cat.emoji}</Text>
+            <Ionicons
+              name={cat.icon}
+              size={15}
+              color={isActive ? '#FFFFFF' : theme.colors.primary}
+            />
             <Text style={[styles.label, isActive && styles.labelActive]}>
               {cat.label}
             </Text>
@@ -73,28 +80,24 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
     paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
+    paddingVertical: 8,
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.full,
     borderWidth: 1.5,
-    borderColor: theme.colors.border,
-    ...theme.shadow.small,
+    borderColor: theme.colors.primary,
   },
   chipActive: {
     backgroundColor: theme.colors.primary,
     borderColor: theme.colors.primary,
   },
-  emoji: {
-    fontSize: 14,
-  },
   label: {
     fontSize: 13,
-    fontWeight: '500',
-    color: theme.colors.text,
+    fontWeight: '600',
+    color: theme.colors.primary,
   },
   labelActive: {
-    color: theme.colors.surface,
+    color: '#FFFFFF',
   },
 });
