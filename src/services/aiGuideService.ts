@@ -46,14 +46,43 @@ function detectCategory(question: string): ListingCategory | undefined {
   return match?.category;
 }
 
-/** Fetch active listings from Supabase and format them as a compact context string. */
-async function fetchListingsContext(category?: ListingCategory): Promise<string> {
+interface ListingRow {
+  name: string;
+  sub_type?: string;
+  address?: string;
+  hours?: string;
+  description?: string;
+  stars?: string;
+  is_premium?: boolean;
+}
+
+/** Structured listings context split into regular (rated) and premium (partner) entries. */
+interface ListingsContext {
+  /** Regular listings sorted by star rating descending, formatted as text lines. */
+  regular: string;
+  /** Premium partner listings, formatted as text lines. */
+  partners: string;
+}
+
+/** Regex that matches a trailing star-rating token added by formatRow, e.g. " ⭐ 4.5". */
+const STAR_RATING_SUFFIX_RE = /\s*⭐\s*[\d.]+\s*$/;
+function formatRow(l: ListingRow): string {
+  const parts: string[] = [l.name];
+  if (l.sub_type) parts.push(`(${l.sub_type})`);
+  if (l.stars) parts.push(`⭐ ${l.stars}`);
+  if (l.address) parts.push(`– ${l.address}`);
+  if (l.hours) parts.push(`| Öffnungszeiten: ${l.hours}`);
+  if (l.description) parts.push(`| ${l.description}`);
+  return parts.join(' ');
+}
+
+/** Fetch active listings from Supabase, split into rated regulars and premium partners. */
+async function fetchListingsContext(category?: ListingCategory): Promise<ListingsContext> {
   try {
     let query = supabase
       .from('listings')
-      .select('name, sub_type, address, hours, description')
+      .select('name, sub_type, address, hours, description, stars, is_premium')
       .eq('is_active', true)
-      .order('name')
       .limit(category ? CATEGORY_LISTINGS_LIMIT : ALL_LISTINGS_LIMIT);
 
     if (category) {
@@ -61,33 +90,47 @@ async function fetchListingsContext(category?: ListingCategory): Promise<string>
     }
 
     const { data, error } = await query;
-    if (error || !data || data.length === 0) return '';
+    if (error || !data || data.length === 0) return { regular: '', partners: '' };
 
-    const lines = (data as Array<{
-      name: string;
-      sub_type?: string;
-      address?: string;
-      hours?: string;
-      description?: string;
-    }>).map((l) => {
-      const parts: string[] = [l.name];
-      if (l.sub_type) parts.push(`(${l.sub_type})`);
-      if (l.address) parts.push(`– ${l.address}`);
-      if (l.hours) parts.push(`| Öffnungszeiten: ${l.hours}`);
-      if (l.description) parts.push(`| ${l.description}`);
-      return parts.join(' ');
-    });
+    const rows = data as ListingRow[];
 
-    return lines.join('\n');
+    const partners = rows.filter((r) => r.is_premium);
+    const regular = rows
+      .filter((r) => !r.is_premium)
+      .sort((a, b) => {
+        const sa = parseFloat(a.stars ?? '') || 0;
+        const sb = parseFloat(b.stars ?? '') || 0;
+        if (sb !== sa) return sb - sa;
+        return (a.name ?? '').localeCompare(b.name ?? '');
+      });
+
+    return {
+      regular: regular.map(formatRow).join('\n'),
+      partners: partners.map(formatRow).join('\n'),
+    };
   } catch {
-    return '';
+    return { regular: '', partners: '' };
   }
 }
 
-/** Build the system prompt, optionally enriched with live listings data. */
-function buildSystemPrompt(listingsContext: string): string {
-  if (!listingsContext) return SYSTEM_PROMPT_BASE;
-  return `${SYSTEM_PROMPT_BASE}\n\nAKTUELLE ORTE IN WINTERTHUR (nutze diese echten Daten für spezifische Empfehlungen):\n${listingsContext}`;
+/** Build the system prompt, enriched with rated listings and partner recommendations. */
+function buildSystemPrompt(ctx: ListingsContext): string {
+  const sections: string[] = [];
+
+  if (ctx.regular) {
+    sections.push(
+      `HOCH BEWERTETE ORTE IN WINTERTHUR (sortiert nach Nutzerbewertungen – nutze diese für konkrete Empfehlungen):\n${ctx.regular}`,
+    );
+  }
+
+  if (ctx.partners) {
+    sections.push(
+      `PARTNER-EMPFEHLUNGEN (bezahlte Werbepartner – empfehle diese NUR, wenn sie wirklich zur Anfrage passen, und kennzeichne sie immer ausdrücklich als Partner, z.B. "Unser Partner … empfiehlt sich besonders"):\n${ctx.partners}`,
+    );
+  }
+
+  if (sections.length === 0) return SYSTEM_PROMPT_BASE;
+  return `${SYSTEM_PROMPT_BASE}\n\n${sections.join('\n\n')}`;
 }
 
 /** Send a message to the OpenAI Chat API and return the assistant reply. */
@@ -96,14 +139,14 @@ export async function askAiGuide(
   history: ChatMessage[] = [],
 ): Promise<string> {
   const category = detectCategory(question);
-  const listingsContext = await fetchListingsContext(category);
+  const ctx = await fetchListingsContext(category);
 
   if (!OPENAI_API_KEY || OPENAI_API_KEY === 'sk-your-openai-api-key-here') {
-    return getOfflineResponse(question, listingsContext);
+    return getOfflineResponse(question, ctx);
   }
 
   const messages = [
-    { role: 'system', content: buildSystemPrompt(listingsContext) },
+    { role: 'system', content: buildSystemPrompt(ctx) },
     ...history.map((m) => ({ role: m.role, content: m.text })),
     { role: 'user', content: question },
   ];
@@ -132,21 +175,24 @@ export async function askAiGuide(
 }
 
 /** Build a response from listings context listing up to 3 specific places. */
-function buildListingsResponse(listingsContext: string, categoryLabel: string): string {
-  if (!listingsContext) return '';
-  const lines = listingsContext.split('\n').filter(Boolean);
+function buildListingsResponse(ctx: ListingsContext, categoryLabel: string): string {
+  // Prefer rated regular entries; fall back to partner entries if nothing else available
+  const source = ctx.regular || ctx.partners;
+  if (!source) return '';
+  const lines = source.split('\n').filter(Boolean);
   if (lines.length === 0) return '';
   const top = lines.slice(0, 3).map((l) => {
-    // Extract the name/type portion before the address separator '–' or metadata separator '|'
+    // Extract the name/type portion before the stars emoji, address separator '–' or metadata '|'
     const beforeMeta = l.split('|')[0].trim();
     const beforeAddress = beforeMeta.split('–')[0].trim();
-    return beforeAddress || beforeMeta;
+    // Strip trailing star rating like "⭐ 4.5"
+    return beforeAddress.replace(STAR_RATING_SUFFIX_RE, '').trim() || beforeAddress;
   });
   return `Hier sind einige empfehlenswerte ${categoryLabel} in Winterthur: ${top.join('; ')}. Schau dir die vollständige Liste in der App an!`;
 }
 
 /** Fallback responses used when no API key is configured. */
-function getOfflineResponse(question: string, listingsContext: string): string {
+function getOfflineResponse(question: string, ctx: ListingsContext): string {
   const q = question.toLowerCase();
 
   // Detect clearly off-topic queries (tech, app, coding, math, politics, etc.)
@@ -167,26 +213,26 @@ function getOfflineResponse(question: string, listingsContext: string): string {
     return 'Willkommen in Winterthur! 🎉 Ich bin Thomas, dein lokaler Guide. Starte am besten mit einem Spaziergang durch die Altstadt rund um den Stadtgarten, gönn dir einen Kaffee an der Marktgasse und schau dir danach das Kunstmuseum an – eines der bedeutendsten in der Schweiz.';
   }
   if (q.includes('highlight') || q.includes('sehenswürdigkeit') || q.includes('sehen') || q.includes('museum')) {
-    return buildListingsResponse(listingsContext, 'Sehenswürdigkeiten') ||
+    return buildListingsResponse(ctx, 'Sehenswürdigkeiten') ||
       'Die Top-Highlights in Winterthur sind das Kunstmuseum und die Fotostiftung Schweiz, das historische Schloss Kyburg, der Stadtgarten, die Altstadt mit ihren Lauben sowie das Technorama für Familien.';
   }
   if (q.includes('essen') || q.includes('restaurant') || q.includes('speisen') ||
       q.includes('pizza') || q.includes('italienisch') || q.includes('küche')) {
-    return buildListingsResponse(listingsContext, 'Restaurants') ||
+    return buildListingsResponse(ctx, 'Restaurants') ||
       'Winterthur bietet eine tolle Gastronomie! In der Altstadt findest du viele Restaurants – von traditioneller Schweizer Küche bis hin zu internationalen Spezialitäten. Das Viertel rund um den Neumarkt ist besonders belebt und empfehlenswert.';
   }
   if (q.includes('café') || q.includes('cafe') || q.includes('kaffee')) {
-    return buildListingsResponse(listingsContext, 'Cafés') ||
+    return buildListingsResponse(ctx, 'Cafés') ||
       'Für einen guten Kaffee empfehle ich die Cafés rund um die Marktgasse und den Stadtgarten. Viele bieten auch frisches Gebäck und hausgemachte Kuchen an – perfekt für eine Pause zwischendurch.';
   }
   if (q.includes('nacht') || q.includes('bar') || q.includes('abend') || q.includes('ausgehen')) {
-    return buildListingsResponse(listingsContext, 'Bars') ||
+    return buildListingsResponse(ctx, 'Bars') ||
       'Das Winterthurer Nachtleben konzentriert sich rund um die Altstadt und den Neumarkt. Zahlreiche Bars und Clubs bieten ein abwechslungsreiches Programm von entspannten Cocktailbars bis zu lebhaften Tanzlokalen.';
   }
   if (q.includes('hotel') || q.includes('übernacht') || q.includes('unterkunft')) {
-    return buildListingsResponse(listingsContext, 'Hotels') ||
+    return buildListingsResponse(ctx, 'Hotels') ||
       'Winterthur bietet verschiedene Übernachtungsmöglichkeiten – von gemütlichen Boutique-Hotels bis zu komfortablen Stadthotels. Das Zentrum ist ideal für kurze Wege zu den Sehenswürdigkeiten.';
   }
-  return buildListingsResponse(listingsContext, 'Orte') ||
+  return buildListingsResponse(ctx, 'Orte') ||
     'Winterthur hat viel zu bieten! Erkunde die Altstadt, besuche eines der rund 20 Museen oder genieße die lokale Gastronomie. Hast du eine konkretere Frage? Ich, Thomas, helfe dir gerne weiter. 😊';
 }
