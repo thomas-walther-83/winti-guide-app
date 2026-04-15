@@ -19,6 +19,7 @@ import { SubCategoryFilter } from '../components/SubCategoryFilter';
 import { SearchBar } from '../components/SearchBar';
 import { FeaturedRow } from '../components/FeaturedRow';
 import { SectionHeader } from '../components/SectionHeader';
+import { AiGuideCard } from '../components/AiGuideCard';
 import { theme } from '../styles/theme';
 import { SUB_CATEGORY_ALIASES } from '../config/subcategories';
 import type { Listing, ListingCategory, PartnerAd } from '../types';
@@ -55,6 +56,7 @@ type HeaderSection =
   | { type: 'header' }
   | { type: 'search' }
   | { type: 'featured' }
+  | { type: 'ai-guide' }
   | { type: 'categories' }
   | { type: 'subcategories' }
   | { type: 'section-title'; title: string };
@@ -174,6 +176,11 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
       items.push({ type: 'featured' });
     }
 
+    // AI Guide card (always visible when no active search)
+    if (!search.trim()) {
+      items.push({ type: 'ai-guide' });
+    }
+
     if (!loading && !error) {
       items.push({ type: 'section-title', title: categoryLabel });
       let adIndex = 0;
@@ -241,6 +248,9 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
             />
           </>
         );
+
+      case 'ai-guide':
+        return <AiGuideCard />;
 
       case 'section-title':
         return (
