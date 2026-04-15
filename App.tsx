@@ -12,6 +12,7 @@ import { AccountScreen } from './src/screens/AccountScreen';
 import { PartnerPortalScreen } from './src/screens/PartnerPortalScreen';
 import { NavigationBar } from './src/components/NavigationBar';
 import { theme } from './src/styles/theme';
+import type { Listing } from './src/types';
 
 type TabKey = 'home' | 'calendar' | 'map' | 'saved' | 'account' | 'partner';
 
@@ -25,25 +26,41 @@ const TABS = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('home');
+  const [mapFocusListing, setMapFocusListing] = useState<Listing | null>(null);
 
   const navigateToAccount = () => setActiveTab('account');
+
+  const navigateToMap = (listing: Listing) => {
+    setMapFocusListing(listing);
+    setActiveTab('map');
+  };
+
+  const handleTabPress = (key: string) => {
+    // When the user manually taps the map tab, clear any stale focus from a
+    // previous "jump to map" action. navigateToMap sets the focus immediately
+    // after, so clearing here never removes an intentional focus.
+    if (key === 'map') {
+      setMapFocusListing(null);
+    }
+    setActiveTab(key as TabKey);
+  };
 
   const renderScreen = () => {
     switch (activeTab) {
       case 'home':
-        return <HomeScreen onNavigateToAccount={navigateToAccount} />;
+        return <HomeScreen onNavigateToAccount={navigateToAccount} onNavigateToMap={navigateToMap} />;
       case 'calendar':
         return <CalendarScreen onNavigateToAccount={navigateToAccount} />;
       case 'map':
-        return <MapScreen />;
+        return <MapScreen focusListing={mapFocusListing} />;
       case 'saved':
-        return <SavedScreen onNavigateToAccount={navigateToAccount} />;
+        return <SavedScreen onNavigateToAccount={navigateToAccount} onNavigateToMap={navigateToMap} />;
       case 'account':
         return <AccountScreen />;
       case 'partner':
         return <PartnerPortalScreen />;
       default:
-        return <HomeScreen onNavigateToAccount={navigateToAccount} />;
+        return <HomeScreen onNavigateToAccount={navigateToAccount} onNavigateToMap={navigateToMap} />;
     }
   };
 
@@ -56,7 +73,7 @@ export default function App() {
           <NavigationBar
             tabs={TABS as unknown as { key: string; label: string; emoji: string }[]}
             activeTab={activeTab}
-            onTabPress={(key) => setActiveTab(key as TabKey)}
+            onTabPress={handleTabPress}
           />
         </View>
       </SafeAreaProvider>

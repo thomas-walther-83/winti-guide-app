@@ -17,7 +17,7 @@ import type { Listing } from '../types';
 const SAVED_KEY = 'winti_saved_listings';
 const FREE_SAVE_LIMIT = 5;
 
-export function SavedScreen({ onNavigateToAccount }: { onNavigateToAccount?: () => void }) {
+export function SavedScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigateToAccount?: () => void; onNavigateToMap?: (listing: Listing) => void }) {
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [savedListings, setSavedListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
@@ -122,6 +122,7 @@ export function SavedScreen({ onNavigateToAccount }: { onNavigateToAccount?: () 
               listing={item}
               isSaved={savedIds.includes(item.id)}
               onToggleSave={handleToggleSave}
+              onShowOnMap={onNavigateToMap}
             />
           )}
           contentContainerStyle={styles.list}
