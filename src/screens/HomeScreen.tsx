@@ -61,7 +61,7 @@ type HeaderSection =
 
 type ListItem = HeaderSection | { type: 'listing'; data: Listing } | { type: 'ad'; data: PartnerAd };
 
-export function HomeScreen({ onNavigateToAccount }: { onNavigateToAccount?: () => void }) {
+export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigateToAccount?: () => void; onNavigateToMap?: (listing: Listing) => void }) {
   const [category, setCategory] = useState<ListingCategory | 'all'>('all');
   const [subType, setSubType] = useState<string>('all');
   const [search, setSearch] = useState('');
@@ -258,6 +258,7 @@ export function HomeScreen({ onNavigateToAccount }: { onNavigateToAccount?: () =
             listing={(item as { type: 'listing'; data: Listing }).data}
             isSaved={savedIds.includes((item as { type: 'listing'; data: Listing }).data.id)}
             onToggleSave={handleToggleSave}
+            onShowOnMap={onNavigateToMap}
           />
         );
 

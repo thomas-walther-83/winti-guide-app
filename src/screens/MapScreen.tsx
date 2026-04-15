@@ -7,9 +7,10 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { MapWebView } from '../components/MapWebView';
+import { CategoryFilter } from '../components/CategoryFilter';
 import { fetchListingsWithCoords } from '../services/supabaseService';
 import { theme } from '../styles/theme';
-import type { Listing } from '../types';
+import type { Listing, ListingCategory } from '../types';
 
 // Winterthur city center coordinates
 const WINTERTHUR_LAT = 47.4994;
@@ -37,26 +38,40 @@ function htmlEscape(str: string): string {
     .replace(/'/g, '&#39;');
 }
 
-function buildLeafletHTML(listings: Listing[]): string {
+function buildLeafletHTML(listings: Listing[], focusListing?: Listing | null): string {
   const markers = listings
-    .filter((l) => l.lat != null && l.lon != null)
+    .filter(
+      (l) =>
+        l.lat != null &&
+        l.lon != null &&
+        Number.isFinite(l.lat) &&
+        Number.isFinite(l.lon),
+    )
     .map((l) => {
       const color = CATEGORY_COLORS[l.category] ?? '#8B0000';
-      // Build popup HTML content and embed it as a JSON-serialised JS string literal.
-      // JSON.stringify handles all special characters (backslashes, quotes, newlines, etc.)
-      // preventing any injection through listing names or addresses.
       const popupHtml = `<b>${htmlEscape(l.name)}</b><br>${htmlEscape(l.address ?? '')}`;
       const popupLiteral = JSON.stringify(popupHtml);
-      return `L.circleMarker([${l.lat}, ${l.lon}], {
-        radius: 8,
+      const isFocused = focusListing != null && focusListing.id === l.id;
+      const varDecl = isFocused ? 'var focusMarker = ' : '';
+      return `${varDecl}L.circleMarker([${l.lat}, ${l.lon}], {
+        radius: ${isFocused ? 11 : 8},
         fillColor: '${color}',
-        color: '#fff',
-        weight: 2,
+        color: ${isFocused ? "'#FFD700'" : "'#fff'"},
+        weight: ${isFocused ? 3 : 2},
         opacity: 1,
         fillOpacity: 0.85
       }).bindPopup(${popupLiteral}).addTo(map);`;
     })
     .join('\n');
+
+  const focusScript =
+    focusListing?.lat != null &&
+    focusListing?.lon != null &&
+    Number.isFinite(focusListing.lat) &&
+    Number.isFinite(focusListing.lon)
+      ? `map.setView([${focusListing.lat}, ${focusListing.lon}], 17);
+    if (typeof focusMarker !== 'undefined') { focusMarker.openPopup(); }`
+      : '';
 
   return `<!DOCTYPE html>
 <html>
@@ -93,15 +108,17 @@ function buildLeafletHTML(listings: Listing[]): string {
     }).addTo(map);
 
     ${markers}
+    ${focusScript}
   </script>
 </body>
 </html>`;
 }
 
-export function MapScreen() {
+export function MapScreen({ focusListing }: { focusListing?: Listing | null }) {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<ListingCategory | 'all'>('all');
 
   useEffect(() => {
     async function load() {
@@ -119,18 +136,24 @@ export function MapScreen() {
     load();
   }, []);
 
-  const html = buildLeafletHTML(listings);
+  const filteredListings = selectedCategory === 'all'
+    ? listings
+    : listings.filter((l) => l.category === selectedCategory);
+
+  const html = buildLeafletHTML(filteredListings, focusListing);
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Karte</Text>
         <Text style={styles.subtitle}>
-          {listings.length > 0
-            ? `${listings.length} Orte in Winterthur`
+          {filteredListings.length > 0
+            ? `${filteredListings.length} Orte in Winterthur`
             : 'Winterthur'}
         </Text>
       </View>
+
+      <CategoryFilter selected={selectedCategory} onSelect={setSelectedCategory} />
 
       {loading && (
         <View style={styles.loadingOverlay}>
@@ -151,18 +174,6 @@ export function MapScreen() {
           loading={loading}
           onError={(e) => setError(e.nativeEvent.description)}
         />
-      )}
-
-      {/* Legend */}
-      {!loading && !error && (
-        <View style={styles.legend}>
-          {Object.entries(CATEGORY_COLORS).slice(0, 5).map(([cat, color]) => (
-            <View key={cat} style={styles.legendItem}>
-              <View style={[styles.dot, { backgroundColor: color }]} />
-              <Text style={styles.legendLabel}>{cat}</Text>
-            </View>
-          ))}
-        </View>
       )}
     </SafeAreaView>
   );
@@ -212,30 +223,5 @@ const styles = StyleSheet.create({
     color: theme.colors.error,
     fontSize: 15,
     textAlign: 'center',
-  },
-  legend: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    gap: theme.spacing.sm,
-    backgroundColor: theme.colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  legendLabel: {
-    fontSize: 11,
-    color: theme.colors.textSecondary,
-    textTransform: 'capitalize',
   },
 });

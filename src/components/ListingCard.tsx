@@ -38,9 +38,10 @@ interface ListingCardProps {
   listing: Listing;
   isSaved: boolean;
   onToggleSave: (listing: Listing) => void;
+  onShowOnMap?: (listing: Listing) => void;
 }
 
-export function ListingCard({ listing, isSaved, onToggleSave }: ListingCardProps) {
+export function ListingCard({ listing, isSaved, onToggleSave, onShowOnMap }: ListingCardProps) {
   const emoji = CATEGORY_EMOJI[listing.category] ?? '📍';
   const bgColor = CATEGORY_BG[listing.category] ?? theme.colors.primary;
 
@@ -110,6 +111,16 @@ export function ListingCard({ listing, isSaved, onToggleSave }: ListingCardProps
               </TouchableOpacity>
             )}
           </View>
+        )}
+
+        {onShowOnMap && listing.lat != null && listing.lon != null && (
+          <TouchableOpacity
+            style={styles.mapBtn}
+            onPress={() => onShowOnMap(listing)}
+          >
+            <Ionicons name="map-outline" size={13} color={theme.colors.primary} />
+            <Text style={styles.mapBtnText}>Auf Karte zeigen</Text>
+          </TouchableOpacity>
         )}
       </View>
 
@@ -221,5 +232,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     color: '#FFFFFF',
+  },
+  mapBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 5,
+    paddingHorizontal: theme.spacing.sm,
+    borderRadius: theme.borderRadius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+    marginTop: theme.spacing.sm,
+    alignSelf: 'flex-start',
+  },
+  mapBtnText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: theme.colors.primary,
   },
 });
