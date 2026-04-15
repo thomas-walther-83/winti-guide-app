@@ -17,6 +17,7 @@ import { SearchBar } from '../components/SearchBar';
 import { FeaturedRow } from '../components/FeaturedRow';
 import { SectionHeader } from '../components/SectionHeader';
 import { theme } from '../styles/theme';
+import { SUB_CATEGORY_ALIASES } from '../config/subcategories';
 import type { Listing, ListingCategory } from '../types';
 
 const SAVED_KEY = 'winti_saved_listings';
@@ -88,7 +89,8 @@ export function HomeScreen() {
       );
     }
     if (subType !== 'all') {
-      result = result.filter((l) => l.sub_type === subType);
+      const aliases = SUB_CATEGORY_ALIASES[subType] ?? [subType.toLowerCase()];
+      result = result.filter((l) => aliases.includes((l.sub_type ?? '').toLowerCase()));
     }
     return result;
   }, [listings, search, subType]);
