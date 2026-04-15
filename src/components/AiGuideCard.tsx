@@ -66,7 +66,7 @@ export function AiGuideCard() {
           </View>
           <View style={styles.headerText}>
             <Text style={styles.headerTitle}>Hast du eine Frage?</Text>
-            <Text style={styles.headerSubtitle}>Stelle sie einem AI Local Guide.</Text>
+            <Text style={styles.headerSubtitle}>Frag Thomas, deinen lokalen Guide.</Text>
           </View>
         </View>
 
@@ -120,7 +120,7 @@ export function AiGuideCard() {
                 <Text style={styles.assistantLabel}>🤖</Text>
                 <View style={styles.typingIndicator}>
                   <ActivityIndicator size="small" color={theme.colors.textSecondary} />
-                  <Text style={styles.typingText}>Tippt...</Text>
+                  <Text style={styles.typingText}>Thomas tippt...</Text>
                 </View>
               </View>
             )}
