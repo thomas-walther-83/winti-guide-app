@@ -1,9 +1,13 @@
+import { supabase } from '../config/supabase';
+import type { ListingCategory } from '../types';
+
 const OPENAI_API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY ?? '';
 
-const SYSTEM_PROMPT = `Du bist Thomas, ein freundlicher und ortskundiger lokaler Reiseführer für Winterthur (Winti), Schweiz. \
+const SYSTEM_PROMPT_BASE = `Du bist Thomas, ein freundlicher und ortskundiger lokaler Reiseführer für Winterthur (Winti), Schweiz. \
 Du hilfst Besuchern und Einwohnern dabei, die besten Restaurants, Cafés, Bars, Hotels, Sehenswürdigkeiten, \
 kulturellen Highlights, lokale Veranstaltungen, Ausflugsziele und Geheimtipps in und um Winterthur zu entdecken. \
-Gib konkrete, hilfreiche Empfehlungen wie ein echter Stadtführer. Antworte immer auf Deutsch und halte deine Antworten kurz und prägnant (max. 3–4 Sätze). \
+Gib konkrete, hilfreiche Empfehlungen mit echten Namen und Adressen aus der Liste unten wie ein echter Stadtführer. \
+Antworte immer auf Deutsch und halte deine Antworten kurz und prägnant (max. 3–4 Sätze). \
 Dein Name ist Thomas. Stelle dich als Thomas vor, wenn du nach deinem Namen gefragt wirst. \
 \n\
 WICHTIG – Themeneinschränkung: Du beantwortest ausschliesslich Fragen, die ein lokaler Reiseführer beantworten würde: \
@@ -21,17 +25,82 @@ export interface ChatMessage {
   text: string;
 }
 
+/** Infer the most relevant listing category from the user's question. */
+function detectCategory(question: string): ListingCategory | undefined {
+  const q = question.toLowerCase();
+  if (q.includes('restaurant') || q.includes('essen') || q.includes('speisen') ||
+      q.includes('pizza') || q.includes('italienisch') || q.includes('sushi') ||
+      q.includes('küche') || q.includes('mittag') || q.includes('abendessen')) return 'restaurants';
+  if (q.includes('café') || q.includes('cafe') || q.includes('kaffee') || q.includes('frühstück')) return 'cafes';
+  if (q.includes('bar') || q.includes('nacht') || q.includes('cocktail') ||
+      q.includes('ausgehen') || q.includes('feiern') || q.includes('club')) return 'bars';
+  if (q.includes('hotel') || q.includes('übernacht') || q.includes('unterkunft') || q.includes('schlafen')) return 'hotels';
+  if (q.includes('sehenswürdigkeit') || q.includes('sehen') || q.includes('museum') ||
+      q.includes('highlight') || q.includes('attraction') || q.includes('besichtigen')) return 'sightseeing';
+  if (q.includes('kultur') || q.includes('theater') || q.includes('konzert') || q.includes('musik')) return 'kultur';
+  if (q.includes('einkauf') || q.includes('shop') || q.includes('laden') || q.includes('boutique')) return 'geschaefte';
+  if (q.includes('sport') || q.includes('fitness') || q.includes('schwimm') || q.includes('training')) return 'sport';
+  return undefined;
+}
+
+/** Fetch active listings from Supabase and format them as a compact context string. */
+async function fetchListingsContext(category?: ListingCategory): Promise<string> {
+  try {
+    let query = supabase
+      .from('listings')
+      .select('name, sub_type, address, hours, description')
+      .eq('is_active', true)
+      .order('name')
+      .limit(category ? 40 : 60);
+
+    if (category) {
+      query = query.eq('category', category);
+    }
+
+    const { data, error } = await query;
+    if (error || !data || data.length === 0) return '';
+
+    const lines = (data as Array<{
+      name: string;
+      sub_type?: string;
+      address?: string;
+      hours?: string;
+      description?: string;
+    }>).map((l) => {
+      const parts: string[] = [l.name];
+      if (l.sub_type) parts.push(`(${l.sub_type})`);
+      if (l.address) parts.push(`– ${l.address}`);
+      if (l.hours) parts.push(`| Öffnungszeiten: ${l.hours}`);
+      if (l.description) parts.push(`| ${l.description}`);
+      return parts.join(' ');
+    });
+
+    return lines.join('\n');
+  } catch {
+    return '';
+  }
+}
+
+/** Build the system prompt, optionally enriched with live listings data. */
+function buildSystemPrompt(listingsContext: string): string {
+  if (!listingsContext) return SYSTEM_PROMPT_BASE;
+  return `${SYSTEM_PROMPT_BASE}\n\nAKTUELLE ORTE IN WINTERTHUR (nutze diese echten Daten für spezifische Empfehlungen):\n${listingsContext}`;
+}
+
 /** Send a message to the OpenAI Chat API and return the assistant reply. */
 export async function askAiGuide(
   question: string,
   history: ChatMessage[] = [],
 ): Promise<string> {
+  const category = detectCategory(question);
+  const listingsContext = await fetchListingsContext(category);
+
   if (!OPENAI_API_KEY || OPENAI_API_KEY === 'sk-your-openai-api-key-here') {
-    return getOfflineResponse(question);
+    return getOfflineResponse(question, listingsContext);
   }
 
   const messages = [
-    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'system', content: buildSystemPrompt(listingsContext) },
     ...history.map((m) => ({ role: m.role, content: m.text })),
     { role: 'user', content: question },
   ];
@@ -59,8 +128,17 @@ export async function askAiGuide(
   return json.choices?.[0]?.message?.content?.trim() ?? 'Keine Antwort erhalten.';
 }
 
+/** Build a response from listings context listing up to 3 specific places. */
+function buildListingsResponse(listingsContext: string, categoryLabel: string): string {
+  if (!listingsContext) return '';
+  const lines = listingsContext.split('\n').filter(Boolean);
+  if (lines.length === 0) return '';
+  const top = lines.slice(0, 3).map((l) => l.split('|')[0].trim());
+  return `Hier sind einige empfehlenswerte ${categoryLabel} in Winterthur: ${top.join('; ')}. Schau dir die vollständige Liste in der App an!`;
+}
+
 /** Fallback responses used when no API key is configured. */
-function getOfflineResponse(question: string): string {
+function getOfflineResponse(question: string, listingsContext: string): string {
   const q = question.toLowerCase();
 
   // Detect clearly off-topic queries (tech, app, coding, math, politics, etc.)
@@ -80,17 +158,27 @@ function getOfflineResponse(question: string): string {
   if (q.includes('ankommen') || q.includes('angekommen') || q.includes('neu')) {
     return 'Willkommen in Winterthur! 🎉 Ich bin Thomas, dein lokaler Guide. Starte am besten mit einem Spaziergang durch die Altstadt rund um den Stadtgarten, gönn dir einen Kaffee an der Marktgasse und schau dir danach das Kunstmuseum an – eines der bedeutendsten in der Schweiz.';
   }
-  if (q.includes('highlight') || q.includes('sehenswürdigkeit') || q.includes('sehen')) {
-    return 'Die Top-Highlights in Winterthur sind das Kunstmuseum und die Fotostiftung Schweiz, das historische Schloss Kyburg, der Stadtgarten, die Altstadt mit ihren Lauben sowie das Technorama für Familien.';
+  if (q.includes('highlight') || q.includes('sehenswürdigkeit') || q.includes('sehen') || q.includes('museum')) {
+    return buildListingsResponse(listingsContext, 'Sehenswürdigkeiten') ||
+      'Die Top-Highlights in Winterthur sind das Kunstmuseum und die Fotostiftung Schweiz, das historische Schloss Kyburg, der Stadtgarten, die Altstadt mit ihren Lauben sowie das Technorama für Familien.';
   }
-  if (q.includes('essen') || q.includes('restaurant') || q.includes('speisen')) {
-    return 'Winterthur bietet eine tolle Gastronomie! In der Altstadt findest du viele Restaurants – von traditioneller Schweizer Küche bis hin zu internationalen Spezialitäten. Das Viertel rund um den Neumarkt ist besonders belebt und empfehlenswert.';
+  if (q.includes('essen') || q.includes('restaurant') || q.includes('speisen') ||
+      q.includes('pizza') || q.includes('italienisch') || q.includes('küche')) {
+    return buildListingsResponse(listingsContext, 'Restaurants') ||
+      'Winterthur bietet eine tolle Gastronomie! In der Altstadt findest du viele Restaurants – von traditioneller Schweizer Küche bis hin zu internationalen Spezialitäten. Das Viertel rund um den Neumarkt ist besonders belebt und empfehlenswert.';
   }
   if (q.includes('café') || q.includes('cafe') || q.includes('kaffee')) {
-    return 'Für einen guten Kaffee empfehle ich die Cafés rund um die Marktgasse und den Stadtgarten. Viele bieten auch frisches Gebäck und hausgemachte Kuchen an – perfekt für eine Pause zwischendurch.';
+    return buildListingsResponse(listingsContext, 'Cafés') ||
+      'Für einen guten Kaffee empfehle ich die Cafés rund um die Marktgasse und den Stadtgarten. Viele bieten auch frisches Gebäck und hausgemachte Kuchen an – perfekt für eine Pause zwischendurch.';
   }
-  if (q.includes('nacht') || q.includes('bar') || q.includes('abend')) {
-    return 'Das Winterthurer Nachtleben konzentriert sich rund um die Altstadt und den Neumarkt. Zahlreiche Bars und Clubs bieten ein abwechslungsreiches Programm von entspannten Cocktailbars bis zu lebhaften Tanzlokalen – besonders die Gasse und die Technoramastrasse sind bekannte Ausgehviertel.';
+  if (q.includes('nacht') || q.includes('bar') || q.includes('abend') || q.includes('ausgehen')) {
+    return buildListingsResponse(listingsContext, 'Bars') ||
+      'Das Winterthurer Nachtleben konzentriert sich rund um die Altstadt und den Neumarkt. Zahlreiche Bars und Clubs bieten ein abwechslungsreiches Programm von entspannten Cocktailbars bis zu lebhaften Tanzlokalen.';
   }
-  return 'Winterthur hat viel zu bieten! Erkunde die Altstadt, besuche eines der rund 20 Museen oder genieße die lokale Gastronomie. Hast du eine konkretere Frage? Ich, Thomas, helfe dir gerne weiter. 😊';
+  if (q.includes('hotel') || q.includes('übernacht') || q.includes('unterkunft')) {
+    return buildListingsResponse(listingsContext, 'Hotels') ||
+      'Winterthur bietet verschiedene Übernachtungsmöglichkeiten – von gemütlichen Boutique-Hotels bis zu komfortablen Stadthotels. Das Zentrum ist ideal für kurze Wege zu den Sehenswürdigkeiten.';
+  }
+  return buildListingsResponse(listingsContext, 'Orte') ||
+    'Winterthur hat viel zu bieten! Erkunde die Altstadt, besuche eines der rund 20 Museen oder genieße die lokale Gastronomie. Hast du eine konkretere Frage? Ich, Thomas, helfe dir gerne weiter. 😊';
 }
