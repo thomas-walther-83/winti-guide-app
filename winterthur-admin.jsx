@@ -20,23 +20,43 @@ const sb = async (path, opts = {}) => {
 };
 
 const api = {
-  getListings: () => sb("listings?order=category,name&select=*"),
-  getEvents:   () => sb("events?order=event_date&select=*"),
-  getAds:      () => sb("ads?order=created_at&select=*"),
-  addListing:  (d) => sb("listings", { method:"POST", body:JSON.stringify(d) }),
-  addEvent:    (d) => sb("events",   { method:"POST", body:JSON.stringify(d) }),
-  addAd:       (d) => sb("ads",      { method:"POST", body:JSON.stringify(d) }),
-  updateListing: (id, d) => sb(`listings?id=eq.${id}`, { method:"PATCH", body:JSON.stringify(d) }),
-  updateEvent:   (id, d) => sb(`events?id=eq.${id}`,   { method:"PATCH", body:JSON.stringify(d) }),
-  deleteListing: (id) => sb(`listings?id=eq.${id}`, { method:"DELETE", prefer:"" }),
-  deleteEvent:   (id) => sb(`events?id=eq.${id}`,   { method:"DELETE", prefer:"" }),
-  deleteAd:      (id) => sb(`ads?id=eq.${id}`,      { method:"DELETE", prefer:"" }),
+  // Existing
+  getListings:    () => sb("listings?order=category,name&select=*"),
+  getEvents:      () => sb("events?order=event_date&select=*"),
+  getAds:         () => sb("ads?order=created_at&select=*"),
+  addListing:     (d) => sb("listings", { method:"POST", body:JSON.stringify(d) }),
+  addEvent:       (d) => sb("events",   { method:"POST", body:JSON.stringify(d) }),
+  addAd:          (d) => sb("ads",      { method:"POST", body:JSON.stringify(d) }),
+  updateListing:  (id, d) => sb(`listings?id=eq.${id}`, { method:"PATCH", body:JSON.stringify(d) }),
+  updateEvent:    (id, d) => sb(`events?id=eq.${id}`,   { method:"PATCH", body:JSON.stringify(d) }),
+  deleteListing:  (id) => sb(`listings?id=eq.${id}`, { method:"DELETE", prefer:"" }),
+  deleteEvent:    (id) => sb(`events?id=eq.${id}`,   { method:"DELETE", prefer:"" }),
+  deleteAd:       (id) => sb(`ads?id=eq.${id}`,      { method:"DELETE", prefer:"" }),
+
+  // Partners
+  getPartners:    () => sb("partners?order=created_at.desc&select=*"),
+  updatePartner:  (id, d) => sb(`partners?id=eq.${id}`, { method:"PATCH", body:JSON.stringify(d) }),
+  deletePartner:  (id) => sb(`partners?id=eq.${id}`, { method:"DELETE", prefer:"" }),
+
+  // Partner Ads
+  getPartnerAds:  () => sb("partner_ads?order=created_at.desc&select=*,partners(company_name)"),
+  updatePartnerAd:(id, d) => sb(`partner_ads?id=eq.${id}`, { method:"PATCH", body:JSON.stringify(d) }),
+  deletePartnerAd:(id) => sb(`partner_ads?id=eq.${id}`, { method:"DELETE", prefer:"" }),
+
+  // Invoices
+  getInvoices:    () => sb("partner_invoices?order=due_date.desc&select=*,partners(company_name)"),
+  updateInvoice:  (id, d) => sb(`partner_invoices?id=eq.${id}`, { method:"PATCH", body:JSON.stringify(d) }),
 };
 
 const CATS = ["restaurants","cafes","bars","hotels","sightseeing","kultur","geschaefte","sport","touren"];
 const EVT_CATS = ["festival","musik","kultur","markt","theater","tour","kulinarik","sport"];
 const CAT_LABELS = { restaurants:"🍽️ Restaurants", cafes:"☕ Cafés", bars:"🍸 Bars", hotels:"🏨 Hotels", sightseeing:"🏛️ Sightseeing", kultur:"🎨 Kultur", geschaefte:"🛍️ Geschäfte", sport:"🏊 Sport", touren:"🗺️ Touren" };
 const EVT_LABELS = { festival:"🎪 Festival", musik:"🎵 Musik", kultur:"🎨 Kultur", markt:"🛍️ Markt", theater:"🎭 Theater", tour:"🗺️ Tour", kulinarik:"🍷 Kulinarik", sport:"🏅 Sport" };
+const PARTNER_TIER_LABELS = { starter:"Starter", pro:"Pro", premium:"Premium" };
+const PARTNER_STATUS_COLORS = { pending:"#fef3c7", active:"#dcfce7", suspended:"#fee2e2" };
+const PARTNER_STATUS_TEXT   = { pending:"#92400e", active:"#16a34a", suspended:"#dc2626" };
+const INVOICE_STATUS_COLORS = { draft:"#f3f4f6", sent:"#dbeafe", paid:"#dcfce7", overdue:"#fee2e2", void:"#f3f4f6" };
+const INVOICE_STATUS_TEXT   = { draft:"#374151", sent:"#1d4ed8", paid:"#16a34a", overdue:"#dc2626", void:"#9ca3af" };
 
 // ─── EMPTY FORMS ────────────────────────────────────────────────────────────
 const emptyListing = { category:"restaurants", sub_type:"", name:"", address:"", hours:"", phone:"", website:"", stars:"", desc:"", is_premium:false, is_active:true };
@@ -48,6 +68,9 @@ export default function AdminPanel() {
   const [listings, setListings]   = useState([]);
   const [events, setEvents]       = useState([]);
   const [ads, setAds]             = useState([]);
+  const [partners, setPartners]   = useState([]);
+  const [partnerAds, setPartnerAds] = useState([]);
+  const [invoices, setInvoices]   = useState([]);
   const [loading, setLoading]     = useState(false);
   const [msg, setMsg]             = useState(null);
   const [showForm, setShowForm]   = useState(false);
@@ -68,8 +91,12 @@ export default function AdminPanel() {
     if (!configured) return;
     setLoading(true);
     try {
-      const [l, e, a] = await Promise.all([api.getListings(), api.getEvents(), api.getAds()]);
+      const [l, e, a, p, pa, inv] = await Promise.all([
+        api.getListings(), api.getEvents(), api.getAds(),
+        api.getPartners(), api.getPartnerAds(), api.getInvoices(),
+      ]);
       setListings(l || []); setEvents(e || []); setAds(a || []);
+      setPartners(p || []); setPartnerAds(pa || []); setInvoices(inv || []);
     } catch(err) { notify("Fehler beim Laden: " + err.message, false); }
     setLoading(false);
   };
@@ -107,19 +134,52 @@ export default function AdminPanel() {
   const del = async (id) => {
     if (!window.confirm("Wirklich löschen?")) return;
     try {
-      tab === "listings" ? await api.deleteListing(id)
-        : tab === "events" ? await api.deleteEvent(id)
-        : await api.deleteAd(id);
+      if (tab === "listings") await api.deleteListing(id);
+      else if (tab === "events") await api.deleteEvent(id);
+      else if (tab === "ads") await api.deleteAd(id);
+      else if (tab === "partners") await api.deletePartner(id);
+      else if (tab === "partner_ads") await api.deletePartnerAd(id);
       notify("Gelöscht ✓"); load();
     } catch(err) { notify("Fehler: " + err.message, false); }
   };
 
   const toggle = async (item) => {
     try {
-      tab === "listings"
-        ? await api.updateListing(item.id, { is_active: !item.is_active })
-        : await api.updateEvent(item.id, { is_active: !item.is_active });
+      if (tab === "listings")
+        await api.updateListing(item.id, { is_active: !item.is_active });
+      else if (tab === "events")
+        await api.updateEvent(item.id, { is_active: !item.is_active });
       notify(item.is_active ? "Deaktiviert" : "Aktiviert"); load();
+    } catch(err) { notify("Fehler: " + err.message, false); }
+  };
+
+  const togglePartnerStatus = async (partner) => {
+    const next = partner.status === "active" ? "suspended" : "active";
+    try {
+      await api.updatePartner(partner.id, { status: next });
+      notify(next === "active" ? "Partner aktiviert ✓" : "Partner suspendiert"); load();
+    } catch(err) { notify("Fehler: " + err.message, false); }
+  };
+
+  const approvePartner = async (partner) => {
+    try {
+      await api.updatePartner(partner.id, { status: "active" });
+      notify("Partner freigeschalten ✓"); load();
+    } catch(err) { notify("Fehler: " + err.message, false); }
+  };
+
+  const togglePartnerAd = async (ad) => {
+    try {
+      await api.updatePartnerAd(ad.id, { is_active: !ad.is_active });
+      notify(ad.is_active ? "Anzeige deaktiviert" : "Anzeige aktiviert ✓"); load();
+    } catch(err) { notify("Fehler: " + err.message, false); }
+  };
+
+  const markInvoicePaid = async (invoice) => {
+    if (!window.confirm("Rechnung als bezahlt markieren?")) return;
+    try {
+      await api.updateInvoice(invoice.id, { status: "paid", paid_at: new Date().toISOString() });
+      notify("Rechnung als bezahlt markiert ✓"); load();
     } catch(err) { notify("Fehler: " + err.message, false); }
   };
 
@@ -128,10 +188,22 @@ export default function AdminPanel() {
     (filterCat === "all" || l.category === filterCat) &&
     (!search || l.name.toLowerCase().includes(search.toLowerCase()) || (l.address||"").toLowerCase().includes(search.toLowerCase()))
   );
-
   const displayEvents = events.filter(e =>
     (!search || e.title.toLowerCase().includes(search.toLowerCase()))
   );
+  const displayPartners = partners.filter(p =>
+    (!search || p.company_name.toLowerCase().includes(search.toLowerCase()) || (p.contact_email||"").toLowerCase().includes(search.toLowerCase()))
+  );
+  const displayPartnerAds = partnerAds.filter(a =>
+    (!search || a.title.toLowerCase().includes(search.toLowerCase()))
+  );
+  const displayInvoices = invoices.filter(i =>
+    (!search || (i.partners?.company_name||"").toLowerCase().includes(search.toLowerCase()))
+  );
+
+  const pendingPartners = partners.filter(p => p.status === "pending").length;
+  const pendingAds      = partnerAds.filter(a => !a.is_active).length;
+  const overdueInvoices = invoices.filter(i => i.status === "overdue").length;
 
   // ── Not configured screen ──
   if (!configured) return (
@@ -170,9 +242,18 @@ export default function AdminPanel() {
           <div style={s.stats}>
             <span style={s.stat}><strong>{listings.length}</strong> Einträge</span>
             <span style={s.stat}><strong>{events.length}</strong> Events</span>
-            <span style={s.stat}><strong>{ads.length}</strong> Anzeigen</span>
+            <span style={s.stat}><strong>{partners.length}</strong> Partner</span>
           </div>
-          <button style={s.addBtn} onClick={openNew}>+ Neu</button>
+          {(pendingPartners > 0 || pendingAds > 0 || overdueInvoices > 0) && (
+            <div style={s.alertBadges}>
+              {pendingPartners > 0 && <span style={s.alertBadge}>⏳ {pendingPartners} Partner</span>}
+              {pendingAds > 0 && <span style={s.alertBadge}>📢 {pendingAds} Anzeigen</span>}
+              {overdueInvoices > 0 && <span style={{...s.alertBadge, background:"#fee2e2", color:"#dc2626"}}>💸 {overdueInvoices} überfällig</span>}
+            </div>
+          )}
+          {["listings","events","ads"].includes(tab) && (
+            <button style={s.addBtn} onClick={openNew}>+ Neu</button>
+          )}
           <button style={s.refreshBtn} onClick={load} disabled={loading}>{loading ? "⟳" : "↻"}</button>
         </div>
       </div>
@@ -186,9 +267,16 @@ export default function AdminPanel() {
 
       {/* ── TABS ── */}
       <div style={s.tabs}>
-        {[["listings","🏠 Einträge"],["events","📅 Events"],["ads","📢 Anzeigen"]].map(([id,lbl]) => (
+        {[
+          ["listings","🏠 Einträge"],
+          ["events","📅 Events"],
+          ["ads","📢 Anzeigen"],
+          ["partners", pendingPartners > 0 ? `🤝 Partner (${pendingPartners})` : "🤝 Partner"],
+          ["partner_ads", pendingAds > 0 ? `🖼️ Partner-Ads (${pendingAds})` : "🖼️ Partner-Ads"],
+          ["invoices", overdueInvoices > 0 ? `💸 Rechnungen (${overdueInvoices}!)` : "💸 Rechnungen"],
+        ].map(([id,lbl]) => (
           <button key={id} onClick={() => { setTab(id); setSearch(""); setFilterCat("all"); }}
-            style={{ ...s.tabBtn, ...(tab===id ? s.tabActive : {}) }}>{lbl}
+            style={{ ...s.tabBtn, ...(tab===id ? s.tabActive : {}), ...(id==="invoices" && overdueInvoices > 0 ? {color:"#dc2626"} : {}) }}>{lbl}
           </button>
         ))}
       </div>
@@ -331,6 +419,156 @@ export default function AdminPanel() {
         </div>
       )}
 
+      {/* ── TABLE: PARTNERS ── */}
+      {tab === "partners" && (
+        <div style={s.tableWrap}>
+          <table style={s.table}>
+            <thead>
+              <tr>
+                {["Firma","Kategorie","E-Mail","Tier","Status","Erstellt","Aktionen"].map(h => (
+                  <th key={h} style={s.th}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {displayPartners.length === 0 && (
+                <tr><td colSpan={7} style={{ ...s.td, textAlign:"center", color:"#aaa", padding:32 }}>
+                  {loading ? "Lädt…" : "Keine Partner"}
+                </td></tr>
+              )}
+              {displayPartners.map(p => (
+                <tr key={p.id} style={s.tr}>
+                  <td style={{ ...s.td, fontWeight:600 }}>{p.company_name}</td>
+                  <td style={s.td}>{p.category || "–"}</td>
+                  <td style={s.td}>{p.contact_email}</td>
+                  <td style={s.td}><span style={{...s.catChip}}>{PARTNER_TIER_LABELS[p.tier] || p.tier}</span></td>
+                  <td style={{ ...s.td, textAlign:"center" }}>
+                    <span style={{ ...s.statusBtn, background: PARTNER_STATUS_COLORS[p.status] || "#f3f4f6", color: PARTNER_STATUS_TEXT[p.status] || "#374151" }}>
+                      {p.status === "pending" ? "⏳ Ausstehend" : p.status === "active" ? "✓ Aktiv" : "✗ Suspendiert"}
+                    </span>
+                  </td>
+                  <td style={{ ...s.td, fontSize:12, color:"#666" }}>
+                    {new Date(p.created_at).toLocaleDateString("de-CH")}
+                  </td>
+                  <td style={{ ...s.td, whiteSpace:"nowrap" }}>
+                    {p.status === "pending" && (
+                      <button style={{...s.editBtn, background:"#dcfce7", color:"#16a34a"}} onClick={() => approvePartner(p)}>✓ Freischalten</button>
+                    )}
+                    {p.status === "active" && (
+                      <button style={{...s.editBtn, background:"#fee2e2", color:"#dc2626"}} onClick={() => togglePartnerStatus(p)}>Suspendieren</button>
+                    )}
+                    {p.status === "suspended" && (
+                      <button style={s.editBtn} onClick={() => togglePartnerStatus(p)}>Reaktivieren</button>
+                    )}
+                    <button style={s.delBtn} onClick={() => del(p.id)}>Löschen</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ── TABLE: PARTNER ADS ── */}
+      {tab === "partner_ads" && (
+        <div style={s.tableWrap}>
+          <table style={s.table}>
+            <thead>
+              <tr>
+                {["Partner","Titel","Position","Laufzeit","Statistiken","Status","Aktionen"].map(h => (
+                  <th key={h} style={s.th}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {displayPartnerAds.length === 0 && (
+                <tr><td colSpan={7} style={{ ...s.td, textAlign:"center", color:"#aaa", padding:32 }}>
+                  {loading ? "Lädt…" : "Keine Partner-Anzeigen"}
+                </td></tr>
+              )}
+              {displayPartnerAds.map(ad => (
+                <tr key={ad.id} style={s.tr}>
+                  <td style={{ ...s.td, fontSize:12 }}>{ad.partners?.company_name || "–"}</td>
+                  <td style={{ ...s.td, fontWeight:600 }}>
+                    {ad.title}
+                    {ad.subtitle && <div style={s.subLabel}>{ad.subtitle}</div>}
+                  </td>
+                  <td style={s.td}><span style={s.catChip}>{ad.position}</span></td>
+                  <td style={{ ...s.td, fontSize:12, color:"#666" }}>
+                    {ad.starts_at ? new Date(ad.starts_at).toLocaleDateString("de-CH") : "–"}
+                    {ad.ends_at && <> – {new Date(ad.ends_at).toLocaleDateString("de-CH")}</>}
+                  </td>
+                  <td style={{ ...s.td, fontSize:12 }}>
+                    👁 {ad.impressions||0} · 🖱 {ad.clicks||0}
+                  </td>
+                  <td style={{ ...s.td, textAlign:"center" }}>
+                    <button onClick={() => togglePartnerAd(ad)}
+                      style={{ ...s.statusBtn, background: ad.is_active ? "#dcfce7" : "#fef3c7", color: ad.is_active ? "#16a34a" : "#92400e" }}>
+                      {ad.is_active ? "✓ Aktiv" : "⏳ Ausstehend"}
+                    </button>
+                  </td>
+                  <td style={{ ...s.td, whiteSpace:"nowrap" }}>
+                    {!ad.is_active && (
+                      <button style={{...s.editBtn, background:"#dcfce7", color:"#16a34a"}} onClick={() => togglePartnerAd(ad)}>✓ Freischalten</button>
+                    )}
+                    <button style={s.delBtn} onClick={() => del(ad.id)}>Löschen</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ── TABLE: INVOICES ── */}
+      {tab === "invoices" && (
+        <div style={s.tableWrap}>
+          <table style={s.table}>
+            <thead>
+              <tr>
+                {["Partner","Betrag (CHF)","Fällig am","Bezahlt am","Status","Aktionen"].map(h => (
+                  <th key={h} style={s.th}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {displayInvoices.length === 0 && (
+                <tr><td colSpan={6} style={{ ...s.td, textAlign:"center", color:"#aaa", padding:32 }}>
+                  {loading ? "Lädt…" : "Keine Rechnungen"}
+                </td></tr>
+              )}
+              {displayInvoices.map(inv => (
+                <tr key={inv.id} style={s.tr}>
+                  <td style={s.td}>{inv.partners?.company_name || "–"}</td>
+                  <td style={{ ...s.td, fontWeight:700, fontSize:15 }}>
+                    {Number(inv.amount_chf).toFixed(2)}
+                  </td>
+                  <td style={{ ...s.td, fontWeight: inv.status === "overdue" ? 700 : 400, color: inv.status === "overdue" ? "#dc2626" : "#374151" }}>
+                    {new Date(inv.due_date).toLocaleDateString("de-CH")}
+                  </td>
+                  <td style={{ ...s.td, fontSize:12, color:"#666" }}>
+                    {inv.paid_at ? new Date(inv.paid_at).toLocaleDateString("de-CH") : "–"}
+                  </td>
+                  <td style={{ ...s.td, textAlign:"center" }}>
+                    <span style={{ ...s.statusBtn, background: INVOICE_STATUS_COLORS[inv.status] || "#f3f4f6", color: INVOICE_STATUS_TEXT[inv.status] || "#374151" }}>
+                      {inv.status}
+                    </span>
+                  </td>
+                  <td style={{ ...s.td, whiteSpace:"nowrap" }}>
+                    {inv.status !== "paid" && inv.status !== "void" && (
+                      <button style={{...s.editBtn, background:"#dcfce7", color:"#16a34a"}} onClick={() => markInvoicePaid(inv)}>✓ Als bezahlt markieren</button>
+                    )}
+                    {inv.invoice_pdf_url && (
+                      <a href={inv.invoice_pdf_url} target="_blank" rel="noreferrer" style={{...s.editBtn, textDecoration:"none", display:"inline-block"}}>📄 PDF</a>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {/* ── FORM MODAL ── */}
       {showForm && (
         <div style={s.overlay} onClick={() => setShowForm(false)}>
@@ -423,14 +661,16 @@ const s = {
   headerLeft:{ display:"flex", alignItems:"center", gap:14 },
   logo:{ fontSize:28, background:"#fff", borderRadius:10, width:44, height:44, display:"flex", alignItems:"center", justifyContent:"center" },
   headerTitle:{ fontSize:18, fontWeight:700 }, headerSub:{ fontSize:12, opacity:0.65 },
-  headerRight:{ display:"flex", alignItems:"center", gap:10 },
+  headerRight:{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" },
   stats:{ display:"flex", gap:12 },
   stat:{ fontSize:13, background:"rgba(255,255,255,0.15)", borderRadius:20, padding:"4px 12px" },
+  alertBadges:{ display:"flex", gap:8 },
+  alertBadge:{ fontSize:12, background:"#fef3c7", color:"#92400e", borderRadius:20, padding:"4px 10px", fontWeight:600 },
   addBtn:{ background:"#fff", color:"#8B0000", border:"none", borderRadius:8, padding:"8px 18px", fontSize:14, fontWeight:700, cursor:"pointer" },
   refreshBtn:{ background:"rgba(255,255,255,0.2)", color:"#fff", border:"none", borderRadius:8, padding:"8px 14px", fontSize:16, cursor:"pointer" },
   toast:{ position:"fixed", top:16, right:16, color:"#fff", padding:"12px 20px", borderRadius:10, fontWeight:600, zIndex:9999, fontSize:14, boxShadow:"0 4px 12px rgba(0,0,0,0.2)" },
-  tabs:{ display:"flex", gap:0, borderBottom:"2px solid #e5e7eb", background:"#fff", padding:"0 24px" },
-  tabBtn:{ padding:"14px 20px", fontSize:14, fontWeight:600, border:"none", background:"none", cursor:"pointer", color:"#6b7280", borderBottom:"2px solid transparent", marginBottom:"-2px" },
+  tabs:{ display:"flex", gap:0, borderBottom:"2px solid #e5e7eb", background:"#fff", padding:"0 24px", overflowX:"auto" },
+  tabBtn:{ padding:"14px 16px", fontSize:13, fontWeight:600, border:"none", background:"none", cursor:"pointer", color:"#6b7280", borderBottom:"2px solid transparent", marginBottom:"-2px", whiteSpace:"nowrap" },
   tabActive:{ color:"#8B0000", borderBottomColor:"#8B0000" },
   toolbar:{ display:"flex", gap:12, padding:"16px 24px 8px", alignItems:"center" },
   searchInput:{ flex:1, border:"1.5px solid #e5e7eb", borderRadius:8, padding:"9px 14px", fontSize:14, outline:"none", maxWidth:300 },
