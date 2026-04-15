@@ -3,6 +3,9 @@ import type { ListingCategory } from '../types';
 
 const OPENAI_API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY ?? '';
 
+const CATEGORY_LISTINGS_LIMIT = 40;
+const ALL_LISTINGS_LIMIT = 60;
+
 const SYSTEM_PROMPT_BASE = `Du bist Thomas, ein freundlicher und ortskundiger lokaler Reiseführer für Winterthur (Winti), Schweiz. \
 Du hilfst Besuchern und Einwohnern dabei, die besten Restaurants, Cafés, Bars, Hotels, Sehenswürdigkeiten, \
 kulturellen Highlights, lokale Veranstaltungen, Ausflugsziele und Geheimtipps in und um Winterthur zu entdecken. \
@@ -26,21 +29,21 @@ export interface ChatMessage {
 }
 
 /** Infer the most relevant listing category from the user's question. */
+const CATEGORY_KEYWORDS: Array<{ keywords: string[]; category: ListingCategory }> = [
+  { keywords: ['restaurant', 'essen', 'speisen', 'pizza', 'italienisch', 'sushi', 'küche', 'mittag', 'abendessen'], category: 'restaurants' },
+  { keywords: ['café', 'cafe', 'kaffee', 'frühstück'], category: 'cafes' },
+  { keywords: ['bar', 'nacht', 'cocktail', 'ausgehen', 'feiern', 'club'], category: 'bars' },
+  { keywords: ['hotel', 'übernacht', 'unterkunft', 'schlafen'], category: 'hotels' },
+  { keywords: ['sehenswürdigkeit', 'sehen', 'museum', 'highlight', 'attraction', 'besichtigen'], category: 'sightseeing' },
+  { keywords: ['kultur', 'theater', 'konzert', 'musik'], category: 'kultur' },
+  { keywords: ['einkauf', 'shop', 'laden', 'boutique'], category: 'geschaefte' },
+  { keywords: ['sport', 'fitness', 'schwimm', 'training'], category: 'sport' },
+];
+
 function detectCategory(question: string): ListingCategory | undefined {
   const q = question.toLowerCase();
-  if (q.includes('restaurant') || q.includes('essen') || q.includes('speisen') ||
-      q.includes('pizza') || q.includes('italienisch') || q.includes('sushi') ||
-      q.includes('küche') || q.includes('mittag') || q.includes('abendessen')) return 'restaurants';
-  if (q.includes('café') || q.includes('cafe') || q.includes('kaffee') || q.includes('frühstück')) return 'cafes';
-  if (q.includes('bar') || q.includes('nacht') || q.includes('cocktail') ||
-      q.includes('ausgehen') || q.includes('feiern') || q.includes('club')) return 'bars';
-  if (q.includes('hotel') || q.includes('übernacht') || q.includes('unterkunft') || q.includes('schlafen')) return 'hotels';
-  if (q.includes('sehenswürdigkeit') || q.includes('sehen') || q.includes('museum') ||
-      q.includes('highlight') || q.includes('attraction') || q.includes('besichtigen')) return 'sightseeing';
-  if (q.includes('kultur') || q.includes('theater') || q.includes('konzert') || q.includes('musik')) return 'kultur';
-  if (q.includes('einkauf') || q.includes('shop') || q.includes('laden') || q.includes('boutique')) return 'geschaefte';
-  if (q.includes('sport') || q.includes('fitness') || q.includes('schwimm') || q.includes('training')) return 'sport';
-  return undefined;
+  const match = CATEGORY_KEYWORDS.find(({ keywords }) => keywords.some((kw) => q.includes(kw)));
+  return match?.category;
 }
 
 /** Fetch active listings from Supabase and format them as a compact context string. */
@@ -51,7 +54,7 @@ async function fetchListingsContext(category?: ListingCategory): Promise<string>
       .select('name, sub_type, address, hours, description')
       .eq('is_active', true)
       .order('name')
-      .limit(category ? 40 : 60);
+      .limit(category ? CATEGORY_LISTINGS_LIMIT : ALL_LISTINGS_LIMIT);
 
     if (category) {
       query = query.eq('category', category);
@@ -133,7 +136,12 @@ function buildListingsResponse(listingsContext: string, categoryLabel: string): 
   if (!listingsContext) return '';
   const lines = listingsContext.split('\n').filter(Boolean);
   if (lines.length === 0) return '';
-  const top = lines.slice(0, 3).map((l) => l.split('|')[0].trim());
+  const top = lines.slice(0, 3).map((l) => {
+    // Extract the name/type portion before the address separator '–' or metadata separator '|'
+    const beforeMeta = l.split('|')[0].trim();
+    const beforeAddress = beforeMeta.split('–')[0].trim();
+    return beforeAddress || beforeMeta;
+  });
   return `Hier sind einige empfehlenswerte ${categoryLabel} in Winterthur: ${top.join('; ')}. Schau dir die vollständige Liste in der App an!`;
 }
 
