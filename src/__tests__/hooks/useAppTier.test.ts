@@ -22,6 +22,9 @@ import { useAuth } from '../../context/AuthContext';
 const mockFrom = supabase.from as jest.Mock;
 const mockUseAuth = useAuth as jest.Mock;
 
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+const TEN_DAYS_MS = 10 * 24 * 60 * 60 * 1000;
+
 function makeQueryBuilder(result: { data: any; error: any }) {
   const builder: any = {};
   ['select', 'eq', 'order'].forEach((m) => {
@@ -104,7 +107,7 @@ describe('useAppTier', () => {
     });
 
     it('sets tier to "premium" when valid premium subscription exists', async () => {
-      const futureDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      const futureDate = new Date(Date.now() + THIRTY_DAYS_MS).toISOString();
       mockFrom.mockReturnValue(
         makeQueryBuilder({ data: { tier: 'premium', expires_at: futureDate }, error: null }),
       );
@@ -120,7 +123,7 @@ describe('useAppTier', () => {
     });
 
     it('sets tier to "free" when premium has expired', async () => {
-      const pastDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const pastDate = new Date(Date.now() - THIRTY_DAYS_MS).toISOString();
       mockFrom.mockReturnValue(
         makeQueryBuilder({ data: { tier: 'premium', expires_at: pastDate }, error: null }),
       );
@@ -179,7 +182,7 @@ describe('useAppTier', () => {
   describe('isPremium computed value', () => {
     it('isPremium is true only when tier is "premium"', async () => {
       mockUseAuth.mockReturnValue({ user: { id: 'user-1' } });
-      const futureDate = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString();
+      const futureDate = new Date(Date.now() + TEN_DAYS_MS).toISOString();
       mockFrom.mockReturnValue(
         makeQueryBuilder({ data: { tier: 'premium', expires_at: futureDate }, error: null }),
       );
