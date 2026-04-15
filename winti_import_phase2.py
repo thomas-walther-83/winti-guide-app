@@ -20,6 +20,7 @@ Automatisierung (wöchentlich, z.B. via cron):
     0 3 * * 1 /usr/bin/python3 /pfad/winti_import_phase2.py >> /var/log/winti_import.log 2>&1
 """
 
+import os
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta, date as date_type
@@ -35,12 +36,14 @@ except ImportError:
     ICAL_AVAILABLE = False
 
 # ── Konfiguration ────────────────────────────────────────────────
-SUPABASE_URL = "https://DEINE-PROJECT-ID.supabase.co"
-SUPABASE_KEY = "DEIN-SERVICE-ROLE-KEY"
+# Credentials aus Umgebungsvariablen lesen (für GitHub Actions / CI)
+# Lokal: SUPABASE_URL und SUPABASE_KEY als env-Variablen setzen
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
 
 # Eventbrite API-Key (https://www.eventbrite.com/platform/api)
 # Kostenloses Entwickler-Konto reicht für den Import.
-EVENTBRITE_TOKEN = "DEIN-EVENTBRITE-TOKEN"
+EVENTBRITE_TOKEN = os.environ.get("EVENTBRITE_TOKEN", "DEIN-EVENTBRITE-TOKEN")
 EVENTBRITE_MAX_PAGES = 5  # Maximale Seitenzahl beim Eventbrite-Import (à 50 Events)
 
 # Öffentliche iCal-Feeds: (URL, source_name, default_location)
@@ -248,17 +251,17 @@ def parse_event_card(item, source: str, base_url: str) -> dict | None:
     source_id = f"{source}_{title[:50]}_{event_date}"
 
     return {
-        "source":     source,
-        "source_id":  re.sub(r"[^\w_-]", "_", source_id)[:100],
-        "title":      title,
-        "cat":        detect_category(title, desc),
-        "location":   location,
-        "event_date": event_date,
-        "event_time": "",
-        "price":      "",
-        "desc":       desc,
-        "url":        url[:300],
-        "is_active":  True,
+        "source":      source,
+        "source_id":   re.sub(r"[^\w_-]", "_", source_id)[:100],
+        "title":       title,
+        "cat":         detect_category(title, desc),
+        "location":    location,
+        "event_date":  event_date,
+        "event_time":  "",
+        "price":       "",
+        "description": desc,
+        "url":         url[:300],
+        "is_active":   True,
     }
 
 
@@ -304,17 +307,17 @@ def jsonld_to_event(data: dict, source: str) -> dict | None:
     source_id = f"{source}_{title[:50]}_{event_date}"
 
     return {
-        "source":     source,
-        "source_id":  re.sub(r"[^\w_-]", "_", source_id)[:100],
-        "title":      title[:200],
-        "cat":        detect_category(title, desc),
-        "location":   location[:200],
-        "event_date": event_date,
-        "event_time": time_str,
-        "price":      price,
-        "desc":       re.sub(r"<[^>]+>", "", desc).strip(),
-        "url":        url[:300],
-        "is_active":  True,
+        "source":      source,
+        "source_id":   re.sub(r"[^\w_-]", "_", source_id)[:100],
+        "title":       title[:200],
+        "cat":         detect_category(title, desc),
+        "location":    location[:200],
+        "event_date":  event_date,
+        "event_time":  time_str,
+        "price":       price,
+        "description": re.sub(r"<[^>]+>", "", desc).strip(),
+        "url":         url[:300],
+        "is_active":   True,
     }
 
 
@@ -1168,8 +1171,10 @@ def run():
     print(f"  {datetime.now().strftime('%d.%m.%Y %H:%M')}")
     print("═" * 60)
 
-    if "DEINE" in SUPABASE_URL:
-        print("\n❌ Bitte SUPABASE_URL und SUPABASE_KEY konfigurieren!")
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        print("\n❌ Bitte SUPABASE_URL und SUPABASE_KEY als Umgebungsvariablen setzen!")
+        print("   export SUPABASE_URL=https://<project>.supabase.co")
+        print("   export SUPABASE_KEY=<service-role-key>")
         sys.exit(1)
 
     db = Supabase(SUPABASE_URL, SUPABASE_KEY)

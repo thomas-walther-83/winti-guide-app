@@ -1,0 +1,38 @@
+name: Events Import (täglich)
+
+# Läuft täglich um 03:00 UTC und kann manuell ausgelöst werden.
+# Benötigte GitHub Secrets (Settings → Secrets → Actions):
+#   SUPABASE_URL  – z.B. https://dphhqwisluirihmahyee.supabase.co
+#   SUPABASE_KEY  – service_role-Key (Settings → API im Supabase-Dashboard)
+#   EVENTBRITE_TOKEN – optional, für Eventbrite-Events
+
+on:
+  schedule:
+    - cron: '0 3 * * *'   # täglich 03:00 UTC
+  workflow_dispatch:        # manueller Start über GitHub UI
+
+jobs:
+  import-events:
+    name: Winterthur Events importieren
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Abhängigkeiten installieren
+        run: pip install requests beautifulsoup4 python-dateutil icalendar
+
+      - name: Events importieren
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          EVENTBRITE_TOKEN: ${{ secrets.EVENTBRITE_TOKEN }}
+        run: python3 winti_import_phase2.py
