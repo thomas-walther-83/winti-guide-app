@@ -260,7 +260,7 @@ def parse_event_card(item, source: str, base_url: str) -> dict | None:
         "event_date": event_date,
         "event_time": "",
         "price":      "",
-        "desc":       desc,
+        "description": desc,
         "url":        url[:300],
         "is_active":  True,
     }
@@ -316,7 +316,7 @@ def jsonld_to_event(data: dict, source: str) -> dict | None:
         "event_date": event_date,
         "event_time": time_str,
         "price":      price,
-        "desc":       re.sub(r"<[^>]+>", "", desc).strip(),
+        "description": re.sub(r"<[^>]+>", "", desc).strip(),
         "url":        url[:300],
         "is_active":  True,
     }
