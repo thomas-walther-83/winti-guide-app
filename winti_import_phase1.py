@@ -15,14 +15,19 @@ Konfiguration:
 """
 
 import requests
+import os
 import time
 import json
 import sys
 from datetime import datetime
 
 # ── Konfiguration ────────────────────────────────────────────────
-SUPABASE_URL = "https://dphhqwisluirihmahyee.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwaGhxd2lzbHVpcmlobWFoeWVlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDc2NzQwMSwiZXhwIjoyMDkwMzQzNDAxfQ.cBNzpQ8iV-xNMJSabHw0F5sHbFlJIrgHcNCo2dxTSTM"   # Settings → API → service_role (nicht anon!)
+# Niemals Secrets im Code hardcoden! Der service_role-Key umgeht RLS und gibt
+# vollen Zugriff auf die Datenbank. Werte werden als Umgebungsvariablen erwartet:
+#   export SUPABASE_URL="https://dein-projekt.supabase.co"
+#   export SUPABASE_KEY="<service_role key aus Settings → API>"
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://dphhqwisluirihmahyee.supabase.co")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")   # service_role (nicht anon!)
 
 # Winterthur Bounding Box (SW → NE)
 OSM_BBOX = "47.466,8.681,47.538,8.795"
@@ -334,8 +339,8 @@ def run():
     print("═" * 60)
 
     # Supabase-Verbindung prüfen
-    if "DEINE" in SUPABASE_URL:
-        print("\n❌ Bitte SUPABASE_URL und SUPABASE_KEY konfigurieren!")
+    if not SUPABASE_KEY or "DEINE" in SUPABASE_URL:
+        print("\n❌ Bitte SUPABASE_URL und SUPABASE_KEY (service_role) als Umgebungsvariablen setzen!")
         sys.exit(1)
 
     db = Supabase(SUPABASE_URL, SUPABASE_KEY)
