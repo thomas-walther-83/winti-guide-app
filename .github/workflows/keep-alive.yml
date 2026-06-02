@@ -18,7 +18,8 @@ jobs:
       - name: Ping Supabase REST endpoint
         env:
           SUPABASE_URL: https://dphhqwisluirihmahyee.supabase.co
-          SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwaGhxd2lzbHVpcmlobWFoeWVlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3Njc0MDEsImV4cCI6MjA5MDM0MzQwMX0.Cdzb02RCqguPpEjkh3AI3-didfTb6gAYwg4gYylazak
+          # Publishable Key (öffentlich, read-only via RLS) – Nachfolger des anon-Keys.
+          SUPABASE_ANON_KEY: sb_publishable_-VhbMGsUIHDW_Z0U4v9iQw_qw0xiSTf
         run: |
           code=$(curl -sS -o /dev/null -w "%{http_code}" \
             "${SUPABASE_URL}/rest/v1/listings?select=id&limit=1" \

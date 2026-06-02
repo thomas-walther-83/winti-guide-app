@@ -1,0 +1,82 @@
+name: Daten-Import (Supabase)
+
+# Aktualisiert die Inhalte aus externen Quellen automatisch:
+#   - Events  (phase2): wöchentlich, Montags 03:00 UTC
+#   - Listings(phase1): monatlich, am 1. um 04:00 UTC
+# Beide Skripte sind idempotent (upsert via source_id): Bestehendes wird
+# aktualisiert, Neues hinzugefügt, ohne Duplikate.
+#
+# Voraussetzung: Das Repository-Secret SUPABASE_SERVICE_ROLE_KEY muss gesetzt
+# sein (Settings → Secrets and variables → Actions → New repository secret).
+# Es enthält den *secret* Key (sb_secret_…) – niemals im Code ablegen!
+on:
+  schedule:
+    - cron: '0 3 * * 1' # Events – wöchentlich (Mo 03:00 UTC)
+    - cron: '0 4 1 * *' # Listings – monatlich (1. um 04:00 UTC)
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Was importieren?'
+        type: choice
+        default: both
+        options:
+          - both
+          - events
+          - listings
+
+permissions:
+  contents: read
+
+concurrency:
+  group: data-import
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: https://dphhqwisluirihmahyee.supabase.co
+      SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      EVENTBRITE_TOKEN: ${{ secrets.EVENTBRITE_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify secret is set
+        run: |
+          if [ -z "${SUPABASE_KEY}" ]; then
+            echo "❌ Repository-Secret SUPABASE_SERVICE_ROLE_KEY fehlt."
+            echo "   Bitte unter Settings → Secrets and variables → Actions anlegen."
+            exit 1
+          fi
+          echo "✅ Secret vorhanden."
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4 python-dateutil icalendar
+
+      - name: Determine targets
+        id: targets
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            if [ "${{ github.event.schedule }}" = "0 3 * * 1" ]; then
+              echo "run=events" >> "$GITHUB_OUTPUT"
+            else
+              echo "run=listings" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "run=${{ github.event.inputs.target }}" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Selected: $(cat "$GITHUB_OUTPUT")"
+
+      - name: Import Events (phase2)
+        if: steps.targets.outputs.run == 'events' || steps.targets.outputs.run == 'both'
+        run: python3 winti_import_phase2.py
+
+      - name: Import Listings (phase1)
+        if: steps.targets.outputs.run == 'listings' || steps.targets.outputs.run == 'both'
+        run: python3 winti_import_phase1.py

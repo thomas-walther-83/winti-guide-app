@@ -20,6 +20,7 @@ Automatisierung (wöchentlich, z.B. via cron):
     0 3 * * 1 /usr/bin/python3 /pfad/winti_import_phase2.py >> /var/log/winti_import.log 2>&1
 """
 
+import os
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta, date as date_type
@@ -35,12 +36,15 @@ except ImportError:
     ICAL_AVAILABLE = False
 
 # ── Konfiguration ────────────────────────────────────────────────
-SUPABASE_URL = "https://DEINE-PROJECT-ID.supabase.co"
-SUPABASE_KEY = "DEIN-SERVICE-ROLE-KEY"
+# Secrets niemals im Code hardcoden! Werte werden als Umgebungsvariablen erwartet:
+#   export SUPABASE_URL="https://dein-projekt.supabase.co"
+#   export SUPABASE_KEY="<secret key aus Settings → API Keys, sb_secret_…>"
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://dphhqwisluirihmahyee.supabase.co")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")   # secret/service_role (nicht publishable!)
 
-# Eventbrite API-Key (https://www.eventbrite.com/platform/api)
-# Kostenloses Entwickler-Konto reicht für den Import.
-EVENTBRITE_TOKEN = "DEIN-EVENTBRITE-TOKEN"
+# Eventbrite API-Key (https://www.eventbrite.com/platform/api), optional.
+# Wird übersprungen, wenn nicht gesetzt. Kostenloses Entwickler-Konto reicht.
+EVENTBRITE_TOKEN = os.environ.get("EVENTBRITE_TOKEN", "DEIN-EVENTBRITE-TOKEN")
 EVENTBRITE_MAX_PAGES = 5  # Maximale Seitenzahl beim Eventbrite-Import (à 50 Events)
 
 # Öffentliche iCal-Feeds: (URL, source_name, default_location)
@@ -1168,8 +1172,8 @@ def run():
     print(f"  {datetime.now().strftime('%d.%m.%Y %H:%M')}")
     print("═" * 60)
 
-    if "DEINE" in SUPABASE_URL:
-        print("\n❌ Bitte SUPABASE_URL und SUPABASE_KEY konfigurieren!")
+    if not SUPABASE_KEY or "DEINE" in SUPABASE_URL:
+        print("\n❌ Bitte SUPABASE_URL und SUPABASE_KEY (secret key) als Umgebungsvariablen setzen!")
         sys.exit(1)
 
     db = Supabase(SUPABASE_URL, SUPABASE_KEY)
