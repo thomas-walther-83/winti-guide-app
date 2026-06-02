@@ -6,7 +6,6 @@ on:
   push:
     branches:
       - main
-      - claude/winti-guide-app-setup-dwTTv
   workflow_dispatch:
 
 # Rechte, die actions/deploy-pages benötigt.
