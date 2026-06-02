@@ -123,6 +123,21 @@ npx expo start
 
 Dann den **QR-Code** mit der **Expo Go App** auf deinem iPhone scannen.
 
+## Web-Version & iPhone-Test (GitHub Pages)
+
+Die App wird zusätzlich automatisch als Web-Version veröffentlicht. So lässt sie
+sich ohne lokalen Rechner direkt auf dem iPhone (Safari) testen.
+
+- **Live-URL**: https://thomas-walther-83.github.io/winti-guide-app/
+- **Auto-Deploy**: Jeder Push auf `main` baut den Web-Export und veröffentlicht
+  ihn via GitHub Actions (`.github/workflows/deploy-pages.yml`).
+- **Auf dem iPhone wie eine App nutzen**: URL in Safari öffnen → Teilen-Symbol →
+  „Zum Home-Bildschirm". Damit läuft sie im Vollbild wie eine native App.
+
+> Hinweis: Stripe Payment Links funktionieren im Browser direkt – die Web-Version
+> ist damit ein vollwertiger Weg, um Premium-/Partner-Abos zu verkaufen, ganz ohne
+> App-Store-Freigabe.
+
 ## Datenbank (Supabase)
 
 ### Schema einrichten
