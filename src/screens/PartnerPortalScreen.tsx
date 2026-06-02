@@ -19,6 +19,7 @@ import {
   fetchMyAds,
   createPartnerAd,
 } from '../services/supabaseService';
+import { getErrorMessage } from '../utils/errors';
 import { theme } from '../styles/theme';
 import type {
   Partner,
@@ -306,7 +307,7 @@ function RegisterView({ onRegistered }: { onRegistered: () => void }) {
       });
       onRegistered();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registrierung fehlgeschlagen');
+      setError(getErrorMessage(err, 'Registrierung fehlgeschlagen'));
     } finally {
       setSaving(false);
     }
@@ -509,7 +510,7 @@ function NewAdView({
       Alert.alert('Anzeige eingereicht', 'Deine Anzeige wird vom Admin geprüft und dann freigeschaltet.');
       onCreated();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Fehler beim Erstellen');
+      setError(getErrorMessage(err, 'Fehler beim Erstellen'));
     } finally {
       setSaving(false);
     }

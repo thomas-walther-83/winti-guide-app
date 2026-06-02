@@ -48,8 +48,25 @@ describe('useListings', () => {
     expect(result.current.listings).toEqual([]);
   });
 
-  it('sets generic error message for non-Error rejections', async () => {
-    mockFetchListings.mockRejectedValue('some string error');
+  it('surfaces the message from Supabase PostgrestError objects', async () => {
+    // Supabase wirft Objekte (keine Error-Instanzen) – die echte Ursache muss
+    // sichtbar werden, nicht der generische Fallback-Text.
+    mockFetchListings.mockRejectedValue({
+      message: 'relation "public.listings" does not exist',
+      code: '42P01',
+    });
+
+    const { result } = renderHook(() => useListings());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.error).toBe('relation "public.listings" does not exist (42P01)');
+  });
+
+  it('falls back to the generic message for unknown rejections', async () => {
+    mockFetchListings.mockRejectedValue(null);
 
     const { result } = renderHook(() => useListings());
 

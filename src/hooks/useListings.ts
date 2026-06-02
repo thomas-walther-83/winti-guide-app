@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchListings } from '../services/supabaseService';
+import { getErrorMessage } from '../utils/errors';
 import type { Listing, ListingCategory } from '../types';
 
 interface UseListingsOptions {
@@ -26,7 +27,7 @@ export function useListings(options: UseListingsOptions = {}): UseListingsResult
       const data = await fetchListings(options);
       setListings(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Fehler beim Laden der Einträge');
+      setError(getErrorMessage(err, 'Fehler beim Laden der Einträge'));
     } finally {
       setLoading(false);
     }

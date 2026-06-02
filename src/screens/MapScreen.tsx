@@ -10,6 +10,7 @@ import { MapWebView } from '../components/MapWebView';
 import { CategoryFilter } from '../components/CategoryFilter';
 import { SubCategoryFilter } from '../components/SubCategoryFilter';
 import { fetchListingsWithCoords } from '../services/supabaseService';
+import { getErrorMessage } from '../utils/errors';
 import { SUB_CATEGORY_ALIASES } from '../config/subcategories';
 import { theme } from '../styles/theme';
 import type { Listing, ListingCategory } from '../types';
@@ -136,7 +137,7 @@ export function MapScreen({ focusListing }: { focusListing?: Listing | null }) {
         const data = await fetchListingsWithCoords();
         setListings(data);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Fehler beim Laden');
+        setError(getErrorMessage(err, 'Fehler beim Laden'));
       } finally {
         setLoading(false);
       }

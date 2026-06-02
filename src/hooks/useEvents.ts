@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchEvents } from '../services/supabaseService';
+import { getErrorMessage } from '../utils/errors';
 import type { Event, EventCategory } from '../types';
 
 interface UseEventsOptions {
@@ -26,7 +27,7 @@ export function useEvents(options: UseEventsOptions = {}): UseEventsResult {
       const data = await fetchEvents(options);
       setEvents(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Fehler beim Laden der Events');
+      setError(getErrorMessage(err, 'Fehler beim Laden der Events'));
     } finally {
       setLoading(false);
     }
