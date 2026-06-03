@@ -36,6 +36,14 @@ try:
 except ImportError:
     ICAL_AVAILABLE = False
 
+# Playwright (Headless-Browser) für JS-gerenderte SPA-Seiten. Optional: fehlt es,
+# werden die gerenderten Scraper still übersprungen.
+try:
+    from playwright.sync_api import sync_playwright
+    PLAYWRIGHT_AVAILABLE = True
+except ImportError:
+    PLAYWRIGHT_AVAILABLE = False
+
 # ── Konfiguration ────────────────────────────────────────────────
 # Secrets niemals im Code hardcoden! Werte werden als Umgebungsvariablen erwartet:
 #   export SUPABASE_URL="https://dein-projekt.supabase.co"
@@ -462,6 +470,86 @@ def expand_jsonld(data) -> list:
 
     walk(data)
     return out
+
+
+# ── Headless-Browser-Rendering (Playwright) für SPA-Seiten ───────
+def render_html(url: str, wait_selector: str | None = None, timeout_ms: int = 25000) -> str:
+    """Rendert eine Seite mit Chromium (JS ausgeführt) und gibt das HTML zurück.
+    Leerstring, wenn Playwright fehlt oder ein Fehler auftritt."""
+    if not PLAYWRIGHT_AVAILABLE:
+        return ""
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(args=["--no-sandbox", "--disable-dev-shm-usage"])
+            page = browser.new_page(user_agent=HEADERS["User-Agent"], locale="de-CH")
+            try:
+                page.goto(url, timeout=timeout_ms, wait_until="domcontentloaded")
+                # Kurz auf nachladende Inhalte / Selektor warten.
+                if wait_selector:
+                    try:
+                        page.wait_for_selector(wait_selector, timeout=6000)
+                    except Exception:
+                        pass
+                else:
+                    page.wait_for_timeout(2500)
+                html = page.content()
+            finally:
+                browser.close()
+            return html or ""
+    except Exception as e:
+        print(f"  ⚠️  render_html({url.split('/')[2] if '//' in url else url}): {str(e)[:80]}")
+        return ""
+
+
+def scrape_rendered(name: str, urls: list[str], source: str,
+                    default_location: str, default_cat: str,
+                    card_selectors: str, wait_selector: str | None = None) -> list[dict]:
+    """Generischer Scraper für JS-gerenderte Venue-Seiten: rendert die Seite mit
+    Playwright und lässt dieselben Parser (JSON-LD via expand_jsonld, sonst
+    HTML-Cards) darauf laufen."""
+    print(f"  → {name} (gerendert) scrapen…")
+    events: list[dict] = []
+    if not PLAYWRIGHT_AVAILABLE:
+        print("  ⚠️  Playwright nicht verfügbar – übersprungen")
+        return events
+    for url in urls:
+        html = render_html(url, wait_selector=wait_selector)
+        if not html:
+            continue
+        soup = BeautifulSoup(html, "html.parser")
+
+        # 1) JSON-LD (inkl. @graph/itemListElement)
+        for script in soup.find_all("script", type="application/ld+json"):
+            try:
+                data = json.loads(script.string or "")
+            except Exception:
+                continue
+            for item in expand_jsonld(data):
+                ev = jsonld_to_event(item, source)
+                if ev:
+                    ev["location"] = ev.get("location") or default_location
+                    ev["cat"] = ev.get("cat") or default_cat
+                    events.append(ev)
+
+        # 2) HTML-Cards als Fallback
+        if not events:
+            for card in soup.select(card_selectors)[:60]:
+                ev = parse_event_card(card, source, url)
+                if ev:
+                    ev["location"] = ev.get("location") or default_location
+                    ev["cat"] = ev.get("cat") or default_cat
+                    events.append(ev)
+
+        if events:
+            page_img = extract_image_from_html(soup, url)
+            if page_img:
+                for ev in events:
+                    if not ev.get("image_url"):
+                        ev["image_url"] = page_img[:500]
+            break
+
+    print(f"  ✓ {len(events)} Events von {name} (gerendert)")
+    return events
 
 
 # ── Scraper 2: myswitzerland.com ─────────────────────────────────
@@ -1496,6 +1584,42 @@ def run():
     all_events += scrape_stadt_winterthur()
     all_events += scrape_eventbrite()
     all_events += scrape_opendata_swiss()
+
+    # JS-gerenderte SPA-Venues via Playwright (statisches HTML liefert dort 0).
+    print("\n🧭 SPA-Venues rendern (Playwright)…")
+    all_events += scrape_rendered(
+        "Fotomuseum",
+        ["https://www.fotomuseum.ch/de/program/", "https://www.fotomuseum.ch/de/events/"],
+        "fotomuseum", "Fotomuseum Winterthur", "kultur",
+        "article, .event, [class*='event'], [class*='program'], [class*='veranstaltung']",
+    )
+    all_events += scrape_rendered(
+        "Technorama",
+        ["https://www.technorama.ch/de/erlebnis/veranstaltungen",
+         "https://www.technorama.ch/besuch/veranstaltungen"],
+        "technorama", "Swiss Science Center Technorama", "kultur",
+        "article, .event, [class*='event'], [class*='veranstaltung'], [class*='teaser']",
+    )
+    all_events += scrape_rendered(
+        "Kunsthalle Winterthur",
+        ["https://www.kunsthallewinterthur.ch/", "https://www.kunsthallewinterthur.ch/ausstellungen/"],
+        "kunsthalle", "Kunsthalle Winterthur", "kultur",
+        "article, .event, [class*='event'], [class*='ausstellung'], [class*='exhibition']",
+    )
+    all_events += scrape_rendered(
+        "Theater Winterthur",
+        ["https://www.theater-winterthur.ch/de/spielplan",
+         "https://www.stadttheater-winterthur.ch/spielplan"],
+        "stadttheater", "Theater Winterthur", "theater",
+        "article, .event, [class*='event'], [class*='vorstellung'], [class*='production'], [class*='spielplan']",
+    )
+    all_events += scrape_rendered(
+        "Casinotheater Winterthur",
+        ["https://www.casinotheater.ch/programm", "https://www.casinotheater.ch/de/programm"],
+        "casinotheater", "Casinotheater Winterthur", "theater",
+        "article, .event, [class*='event'], [class*='veranstaltung'], [class*='programm']",
+    )
+
     for feed_url, feed_source, feed_location in ICAL_FEEDS:
         all_events += import_ical(feed_url, feed_source, default_location=feed_location)
 

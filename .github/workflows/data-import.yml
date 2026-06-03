@@ -57,7 +57,10 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install requests beautifulsoup4 python-dateutil icalendar
+        run: pip install requests beautifulsoup4 python-dateutil icalendar playwright
+
+      - name: Install Playwright browser (Chromium)
+        run: python -m playwright install --with-deps chromium
 
       - name: Determine targets
         id: targets
