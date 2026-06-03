@@ -43,6 +43,21 @@ jobs:
           fi
           psql --version
 
+      - name: Inspect connection target (password masked)
+        run: |
+          # Zeigt Benutzer/Host/Port/DB – das Passwort wird durch **** ersetzt.
+          masked=$(printf '%s' "$SUPABASE_DB_URL" | sed -E 's#(://[^:]+:)[^@]*(@)#\1****\2#')
+          echo "Connection (maskiert): $masked"
+          # Benutzername separat herausziehen (zur Kontrolle: muss postgres.<projektref> sein)
+          user=$(printf '%s' "$SUPABASE_DB_URL" | sed -E 's#^[a-z]+://([^:]+):.*#\1#')
+          host=$(printf '%s' "$SUPABASE_DB_URL" | sed -E 's#.*@([^:/]+).*#\1#')
+          echo "Benutzername: $user"
+          echo "Host:         $host"
+          case "$user" in
+            postgres.*) echo "✅ Benutzername hat das erwartete Format (postgres.<ref>).";;
+            *) echo "⚠️  Benutzername ist NICHT 'postgres.<ref>' – beim Session-Pooler muss die Projekt-ID dranhängen!";;
+          esac
+
       - name: Apply migrations
         run: |
           set -e
