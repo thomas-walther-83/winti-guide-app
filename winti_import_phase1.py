@@ -18,6 +18,7 @@ import requests
 import os
 import time
 import json
+import re
 import sys
 from datetime import datetime
 from urllib.parse import urljoin, quote
@@ -25,6 +26,16 @@ from urllib.parse import urljoin, quote
 # Aussagekräftiger User-Agent (Wikidata/Wikimedia verlangen das).
 WIKI_HEADERS = {
     "User-Agent": "WintiGuide/1.0 (Stadtführer Winterthur; kontakt@wintiguide.ch)",
+}
+
+# Echter Browser-UA für Website-Abrufen (manche Server blocken Bot-UAs).
+WEB_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+    ),
+    "Accept-Language": "de-CH,de;q=0.9",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 }
 
 
@@ -137,6 +148,60 @@ def enrich_listing_images_via_wikidata(listings: list, cap_ids: int = 400) -> in
         except Exception:
             continue
     return added
+
+
+def extract_og_image(html: str, base_url: str = "") -> str:
+    """Liest die Vorschaubild-URL aus dem HTML einer Seite (og:image →
+    og:image:url → twitter:image). Regex-basiert, damit phase1 ohne
+    BeautifulSoup auskommt. Relative URLs werden absolut gemacht.
+    """
+    if not html:
+        return ""
+    patterns = [
+        r'<meta[^>]+?property=["\']og:image(?::url)?["\'][^>]+?content=["\']([^"\']+)["\']',
+        r'<meta[^>]+?content=["\']([^"\']+)["\'][^>]+?property=["\']og:image(?::url)?["\']',
+        r'<meta[^>]+?name=["\']twitter:image(?::src)?["\'][^>]+?content=["\']([^"\']+)["\']',
+    ]
+    for pat in patterns:
+        m = re.search(pat, html, re.IGNORECASE)
+        if m:
+            url = image_from_field(m.group(1).strip(), base_url)
+            if url:
+                return url
+    return ""
+
+
+def enrich_listing_images_via_website(listings: list, cap: int = 30) -> int:
+    """Holt Bilder für Listings OHNE Bild, aber MIT eigener Website: lädt die
+    Startseite und liest das og:image. Begrenzt auf `cap` Requests pro Aufruf,
+    damit der Lauf nicht ausufert. Gibt die Anzahl neu gesetzter Bilder zurück.
+    """
+    added = 0
+    reqs = 0
+    for l in listings:
+        if reqs >= cap:
+            break
+        if l.get("image_url"):
+            continue
+        site = (l.get("website") or "").strip()
+        if not site:
+            continue
+        if not site.startswith("http"):
+            site = "https://" + site
+        reqs += 1
+        try:
+            res = requests.get(site, headers=WEB_HEADERS, timeout=8)
+            if res.status_code != 200:
+                continue
+            img = extract_og_image(res.text, site)
+            if img:
+                l["image_url"] = img[:500]
+                added += 1
+            time.sleep(0.2)
+        except Exception:
+            continue
+    return added
+
 
 # ── Konfiguration ────────────────────────────────────────────────
 # Niemals Secrets im Code hardcoden! Der service_role-Key umgeht RLS und gibt
@@ -555,6 +620,10 @@ def run():
         img_added = enrich_listing_images_via_wikidata(unique)
         if img_added:
             print(f"  🖼️  {img_added} Bilder über Wikidata ergänzt")
+        # Restliche fehlende Bilder über die Website (og:image) nachladen.
+        web_added = enrich_listing_images_via_website(unique, cap=30)
+        if web_added:
+            print(f"  🖼️  {web_added} Bilder über Website (og:image) ergänzt")
         # Temporäre Markierung entfernen (existiert nicht als DB-Spalte).
         for l in unique:
             l.pop("_wikidata", None)
