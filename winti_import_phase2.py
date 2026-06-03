@@ -56,7 +56,12 @@ ICAL_FEEDS = [
 ]
 
 HEADERS = {
-    "User-Agent": "WintiGuide/1.0 (Stadtführer-App Winterthur; kontakt@wintiGuide.ch)",
+    # Browser-User-Agent: viele Seiten (z. B. kunsthallewinterthur.ch) liefern
+    # mit dem alten Projekt-UA 403. Mit echtem Browser-UA antworten sie mit 200.
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+    ),
     "Accept-Language": "de-CH,de;q=0.9",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 }
@@ -398,13 +403,48 @@ def scrape_alte_kaserne() -> list[dict]:
             except:
                 pass
 
-        # HTML Cards
+        # HTML: TYPO3-News-Liste (article.cNewsListItem mit .news-list-date / .teaser-text)
         if not events:
-            for card in soup.select("article, .event, .programm-item")[:30]:
-                ev = parse_event_card(card, "altekaserne", "https://www.altekaserne.ch")
-                if ev:
-                    ev["location"] = "Alte Kaserne Winterthur"
-                    events.append(ev)
+            cards = soup.select("article.cNewsListItem") or soup.select("article")
+            print(f"      (debug altekaserne: {len(cards)} article-Elemente)")
+            for i, card in enumerate(cards[:40]):
+                # Datum
+                date_el = card.find(class_=re.compile("news-list-date|date|datum")) or card.find("time")
+                date_raw = (date_el.get("datetime", "") if date_el else "") or \
+                           (date_el.get_text(" ", strip=True) if date_el else "")
+                event_date = parse_date(date_raw) or extract_date_from_text(date_raw) or \
+                             extract_date_from_text(card.get_text(" ", strip=True))
+                # Titel
+                title_el = (card.find(class_=re.compile("headline|title|header")) or
+                            card.find(["h1", "h2", "h3", "h4"]))
+                title = title_el.get_text(" ", strip=True) if title_el else ""
+                # Link
+                link = card.find("a", href=True)
+                href = link["href"] if link else ""
+                url = href if href.startswith("http") else "https://www.altekaserne.ch/" + href.lstrip("/")
+                if not title and link:
+                    title = link.get_text(" ", strip=True)
+                # Teaser
+                teaser_el = card.find(class_=re.compile("teaser-text|teaser|bodytext|subheader"))
+                desc = teaser_el.get_text(" ", strip=True)[:500] if teaser_el else ""
+                if i < 3:
+                    print(f"      (debug altekaserne #{i}: date_raw='{date_raw[:40]}' -> {event_date} | title='{title[:50]}')")
+                if not title or len(title) < 3 or not event_date:
+                    continue
+                source_id = re.sub(r"[^\w_-]", "_", f"altekaserne_{title[:50]}_{event_date}")[:100]
+                events.append({
+                    "source":     "altekaserne",
+                    "source_id":  source_id,
+                    "title":      title[:200],
+                    "cat":        detect_category(title, desc),
+                    "location":   "Alte Kaserne Winterthur",
+                    "event_date": event_date,
+                    "event_time": "",
+                    "price":      "",
+                    "description": desc,
+                    "url":        url[:300],
+                    "is_active":  True,
+                })
 
         time.sleep(1)
 
