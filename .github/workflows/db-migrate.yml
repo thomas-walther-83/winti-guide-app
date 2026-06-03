@@ -62,12 +62,15 @@ jobs:
         run: |
           set -e
           shopt -s nullglob
+          # Versteckte CR/LF und führende/abschließende Leerzeichen entfernen
+          # (häufige Ursache, wenn beim Einfügen ins Secret ein Umbruch mitkam).
+          DB_URL=$(printf '%s' "$SUPABASE_DB_URL" | tr -d '\r\n' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')
           files=(supabase/migrations/*.sql)
           if [ ${#files[@]} -eq 0 ]; then
             echo "Keine Migrationsdateien gefunden."; exit 0
           fi
           for f in "${files[@]}"; do
             echo "▶ Wende an: $f"
-            psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$f"
+            psql "$DB_URL" -v ON_ERROR_STOP=1 -f "$f"
           done
           echo "✅ Alle Migrationen angewendet."
