@@ -99,21 +99,26 @@ out center tags 200;
 """.strip()
 
     print(f"  → Overpass API abfragen ({len(amenity_tags)} Tags)…")
-    # Try multiple endpoints with retry
+    # Overpass verlangt einen aussagekräftigen User-Agent – ohne UA antwortet
+    # overpass-api.de mit 406 Not Acceptable. Schweizer Spiegel (osm.ch) zuerst.
+    osm_headers = {
+        "User-Agent": "WintiGuide/1.0 (Stadtführer Winterthur; kontakt@wintiguide.ch)",
+    }
     endpoints = [
         "https://overpass-api.de/api/interpreter",
+        "https://overpass.osm.ch/api/interpreter",
         "https://overpass.kumi.systems/api/interpreter",
-        "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
     ]
     for attempt, endpoint in enumerate(endpoints):
         try:
             if attempt > 0:
-                print(f"  → Versuche alternativen Server ({attempt+1}/3)…")
+                print(f"  → Versuche alternativen Server ({attempt+1}/{len(endpoints)})…")
                 time.sleep(3)
             res = requests.post(
                 endpoint,
                 data={"data": query},
-                timeout=60
+                headers=osm_headers,
+                timeout=90
             )
             res.raise_for_status()
             elements = res.json().get("elements", [])
@@ -235,7 +240,14 @@ def fetch_zt_category(cat_id: int) -> list:
         res = requests.get(
             f"{ZT_API}?id={cat_id}",
             timeout=20,
-            headers={"Accept": "application/json"}
+            headers={
+                "Accept": "application/json",
+                # zuerich.com blockt ohne Browser-UA mit "Bot not allowed" (403).
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                    "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+                ),
+            }
         )
         res.raise_for_status()
         data = res.json()
