@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -14,6 +15,7 @@ import { SavedScreen } from './src/screens/SavedScreen';
 import { AccountScreen } from './src/screens/AccountScreen';
 import { PartnerPortalScreen } from './src/screens/PartnerPortalScreen';
 import { NavigationBar } from './src/components/NavigationBar';
+import { OnboardingScreen, ONBOARDING_KEY } from './src/screens/OnboardingScreen';
 import { useTranslation } from './src/hooks/useTranslation';
 import { theme } from './src/styles/theme';
 import type { Listing } from './src/types';
@@ -33,6 +35,14 @@ function AppContent() {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [mapFocusListing, setMapFocusListing] = useState<Listing | null>(null);
+  // null = noch nicht geladen; true/false = Onboarding zeigen?
+  const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem(ONBOARDING_KEY)
+      .then((v) => setShowOnboarding(v !== '1'))
+      .catch(() => setShowOnboarding(false));
+  }, []);
 
   const navigateToAccount = () => setActiveTab('account');
 
@@ -75,6 +85,14 @@ function AppContent() {
         return <HomeScreen onNavigateToAccount={navigateToAccount} onNavigateToMap={navigateToMap} />;
     }
   };
+
+  // Onboarding-Status wird noch geladen → nichts rendern (kurzer Moment)
+  if (showOnboarding === null) {
+    return <View style={styles.container} />;
+  }
+  if (showOnboarding) {
+    return <OnboardingScreen onDone={() => setShowOnboarding(false)} />;
+  }
 
   return (
     <View style={styles.container}>
