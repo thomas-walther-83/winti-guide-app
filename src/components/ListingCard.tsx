@@ -9,6 +9,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { useDetail } from '../context/DetailContext';
+import { useTranslation } from '../hooks/useTranslation';
 import type { Listing } from '../types';
 
 const CATEGORY_EMOJI: Record<string, string> = {
@@ -46,6 +47,7 @@ export function ListingCard({ listing, isSaved, onToggleSave, onShowOnMap }: Lis
   const emoji = CATEGORY_EMOJI[listing.category] ?? '📍';
   const bgColor = CATEGORY_BG[listing.category] ?? theme.colors.primary;
   const { open } = useDetail();
+  const { t } = useTranslation();
 
   const openDetail = () =>
     open({ kind: 'listing', listing, isSaved, onToggleSave, onShowOnMap });
@@ -112,13 +114,13 @@ export function ListingCard({ listing, isSaved, onToggleSave, onShowOnMap }: Lis
             {listing.phone && (
               <TouchableOpacity style={styles.actionBtn} onPress={handlePhone}>
                 <Ionicons name="call-outline" size={13} color={theme.colors.text} />
-                <Text style={styles.actionText}>Anrufen</Text>
+                <Text style={styles.actionText}>{t('call')}</Text>
               </TouchableOpacity>
             )}
             {listing.website && (
               <TouchableOpacity style={[styles.actionBtn, styles.actionBtnPrimary]} onPress={handleWebsite}>
                 <Ionicons name="globe-outline" size={13} color="#FFFFFF" />
-                <Text style={styles.actionTextPrimary}>Website</Text>
+                <Text style={styles.actionTextPrimary}>{t('website')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -130,7 +132,7 @@ export function ListingCard({ listing, isSaved, onToggleSave, onShowOnMap }: Lis
             onPress={() => onShowOnMap(listing)}
           >
             <Ionicons name="map-outline" size={13} color={theme.colors.primary} />
-            <Text style={styles.mapBtnText}>Auf Karte zeigen</Text>
+            <Text style={styles.mapBtnText}>{t('show_on_map')}</Text>
           </TouchableOpacity>
         )}
       </View>

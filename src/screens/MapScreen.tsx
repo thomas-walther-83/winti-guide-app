@@ -12,6 +12,7 @@ import { SubCategoryFilter } from '../components/SubCategoryFilter';
 import { fetchListingsWithCoords } from '../services/supabaseService';
 import { getErrorMessage } from '../utils/errors';
 import { SUB_CATEGORY_ALIASES } from '../config/subcategories';
+import { useTranslation } from '../hooks/useTranslation';
 import { theme } from '../styles/theme';
 import type { Listing, ListingCategory } from '../types';
 
@@ -123,6 +124,7 @@ export function MapScreen({ focusListing }: { focusListing?: Listing | null }) {
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<ListingCategory | 'all'>('all');
   const [selectedSubType, setSelectedSubType] = useState<string>('all');
+  const { t } = useTranslation();
 
   // Reset subcategory whenever category changes
   useEffect(() => {
@@ -137,7 +139,7 @@ export function MapScreen({ focusListing }: { focusListing?: Listing | null }) {
         const data = await fetchListingsWithCoords();
         setListings(data);
       } catch (err) {
-        setError(getErrorMessage(err, 'Fehler beim Laden'));
+        setError(getErrorMessage(err, t('error_loading')));
       } finally {
         setLoading(false);
       }
@@ -162,11 +164,11 @@ export function MapScreen({ focusListing }: { focusListing?: Listing | null }) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Karte</Text>
+        <Text style={styles.title}>{t('map')}</Text>
         <Text style={styles.subtitle}>
           {filteredListings.length > 0
-            ? `${filteredListings.length} Orte in Winterthur`
-            : 'Winterthur'}
+            ? `${filteredListings.length} ${t('places_in_winterthur_suffix')}`
+            : t('winterthur')}
         </Text>
       </View>
 
@@ -183,7 +185,7 @@ export function MapScreen({ focusListing }: { focusListing?: Listing | null }) {
       {loading && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={styles.loadingText}>Karte wird geladen...</Text>
+          <Text style={styles.loadingText}>{t('map_loading')}</Text>
         </View>
       )}
 

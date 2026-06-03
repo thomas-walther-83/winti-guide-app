@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { useDetail } from '../context/DetailContext';
+import { useTranslation } from '../hooks/useTranslation';
 import type { Listing, Event } from '../types';
 
 const LISTING_EMOJI: Record<string, string> = {
@@ -63,6 +64,7 @@ function ListingDetail({
 }) {
   const emoji = LISTING_EMOJI[listing.category] ?? '📍';
   const bg = LISTING_BG[listing.category] ?? theme.colors.primary;
+  const { t } = useTranslation();
   return (
     <>
       <View style={[styles.hero, { backgroundColor: bg }]}>
@@ -70,7 +72,7 @@ function ListingDetail({
         {listing.is_premium && (
           <View style={styles.premiumBadge}>
             <Ionicons name="star" size={12} color="#FFFFFF" />
-            <Text style={styles.premiumBadgeText}>Premium</Text>
+            <Text style={styles.premiumBadgeText}>{t('premium')}</Text>
           </View>
         )}
       </View>
@@ -100,7 +102,7 @@ function ListingDetail({
               accessibilityLabel={`${listing.name} anrufen`}
             >
               <Ionicons name="call-outline" size={16} color={theme.colors.text} />
-              <Text style={styles.actionGhostText}>Anrufen</Text>
+              <Text style={styles.actionGhostText}>{t('call')}</Text>
             </TouchableOpacity>
           )}
           {listing.website && (
@@ -111,7 +113,7 @@ function ListingDetail({
               accessibilityLabel={`Website von ${listing.name} öffnen`}
             >
               <Ionicons name="globe-outline" size={16} color="#FFFFFF" />
-              <Text style={styles.actionPrimaryText}>Website</Text>
+              <Text style={styles.actionPrimaryText}>{t('website')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -124,7 +126,7 @@ function ListingDetail({
               accessibilityLabel={`${listing.name} auf Karte zeigen`}
             >
               <Ionicons name="map-outline" size={16} color={theme.colors.primary} />
-              <Text style={styles.actionOutlineText}>Auf Karte zeigen</Text>
+              <Text style={styles.actionOutlineText}>{t('show_on_map')}</Text>
             </TouchableOpacity>
           )}
           {onToggleSave && (
@@ -135,7 +137,7 @@ function ListingDetail({
               accessibilityLabel={isSaved ? `${listing.name} aus Gespeicherten entfernen` : `${listing.name} speichern`}
             >
               <Ionicons name={isSaved ? 'heart' : 'heart-outline'} size={16} color={theme.colors.primary} />
-              <Text style={styles.actionOutlineText}>{isSaved ? 'Gespeichert' : 'Speichern'}</Text>
+              <Text style={styles.actionOutlineText}>{isSaved ? t('saved_label') : t('save')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -147,6 +149,7 @@ function ListingDetail({
 function EventDetail({ event }: { event: Event }) {
   const emoji = EVENT_EMOJI[event.cat] ?? '📅';
   const isFree = event.price && ['kostenlos', 'free', '0'].includes(event.price.toLowerCase());
+  const { t } = useTranslation();
   return (
     <>
       <View style={[styles.hero, { backgroundColor: theme.colors.primary }]}>
@@ -159,7 +162,7 @@ function EventDetail({ event }: { event: Event }) {
           <InfoRow icon="calendar-outline">{formatDate(event.event_date)}</InfoRow>
           {event.event_time ? <InfoRow icon="time-outline">{event.event_time}</InfoRow> : null}
           {event.location ? <InfoRow icon="location-outline">{event.location}</InfoRow> : null}
-          <InfoRow icon="pricetag-outline">{isFree ? 'Kostenlos' : event.price || 'Preis auf Anfrage'}</InfoRow>
+          <InfoRow icon="pricetag-outline">{isFree ? t('free') : event.price || t('price_on_request')}</InfoRow>
         </View>
 
         {event.description ? <Text style={styles.description}>{event.description}</Text> : null}
@@ -172,7 +175,7 @@ function EventDetail({ event }: { event: Event }) {
               accessibilityRole="button"
               accessibilityLabel={`Mehr über ${event.title} erfahren`}
             >
-              <Text style={styles.actionPrimaryText}>Mehr erfahren</Text>
+              <Text style={styles.actionPrimaryText}>{t('more_info')}</Text>
               <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
@@ -184,6 +187,7 @@ function EventDetail({ event }: { event: Event }) {
 
 export function DetailModal() {
   const { payload, close } = useDetail();
+  const { t } = useTranslation();
   const visible = payload !== null;
 
   return (
@@ -195,7 +199,7 @@ export function DetailModal() {
             onPress={close}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             accessibilityRole="button"
-            accessibilityLabel="Detail schliessen"
+            accessibilityLabel={t('close_detail')}
           >
             <Ionicons name="close" size={22} color={theme.colors.text} />
           </TouchableOpacity>

@@ -9,6 +9,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { useDetail } from '../context/DetailContext';
+import { useTranslation } from '../hooks/useTranslation';
 import type { Event } from '../types';
 
 const CATEGORY_EMOJI: Record<string, string> = {
@@ -56,6 +57,7 @@ function formatMonth(dateStr: string): string {
 export function EventCard({ event }: EventCardProps) {
   const emoji = CATEGORY_EMOJI[event.cat] ?? '📅';
   const { open } = useDetail();
+  const { t } = useTranslation();
 
   const handleUrl = () => {
     if (event.url) {
@@ -81,7 +83,7 @@ export function EventCard({ event }: EventCardProps) {
         <Text style={styles.month}>{formatMonth(event.event_date)}</Text>
         {isToday && (
           <View style={styles.todayBadge}>
-            <Text style={styles.todayText}>HEUTE</Text>
+            <Text style={styles.todayText}>{t('today').toUpperCase()}</Text>
           </View>
         )}
       </View>
@@ -113,7 +115,7 @@ export function EventCard({ event }: EventCardProps) {
               {event.price.toLowerCase() === 'kostenlos' ||
               event.price.toLowerCase() === 'free' ||
               event.price === '0'
-                ? '🆓 Kostenlos'
+                ? `🆓 ${t('free')}`
                 : `💶 ${event.price}`}
             </Text>
           ) : null}
@@ -127,7 +129,7 @@ export function EventCard({ event }: EventCardProps) {
 
         {event.url ? (
           <TouchableOpacity style={styles.linkBtn} onPress={handleUrl}>
-            <Text style={styles.linkText}>Mehr erfahren</Text>
+            <Text style={styles.linkText}>{t('more_info')}</Text>
             <Ionicons name="arrow-forward" size={13} color={theme.colors.primary} />
           </TouchableOpacity>
         ) : null}

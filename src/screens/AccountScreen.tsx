@@ -42,7 +42,7 @@ export function AccountScreen() {
 
   const handleSubmit = async () => {
     if (!email.trim() || !password.trim()) {
-      setError('Bitte E-Mail und Passwort eingeben.');
+      setError(t('enter_email_password'));
       return;
     }
     setSubmitting(true);
@@ -56,23 +56,23 @@ export function AccountScreen() {
     setSubmitting(false);
 
     if (authError) {
-      setError(translateAuthError(authError.message));
+      setError(translateAuthError(authError.message, t));
     } else if (mode === 'register') {
-      setSuccessMsg('Registrierung erfolgreich! Bitte prüfe deine E-Mails zur Bestätigung.');
+      setSuccessMsg(t('register_success'));
     }
   };
 
   const handleUpgrade = (billing: 'monthly' | 'yearly') => {
     const url = billing === 'monthly' ? STRIPE_PREMIUM_MONTHLY : STRIPE_PREMIUM_YEARLY;
     Linking.openURL(url).catch(() =>
-      Alert.alert('Fehler', 'Der Checkout konnte nicht geöffnet werden.'),
+      Alert.alert(t('error'), t('checkout_failed')),
     );
   };
 
   const handleSignOut = () => {
-    Alert.alert('Abmelden', 'Möchtest du dich wirklich abmelden?', [
-      { text: 'Abbrechen', style: 'cancel' },
-      { text: 'Abmelden', style: 'destructive', onPress: signOut },
+    Alert.alert(t('sign_out'), t('sign_out_confirm'), [
+      { text: t('cancel'), style: 'cancel' },
+      { text: t('sign_out'), style: 'destructive', onPress: signOut },
     ]);
   };
 
@@ -115,13 +115,18 @@ export function AccountScreen() {
           {/* Premium upgrade card (only for free users) */}
           {!isPremium && (
             <View style={styles.upgradeCard}>
-              <Text style={styles.upgradeTitle}>Winti Guide Premium</Text>
+              <Text style={styles.upgradeTitle}>{t('premium_title')}</Text>
               <Text style={styles.upgradeSubtitle}>
-                Entferne Werbung, sieh alle Events und speichere unbegrenzt viele Orte.
+                {t('premium_subtitle')}
               </Text>
 
               <View style={styles.featureList}>
-                {PREMIUM_FEATURES.map((f) => (
+                {[
+                  t('feature_no_ads'),
+                  t('feature_full_calendar'),
+                  t('feature_unlimited_save'),
+                  t('feature_exclusive_listings'),
+                ].map((f) => (
                   <View key={f} style={styles.featureRow}>
                     <Text style={styles.featureCheck}>✓</Text>
                     <Text style={styles.featureText}>{f}</Text>
@@ -135,8 +140,8 @@ export function AccountScreen() {
                   onPress={() => handleUpgrade('monthly')}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.upgradeBtnTitle}>CHF 1.99 / Monat</Text>
-                  <Text style={styles.upgradeBtnSub}>Monatlich kündbar</Text>
+                  <Text style={styles.upgradeBtnTitle}>{t('price_monthly')}</Text>
+                  <Text style={styles.upgradeBtnSub}>{t('cancel_monthly')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -145,20 +150,20 @@ export function AccountScreen() {
                   activeOpacity={0.8}
                 >
                   <View style={styles.bestValueBadge}>
-                    <Text style={styles.bestValueText}>Bester Wert</Text>
+                    <Text style={styles.bestValueText}>{t('best_value')}</Text>
                   </View>
                   <Text style={[styles.upgradeBtnTitle, styles.upgradeBtnTitleYearly]}>
-                    CHF 9.99 / Jahr
+                    {t('price_yearly')}
                   </Text>
                   <Text style={[styles.upgradeBtnSub, styles.upgradeBtnSubYearly]}>
-                    Spare 58% gegenüber Monatsabo
+                    {t('save_yearly')}
                   </Text>
                 </TouchableOpacity>
               </View>
 
               <TouchableOpacity onPress={refreshTier} style={styles.refreshTier}>
                 <Text style={styles.refreshTierText}>
-                  Bereits bezahlt? Tier aktualisieren ↻
+                  {t('already_paid')}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -168,23 +173,23 @@ export function AccountScreen() {
           {isPremium && (
             <View style={styles.premiumActiveCard}>
               <Text style={styles.premiumActiveIcon}>⭐</Text>
-              <Text style={styles.premiumActiveTitle}>Premium aktiv</Text>
+              <Text style={styles.premiumActiveTitle}>{t('premium_active')}</Text>
               <Text style={styles.premiumActiveSub}>
-                Danke für deine Unterstützung! Du geniesst alle Premium-Vorteile.
+                {t('premium_thanks')}
               </Text>
             </View>
           )}
 
           {/* Sign out */}
           <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut} activeOpacity={0.8}>
-            <Text style={styles.signOutText}>Abmelden</Text>
+            <Text style={styles.signOutText}>{t('sign_out')}</Text>
           </TouchableOpacity>
 
           {/* Partner link */}
           <View style={styles.partnerSection}>
-            <Text style={styles.partnerTitle}>Du bist Betreiber oder Veranstalter?</Text>
+            <Text style={styles.partnerTitle}>{t('partner_question')}</Text>
             <Text style={styles.partnerText}>
-              Schalte Werbung auf Winti Guide und erreiche tausende Winterthurer.
+              {t('partner_promo')}
             </Text>
           </View>
         </ScrollView>
@@ -210,7 +215,7 @@ export function AccountScreen() {
               onPress={() => { setMode('login'); setError(null); setSuccessMsg(null); }}
             >
               <Text style={[styles.modeBtnText, mode === 'login' && styles.modeBtnTextActive]}>
-                Anmelden
+                {t('login')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -218,7 +223,7 @@ export function AccountScreen() {
               onPress={() => { setMode('register'); setError(null); setSuccessMsg(null); }}
             >
               <Text style={[styles.modeBtnText, mode === 'register' && styles.modeBtnTextActive]}>
-                Registrieren
+                {t('register')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -226,7 +231,7 @@ export function AccountScreen() {
           {/* Fields */}
           <TextInput
             style={styles.input}
-            placeholder="E-Mail"
+            placeholder={t('email')}
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -236,7 +241,7 @@ export function AccountScreen() {
           />
           <TextInput
             style={styles.input}
-            placeholder="Passwort (min. 6 Zeichen)"
+            placeholder={t('password_placeholder')}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -255,7 +260,7 @@ export function AccountScreen() {
             {submitting
               ? <ActivityIndicator color={theme.colors.surface} size="small" />
               : <Text style={styles.submitBtnText}>
-                  {mode === 'login' ? 'Anmelden' : 'Konto erstellen'}
+                  {mode === 'login' ? t('login') : t('create_account')}
                 </Text>
             }
           </TouchableOpacity>
@@ -264,8 +269,7 @@ export function AccountScreen() {
         {/* Guest info */}
         <View style={styles.guestBox}>
           <Text style={styles.guestText}>
-            💡 Als Gast kannst du die App kostenlos nutzen. Mit einem Konto kannst du auf
-            Premium upgraden und deine gespeicherten Orte geräteübergreifend synchronisieren.
+            {t('guest_info')}
           </Text>
         </View>
       </ScrollView>
@@ -273,18 +277,11 @@ export function AccountScreen() {
   );
 }
 
-const PREMIUM_FEATURES = [
-  'Keine Werbung',
-  'Vollständiger Kalender (alle Events)',
-  'Unbegrenzt Orte speichern',
-  'Exklusive Premium-Listings',
-];
-
-function translateAuthError(msg: string): string {
-  if (msg.includes('Invalid login credentials')) return 'E-Mail oder Passwort falsch.';
-  if (msg.includes('Email not confirmed')) return 'Bitte bestätige zuerst deine E-Mail.';
-  if (msg.includes('already registered')) return 'Diese E-Mail ist bereits registriert.';
-  if (msg.includes('Password should be at least')) return 'Das Passwort muss mindestens 6 Zeichen haben.';
+function translateAuthError(msg: string, t: (key: any) => string): string {
+  if (msg.includes('Invalid login credentials')) return t('auth_invalid');
+  if (msg.includes('Email not confirmed')) return t('auth_not_confirmed');
+  if (msg.includes('already registered')) return t('auth_already_registered');
+  if (msg.includes('Password should be at least')) return t('auth_password_short');
   return msg;
 }
 

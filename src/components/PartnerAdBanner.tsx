@@ -3,12 +3,14 @@ import { View, Text, TouchableOpacity, StyleSheet, Linking } from 'react-native'
 import { theme } from '../styles/theme';
 import type { PartnerAd } from '../types';
 import { trackAdImpression } from '../services/supabaseService';
+import { useTranslation } from '../hooks/useTranslation';
 
 interface PartnerAdBannerProps {
   ad: PartnerAd;
 }
 
 export function PartnerAdBanner({ ad }: PartnerAdBannerProps) {
+  const { t } = useTranslation();
   useEffect(() => {
     // Fire-and-forget impression tracking
     trackAdImpression(ad.id).catch(console.error);
@@ -24,7 +26,7 @@ export function PartnerAdBanner({ ad }: PartnerAdBannerProps) {
   return (
     <View style={[styles.wrapper, ad.position === 'featured' && styles.wrapperFeatured]}>
       <View style={styles.sponsoredRow}>
-        <Text style={styles.sponsoredLabel}>Anzeige</Text>
+        <Text style={styles.sponsoredLabel}>{t('ad_label')}</Text>
       </View>
       <View style={styles.card}>
         <View style={styles.content}>
@@ -38,7 +40,7 @@ export function PartnerAdBanner({ ad }: PartnerAdBannerProps) {
           ) : null}
         </View>
         <TouchableOpacity style={styles.cta} onPress={handlePress} activeOpacity={0.8}>
-          <Text style={styles.ctaText}>{ad.cta_label ?? 'Mehr erfahren'} →</Text>
+          <Text style={styles.ctaText}>{ad.cta_label ?? t('more_info')} →</Text>
         </TouchableOpacity>
       </View>
     </View>

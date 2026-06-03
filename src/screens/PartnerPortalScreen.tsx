@@ -20,6 +20,7 @@ import {
   createPartnerAd,
 } from '../services/supabaseService';
 import { getErrorMessage } from '../utils/errors';
+import { useTranslation } from '../hooks/useTranslation';
 import { theme } from '../styles/theme';
 import type {
   Partner,
@@ -73,6 +74,7 @@ type PortalView = 'dashboard' | 'register' | 'plans' | 'new_ad';
 
 export function PartnerPortalScreen() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [view, setView] = useState<PortalView>('dashboard');
   const [partner, setPartner] = useState<Partner | null>(null);
   const [subscriptions, setSubscriptions] = useState<PartnerSubscription[]>([]);
@@ -109,13 +111,13 @@ export function PartnerPortalScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>📢 Partner-Portal</Text>
+          <Text style={styles.title}>📢 {t('partner_portal')}</Text>
         </View>
         <View style={styles.center}>
           <Text style={styles.emptyEmoji}>🔒</Text>
-          <Text style={styles.emptyTitle}>Anmeldung erforderlich</Text>
+          <Text style={styles.emptyTitle}>{t('partner_login_required')}</Text>
           <Text style={styles.emptyText}>
-            Melde dich an, um das Partner-Portal zu nutzen und Werbung zu schalten.
+            {t('partner_login_hint')}
           </Text>
         </View>
       </SafeAreaView>
@@ -163,8 +165,8 @@ export function PartnerPortalScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={styles.title}>📢 Partner-Portal</Text>
-          <Text style={styles.subtitle}>Werbung schalten & verwalten</Text>
+          <Text style={styles.title}>📢 {t('partner_portal')}</Text>
+          <Text style={styles.subtitle}>{t('partner_manage_subtitle')}</Text>
         </View>
 
         {/* Status card */}
@@ -173,18 +175,18 @@ export function PartnerPortalScreen() {
             <View style={styles.cardInfo}>
               <Text style={styles.cardTitle}>{partner!.company_name}</Text>
               <Text style={styles.cardSub}>
-                {PARTNER_PLANS.find((p) => p.tier === partner!.tier)?.name ?? partner!.tier} Paket
+                {PARTNER_PLANS.find((p) => p.tier === partner!.tier)?.name ?? partner!.tier} {t('package_suffix')}
               </Text>
             </View>
             <View style={[styles.statusBadge, partner!.status === 'active' ? styles.statusActive : styles.statusPending]}>
               <Text style={styles.statusText}>
-                {partner!.status === 'active' ? '✓ Aktiv' : '⏳ Ausstehend'}
+                {partner!.status === 'active' ? t('status_active') : t('status_pending')}
               </Text>
             </View>
           </View>
           {partner!.status === 'pending' && (
             <Text style={styles.pendingNote}>
-              Dein Konto wird geprüft. Du erhältst eine E-Mail sobald es freigeschaltet ist.
+              {t('partner_pending_note')}
             </Text>
           )}
         </View>
@@ -192,14 +194,14 @@ export function PartnerPortalScreen() {
         {/* Active subscription */}
         {activeSub && (
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Aktuelles Abo</Text>
+            <Text style={styles.sectionTitle}>{t('current_subscription')}</Text>
             <Text style={styles.subPlan}>{activeSub.plan}</Text>
             <Text style={styles.subDetails}>
-              CHF {activeSub.price_chf} / {activeSub.billing_cycle === 'monthly' ? 'Monat' : 'Jahr'}
+              CHF {activeSub.price_chf} / {activeSub.billing_cycle === 'monthly' ? t('billing_month') : t('billing_year')}
             </Text>
             {activeSub.ends_at && (
               <Text style={styles.subDetails}>
-                Läuft bis: {new Date(activeSub.ends_at).toLocaleDateString('de-CH')}
+                {t('runs_until')} {new Date(activeSub.ends_at).toLocaleDateString('de-CH')}
               </Text>
             )}
           </View>
@@ -213,7 +215,7 @@ export function PartnerPortalScreen() {
             activeOpacity={0.8}
           >
             <Text style={styles.actionEmoji}>➕</Text>
-            <Text style={styles.actionLabel}>Neue Anzeige</Text>
+            <Text style={styles.actionLabel}>{t('new_ad')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -222,15 +224,15 @@ export function PartnerPortalScreen() {
             activeOpacity={0.8}
           >
             <Text style={styles.actionEmoji}>📦</Text>
-            <Text style={styles.actionLabel}>Paket wechseln</Text>
+            <Text style={styles.actionLabel}>{t('change_package')}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Ads list */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Meine Anzeigen ({ads.length})</Text>
+          <Text style={styles.sectionTitle}>{t('my_ads')} ({ads.length})</Text>
           {ads.length === 0 ? (
-            <Text style={styles.emptyHint}>Noch keine Anzeigen. Erstelle jetzt deine erste!</Text>
+            <Text style={styles.emptyHint}>{t('no_ads_yet')}</Text>
           ) : (
             ads.map((ad) => (
               <View key={ad.id} style={styles.adRow}>
@@ -242,7 +244,7 @@ export function PartnerPortalScreen() {
                 </View>
                 <View style={[styles.adStatus, ad.is_active ? styles.adStatusActive : styles.adStatusPending]}>
                   <Text style={styles.adStatusText}>
-                    {ad.is_active ? 'Aktiv' : 'Ausstehend'}
+                    {ad.is_active ? t('ad_active') : t('ad_pending')}
                   </Text>
                 </View>
               </View>
@@ -252,21 +254,21 @@ export function PartnerPortalScreen() {
 
         {/* Invoices */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Rechnungen ({invoices.length})</Text>
+          <Text style={styles.sectionTitle}>{t('invoices')} ({invoices.length})</Text>
           {invoices.length === 0 ? (
-            <Text style={styles.emptyHint}>Keine Rechnungen vorhanden.</Text>
+            <Text style={styles.emptyHint}>{t('no_invoices')}</Text>
           ) : (
             invoices.map((inv) => (
               <View key={inv.id} style={styles.invoiceRow}>
                 <View style={styles.invoiceInfo}>
                   <Text style={styles.invoiceAmount}>CHF {Number(inv.amount_chf).toFixed(2)}</Text>
                   <Text style={styles.invoiceMeta}>
-                    Fällig: {new Date(inv.due_date).toLocaleDateString('de-CH')}
+                    {t('due')} {new Date(inv.due_date).toLocaleDateString('de-CH')}
                   </Text>
                 </View>
                 <View style={[styles.invoiceStatus, inv.status === 'paid' ? styles.invoicePaid : styles.invoiceUnpaid]}>
                   <Text style={styles.invoiceStatusText}>
-                    {inv.status === 'paid' ? '✓ Bezahlt' : inv.status}
+                    {inv.status === 'paid' ? t('invoice_paid') : inv.status}
                   </Text>
                 </View>
               </View>
@@ -280,6 +282,7 @@ export function PartnerPortalScreen() {
 
 // ── Register sub-view ─────────────────────────────────────────────────────────
 function RegisterView({ onRegistered }: { onRegistered: () => void }) {
+  const { t } = useTranslation();
   const [companyName, setCompanyName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -290,7 +293,7 @@ function RegisterView({ onRegistered }: { onRegistered: () => void }) {
 
   const handleRegister = async () => {
     if (!companyName.trim() || !email.trim()) {
-      setError('Firmenname und E-Mail sind Pflichtfelder.');
+      setError(t('company_required'));
       return;
     }
     setSaving(true);
@@ -307,7 +310,7 @@ function RegisterView({ onRegistered }: { onRegistered: () => void }) {
       });
       onRegistered();
     } catch (err) {
-      setError(getErrorMessage(err, 'Registrierung fehlgeschlagen'));
+      setError(getErrorMessage(err, t('register_failed')));
     } finally {
       setSaving(false);
     }
@@ -317,40 +320,40 @@ function RegisterView({ onRegistered }: { onRegistered: () => void }) {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <Text style={styles.title}>📢 Partner-Registrierung</Text>
-          <Text style={styles.subtitle}>Erstelle dein Firmenprofil</Text>
+          <Text style={styles.title}>📢 {t('partner_registration')}</Text>
+          <Text style={styles.subtitle}>{t('create_company_profile')}</Text>
         </View>
 
         <View style={styles.card}>
           <FormField
-            label="Firmenname *"
+            label={t('company_name_label')}
             value={companyName}
             onChangeText={setCompanyName}
-            placeholder="Restaurant Muster AG"
+            placeholder={t('company_name_placeholder')}
           />
           <FormField
-            label="Kontakt-E-Mail *"
+            label={t('contact_email_label')}
             value={email}
             onChangeText={setEmail}
-            placeholder="info@restaurant.ch"
+            placeholder={t('contact_email_placeholder')}
             keyboardType="email-address"
           />
           <FormField
-            label="Telefon"
+            label={t('phone_label')}
             value={phone}
             onChangeText={setPhone}
-            placeholder="+41 52 123 45 67"
+            placeholder={t('phone_placeholder_partner')}
             keyboardType="phone-pad"
           />
           <FormField
-            label="Website"
+            label={t('website_label')}
             value={website}
             onChangeText={setWebsite}
-            placeholder="www.restaurant.ch"
+            placeholder={t('website_placeholder')}
             keyboardType="url"
           />
 
-          <Text style={styles.fieldLabel}>Kategorie</Text>
+          <Text style={styles.fieldLabel}>{t('category')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catScroll}>
             <View style={styles.catScrollInner}>
               {CATEGORIES.map((cat) => (
@@ -360,7 +363,7 @@ function RegisterView({ onRegistered }: { onRegistered: () => void }) {
                   onPress={() => setCategory(cat.key)}
                 >
                   <Text style={[styles.catChipText, category === cat.key && styles.catChipTextActive]}>
-                    {cat.emoji} {cat.label}
+                    {cat.emoji} {t(cat.labelKey)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -377,12 +380,12 @@ function RegisterView({ onRegistered }: { onRegistered: () => void }) {
           >
             {saving
               ? <ActivityIndicator color={theme.colors.surface} size="small" />
-              : <Text style={styles.submitBtnText}>Profil erstellen</Text>
+              : <Text style={styles.submitBtnText}>{t('create_profile')}</Text>
             }
           </TouchableOpacity>
 
           <Text style={styles.formNote}>
-            Nach dem Absenden wird dein Profil von unserem Team geprüft (1–2 Werktage).
+            {t('register_note')}
           </Text>
         </View>
       </ScrollView>
@@ -400,19 +403,20 @@ function PlanSelectionView({
   onBack: () => void;
   onPlanSelected: () => void;
 }) {
+  const { t } = useTranslation();
   const handleSelect = (plan: PartnerPlan) => {
     const url = STRIPE_PARTNER_URLS[plan.tier];
     Alert.alert(
-      `${plan.name} Paket`,
-      `CHF ${plan.priceMonthly}/Mt. oder CHF ${plan.priceYearly}/Jahr\n\nDu wirst zu Stripe weitergeleitet, um das Abo abzuschliessen.`,
+      `${plan.name} ${t('package_suffix')}`,
+      `CHF ${plan.priceMonthly}/${t('billing_month')} ${t('or_yearly_save').replace('{year}', String(plan.priceYearly))}\n\n${t('stripe_redirect_note')}`,
       [
-        { text: 'Abbrechen', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
-          text: 'Weiter zu Stripe →',
+          text: t('continue_to_stripe'),
           onPress: () => {
             const { Linking } = require('react-native');
             Linking.openURL(url).catch(() =>
-              Alert.alert('Fehler', 'Stripe konnte nicht geöffnet werden.'),
+              Alert.alert(t('error'), t('stripe_open_failed')),
             );
             onPlanSelected();
           },
@@ -426,10 +430,10 @@ function PlanSelectionView({
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-            <Text style={styles.backBtnText}>← Zurück</Text>
+            <Text style={styles.backBtnText}>{t('back')}</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>📦 Paket wählen</Text>
-          <Text style={styles.subtitle}>Werbepaket für dein Unternehmen</Text>
+          <Text style={styles.title}>📦 {t('choose_package')}</Text>
+          <Text style={styles.subtitle}>{t('package_for_business')}</Text>
         </View>
 
         {PARTNER_PLANS.map((plan) => {
@@ -438,12 +442,12 @@ function PlanSelectionView({
             <View key={plan.id} style={[styles.planCard, isCurrent && styles.planCardActive]}>
               {isCurrent && (
                 <View style={styles.currentBadge}>
-                  <Text style={styles.currentBadgeText}>Aktuelles Paket</Text>
+                  <Text style={styles.currentBadgeText}>{t('current_package')}</Text>
                 </View>
               )}
               <Text style={styles.planName}>{plan.name}</Text>
-              <Text style={styles.planPrice}>CHF {plan.priceMonthly}/Mt.</Text>
-              <Text style={styles.planPriceYear}>oder CHF {plan.priceYearly}/Jahr (spare ~17%)</Text>
+              <Text style={styles.planPrice}>CHF {plan.priceMonthly}/{t('billing_month')}</Text>
+              <Text style={styles.planPriceYear}>{t('or_yearly_save').replace('{year}', String(plan.priceYearly))}</Text>
 
               <View style={styles.planFeatures}>
                 {plan.features.map((f) => (
@@ -461,7 +465,7 @@ function PlanSelectionView({
                 activeOpacity={0.8}
               >
                 <Text style={[styles.planBtnText, isCurrent && styles.planBtnTextDisabled]}>
-                  {isCurrent ? 'Aktuell aktiv' : `${plan.name} wählen →`}
+                  {isCurrent ? t('currently_active') : `${plan.name} ${t('select_suffix')}`}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -482,9 +486,10 @@ function NewAdView({
   onBack: () => void;
   onCreated: () => void;
 }) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
-  const [ctaLabel, setCtaLabel] = useState('Mehr erfahren');
+  const [ctaLabel, setCtaLabel] = useState(t('more_info'));
   const [ctaUrl, setCtaUrl] = useState('');
   const [position, setPosition] = useState<AdPosition>('inline');
   const [saving, setSaving] = useState(false);
@@ -492,7 +497,7 @@ function NewAdView({
 
   const handleCreate = async () => {
     if (!title.trim()) {
-      setError('Titel ist ein Pflichtfeld.');
+      setError(t('title_required'));
       return;
     }
     setSaving(true);
@@ -502,15 +507,15 @@ function NewAdView({
         partner_id: partnerId,
         title: title.trim(),
         subtitle: subtitle.trim(),
-        cta_label: ctaLabel.trim() || 'Mehr erfahren',
+        cta_label: ctaLabel.trim() || t('more_info'),
         cta_url: ctaUrl.trim(),
         position,
         is_active: false,
       });
-      Alert.alert('Anzeige eingereicht', 'Deine Anzeige wird vom Admin geprüft und dann freigeschaltet.');
+      Alert.alert(t('ad_submitted_title'), t('ad_submitted_body'));
       onCreated();
     } catch (err) {
-      setError(getErrorMessage(err, 'Fehler beim Erstellen'));
+      setError(getErrorMessage(err, t('ad_create_failed')));
     } finally {
       setSaving(false);
     }
@@ -521,39 +526,39 @@ function NewAdView({
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-            <Text style={styles.backBtnText}>← Zurück</Text>
+            <Text style={styles.backBtnText}>{t('back')}</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>➕ Neue Anzeige</Text>
+          <Text style={styles.title}>➕ {t('new_ad')}</Text>
         </View>
 
         <View style={styles.card}>
           <FormField
-            label="Titel *"
+            label={t('title_label')}
             value={title}
             onChangeText={setTitle}
-            placeholder="z.B. Jetzt Tisch reservieren!"
+            placeholder={t('title_placeholder')}
           />
           <FormField
-            label="Untertitel"
+            label={t('subtitle_label')}
             value={subtitle}
             onChangeText={setSubtitle}
-            placeholder="z.B. 10% Rabatt für Winti-Guide-Nutzer"
+            placeholder={t('subtitle_placeholder')}
           />
           <FormField
-            label="Button-Text"
+            label={t('button_text_label')}
             value={ctaLabel}
             onChangeText={setCtaLabel}
-            placeholder="Mehr erfahren"
+            placeholder={t('more_info')}
           />
           <FormField
-            label="Ziel-URL"
+            label={t('target_url_label')}
             value={ctaUrl}
             onChangeText={setCtaUrl}
-            placeholder="https://restaurant.ch/reservieren"
+            placeholder={t('target_url_placeholder')}
             keyboardType="url"
           />
 
-          <Text style={styles.fieldLabel}>Position</Text>
+          <Text style={styles.fieldLabel}>{t('position')}</Text>
           <View style={styles.positionRow}>
             {POSITIONS.map((p) => (
               <TouchableOpacity
@@ -568,9 +573,9 @@ function NewAdView({
             ))}
           </View>
           <Text style={styles.positionHint}>
-            {position === 'banner' && 'Banner: Prominente Platzierung oben auf der Startseite'}
-            {position === 'inline' && 'Inline: Zwischen den Einträgen in der Liste'}
-            {position === 'featured' && 'Featured: Hervorgehobene Anzeige mit mehr Sichtbarkeit'}
+            {position === 'banner' && t('position_banner_hint')}
+            {position === 'inline' && t('position_inline_hint')}
+            {position === 'featured' && t('position_featured_hint')}
           </Text>
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -583,12 +588,12 @@ function NewAdView({
           >
             {saving
               ? <ActivityIndicator color={theme.colors.surface} size="small" />
-              : <Text style={styles.submitBtnText}>Anzeige einreichen</Text>
+              : <Text style={styles.submitBtnText}>{t('submit_ad')}</Text>
             }
           </TouchableOpacity>
 
           <Text style={styles.formNote}>
-            Alle Anzeigen werden vor der Veröffentlichung von unserem Team geprüft.
+            {t('ad_review_note')}
           </Text>
         </View>
       </ScrollView>
@@ -627,17 +632,20 @@ function FormField({
   );
 }
 
-const CATEGORIES = [
-  { key: 'restaurants', emoji: '🍽️', label: 'Restaurants' },
-  { key: 'cafes', emoji: '☕', label: 'Cafés' },
-  { key: 'bars', emoji: '🍸', label: 'Bars' },
-  { key: 'hotels', emoji: '🏨', label: 'Hotels' },
-  { key: 'events', emoji: '🎪', label: 'Events' },
-  { key: 'geschaefte', emoji: '🛍️', label: 'Geschäfte' },
-  { key: 'sport', emoji: '🏊', label: 'Sport' },
-  { key: 'kultur', emoji: '🎨', label: 'Kultur' },
+type TranslationKey = Parameters<ReturnType<typeof useTranslation>['t']>[0];
+
+const CATEGORIES: { key: string; emoji: string; labelKey: TranslationKey }[] = [
+  { key: 'restaurants', emoji: '🍽️', labelKey: 'restaurants' },
+  { key: 'cafes', emoji: '☕', labelKey: 'cafes' },
+  { key: 'bars', emoji: '🍸', labelKey: 'bars' },
+  { key: 'hotels', emoji: '🏨', labelKey: 'hotels' },
+  { key: 'events', emoji: '🎪', labelKey: 'events' },
+  { key: 'geschaefte', emoji: '🛍️', labelKey: 'geschaefte' },
+  { key: 'sport', emoji: '🏊', labelKey: 'sport' },
+  { key: 'kultur', emoji: '🎨', labelKey: 'kultur' },
 ];
 
+// Positions use product/brand terms that stay the same across languages.
 const POSITIONS: { key: AdPosition; label: string }[] = [
   { key: 'inline', label: 'Inline' },
   { key: 'banner', label: 'Banner' },

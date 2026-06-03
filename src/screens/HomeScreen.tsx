@@ -20,6 +20,7 @@ import { SearchBar } from '../components/SearchBar';
 import { FeaturedRow } from '../components/FeaturedRow';
 import { SectionHeader } from '../components/SectionHeader';
 import { AiGuideCard } from '../components/AiGuideCard';
+import { useTranslation } from '../hooks/useTranslation';
 import { theme } from '../styles/theme';
 import { SUB_CATEGORY_ALIASES } from '../config/subcategories';
 import type { Listing, ListingCategory, PartnerAd } from '../types';
@@ -71,6 +72,7 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
   const [partnerAds, setPartnerAds] = useState<PartnerAd[]>([]);
 
   const { isPremium } = useAppTier();
+  const { t } = useTranslation();
 
   React.useEffect(() => {
     loadSaved().then(setSavedIds);
@@ -146,17 +148,7 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
     setSavedIds(next);
   };
 
-  const categoryLabel = category === 'all' ? 'Alle Orte' : {
-    restaurants: 'Restaurants',
-    cafes: 'Cafés',
-    bars: 'Bars',
-    hotels: 'Hotels',
-    sightseeing: 'Sightseeing',
-    kultur: 'Kultur',
-    geschaefte: 'Geschäfte',
-    sport: 'Sport',
-    touren: 'Touren',
-  }[category] ?? 'Orte';
+  const categoryLabel = category === 'all' ? t('all_places') : t(category as 'restaurants');
 
   // Build FlatList data with header sections injected
   const listData = useMemo<ListItem[]>(() => {
@@ -210,7 +202,7 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
             </View>
             {!isPremium && (
               <TouchableOpacity onPress={onNavigateToAccount} style={styles.premiumHint}>
-                <Text style={styles.premiumHintText}>⭐ Premium</Text>
+                <Text style={styles.premiumHintText}>⭐ {t('premium')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -221,7 +213,7 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
           <SearchBar
             value={search}
             onChangeText={setSearch}
-            placeholder="Restaurants, Cafés, Hotels..."
+            placeholder={t('search_examples_placeholder')}
           />
         );
 
@@ -240,7 +232,7 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
       case 'featured':
         return (
           <>
-            <SectionHeader title="Empfohlen für dich" />
+            <SectionHeader title={t('recommended_for_you')} />
             <FeaturedRow
               listings={featuredListings}
               savedIds={savedIds}
@@ -282,7 +274,7 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
       {loading && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={styles.loadingText}>Laden...</Text>
+          <Text style={styles.loadingText}>{t('loading')}</Text>
         </View>
       )}
 
@@ -290,7 +282,7 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
         <View style={styles.center}>
           <Text style={styles.errorText}>⚠️ {error}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={refresh}>
-            <Text style={styles.retryText}>Erneut versuchen</Text>
+            <Text style={styles.retryText}>{t('retry')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -313,8 +305,8 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
             !loading && !error && filteredListings.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyEmoji}>🔍</Text>
-                <Text style={styles.emptyTitle}>Keine Einträge gefunden</Text>
-                <Text style={styles.emptyHint}>Probiere eine andere Kategorie oder Suche</Text>
+                <Text style={styles.emptyTitle}>{t('no_results')}</Text>
+                <Text style={styles.emptyHint}>{t('try_different_search')}</Text>
               </View>
             ) : null
           }

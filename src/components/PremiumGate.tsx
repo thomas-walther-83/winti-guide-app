@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { theme } from '../styles/theme';
 import { useAppTier } from '../hooks/useAppTier';
+import { useTranslation } from '../hooks/useTranslation';
 
 interface PremiumGateProps {
   children: React.ReactNode;
@@ -17,6 +18,7 @@ interface PremiumGateProps {
  */
 export function PremiumGate({ children, reason, onUpgrade }: PremiumGateProps) {
   const { isPremium, loading } = useAppTier();
+  const { t } = useTranslation();
 
   if (loading) return null;
 
@@ -27,12 +29,12 @@ export function PremiumGate({ children, reason, onUpgrade }: PremiumGateProps) {
   return (
     <View style={styles.container}>
       <Text style={styles.lock}>🔒</Text>
-      <Text style={styles.title}>Premium-Feature</Text>
+      <Text style={styles.title}>{t('premium_feature')}</Text>
       {reason ? <Text style={styles.reason}>{reason}</Text> : null}
       <TouchableOpacity style={styles.btn} onPress={onUpgrade} activeOpacity={0.8}>
-        <Text style={styles.btnText}>⭐ Jetzt upgraden</Text>
+        <Text style={styles.btnText}>{t('upgrade_now')}</Text>
       </TouchableOpacity>
-      <Text style={styles.price}>Ab CHF 1.99 / Monat</Text>
+      <Text style={styles.price}>{t('from_price_monthly')}</Text>
     </View>
   );
 }

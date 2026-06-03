@@ -11,6 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fetchListings } from '../services/supabaseService';
 import { useAppTier } from '../hooks/useAppTier';
 import { ListingCard } from '../components/ListingCard';
+import { useTranslation } from '../hooks/useTranslation';
 import { theme } from '../styles/theme';
 import type { Listing } from '../types';
 
@@ -22,6 +23,7 @@ export function SavedScreen({ onNavigateToAccount, onNavigateToMap }: { onNaviga
   const [savedListings, setSavedListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const { isPremium } = useAppTier();
+  const { t } = useTranslation();
 
   useEffect(() => {
     async function load() {
@@ -68,10 +70,10 @@ export function SavedScreen({ onNavigateToAccount, onNavigateToMap }: { onNaviga
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Gespeichert</Text>
+          <Text style={styles.title}>{t('saved')}</Text>
         </View>
         <View style={styles.center}>
-          <Text style={styles.loadingText}>Laden...</Text>
+          <Text style={styles.loadingText}>{t('loading')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -80,11 +82,11 @@ export function SavedScreen({ onNavigateToAccount, onNavigateToMap }: { onNaviga
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Gespeichert</Text>
+        <Text style={styles.title}>{t('saved')}</Text>
         {savedListings.length > 0 && (
           <Text style={styles.count}>
             {visibleListings.length}
-            {!isPremium ? `/${FREE_SAVE_LIMIT}` : ''} Einträge
+            {!isPremium ? `/${FREE_SAVE_LIMIT}` : ''} {t('entries')}
           </Text>
         )}
       </View>
@@ -93,7 +95,7 @@ export function SavedScreen({ onNavigateToAccount, onNavigateToMap }: { onNaviga
       {!isPremium && savedIds.length >= FREE_SAVE_LIMIT && (
         <TouchableOpacity style={styles.limitBanner} onPress={onNavigateToAccount} activeOpacity={0.8}>
           <Text style={styles.limitBannerText}>
-            🔒 Limit von {FREE_SAVE_LIMIT} Einträgen erreicht · Premium für unbegrenzte Speicherung
+            {t('save_limit_prefix')} {FREE_SAVE_LIMIT} {t('save_limit_suffix')}
           </Text>
         </TouchableOpacity>
       )}
@@ -101,14 +103,14 @@ export function SavedScreen({ onNavigateToAccount, onNavigateToMap }: { onNaviga
       {visibleListings.length === 0 ? (
         <View style={styles.center}>
           <Text style={styles.emptyEmoji}>🤍</Text>
-          <Text style={styles.emptyTitle}>Noch nichts gespeichert</Text>
+          <Text style={styles.emptyTitle}>{t('nothing_saved_yet')}</Text>
           <Text style={styles.emptyHint}>
-            Tippe auf das Herz-Symbol bei einem Eintrag, um ihn zu speichern.
+            {t('tap_heart_hint')}
           </Text>
           {!isPremium && (
             <TouchableOpacity style={styles.tip}>
               <Text style={styles.tipText}>
-                💡 Free-Nutzer können bis zu {FREE_SAVE_LIMIT} Einträge speichern
+                {t('free_save_hint_prefix')} {FREE_SAVE_LIMIT} {t('free_save_hint_suffix')}
               </Text>
             </TouchableOpacity>
           )}
@@ -137,10 +139,10 @@ export function SavedScreen({ onNavigateToAccount, onNavigateToMap }: { onNaviga
                 <Text style={styles.premiumTeaserIcon}>🔒</Text>
                 <View style={styles.premiumTeaserInfo}>
                   <Text style={styles.premiumTeaserTitle}>
-                    +{hiddenCount} weitere gespeicherte Einträge
+                    +{hiddenCount} {t('more_saved_suffix')}
                   </Text>
                   <Text style={styles.premiumTeaserSub}>
-                    Upgrade auf Premium für unbegrenzte Speicherung
+                    {t('upgrade_unlimited_save')}
                   </Text>
                 </View>
                 <Text style={styles.premiumTeaserArrow}>→</Text>
