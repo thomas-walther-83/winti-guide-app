@@ -3,10 +3,10 @@ name: DB-Migration (Supabase)
 # Wendet die SQL-Dateien aus supabase/migrations/ auf die Datenbank an.
 # Alle Migrationen sind idempotent und können beliebig oft laufen.
 #
-# Voraussetzung: Repository-Secret SUPABASE_DB_PASSWORD = NUR das
-# Datenbank-Passwort (kein kompletter Connection-String!).
-# Host, Port, Benutzer und DB-Name sind unten fest hinterlegt – sie sind
-# nicht geheim (die Projekt-ID steht ohnehin in der öffentlichen Supabase-URL).
+# Passwort-Quelle (eine von beiden genügt):
+#   - SUPABASE_DB_PASSWORD : nur das Datenbank-Passwort, ODER
+#   - SUPABASE_DB_URL      : kompletter postgresql://...-String (Passwort wird extrahiert)
+# Host/Port/User/DB sind fest hinterlegt (nicht geheim) und bestätigt korrekt.
 on:
   workflow_dispatch:
 
@@ -30,19 +30,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Verify password secret is set
-        env:
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-        run: |
-          if [ -z "${SUPABASE_DB_PASSWORD}" ]; then
-            echo "❌ Repository-Secret SUPABASE_DB_PASSWORD fehlt."
-            echo "   Anlegen unter Settings → Secrets and variables → Actions."
-            echo "   Wert = NUR das Datenbank-Passwort (kein https://, kein postgresql://)."
-            exit 1
-          fi
-          echo "✅ Passwort-Secret vorhanden. Verbinde mit:"
-          echo "   Host: $PGHOST  Port: $PGPORT  User: $PGUSER  DB: $PGDATABASE"
-
       - name: Ensure psql is available
         run: |
           if ! command -v psql >/dev/null 2>&1; then
@@ -52,13 +39,31 @@ jobs:
 
       - name: Apply migrations
         env:
-          # PGPASSWORD verträgt jedes Zeichen – keine URL-Kodierung nötig.
-          # CR/LF entfernen wir defensiv, falls beim Einfügen ein Umbruch mitkam.
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           set -e
           shopt -s nullglob
-          export PGPASSWORD=$(printf '%s' "$SUPABASE_DB_PASSWORD" | tr -d '\r\n')
+
+          # Passwort bestimmen: bevorzugt das reine Passwort-Secret,
+          # sonst aus der vollständigen URL extrahieren.
+          raw="$SUPABASE_DB_PASSWORD"
+          if [ -z "$raw" ] && [ -n "$SUPABASE_DB_URL" ]; then
+            url=$(printf '%s' "$SUPABASE_DB_URL" | tr -d '\r\n' | sed -E 's/[[:space:]]+//g')
+            # alles zwischen dem ersten ':' nach dem User und dem letzten '@'
+            raw=$(printf '%s' "$url" | sed -E 's#^[a-z]+://[^:]+:(.*)@[^@]*$#\1#')
+          fi
+          # versteckte Umbrüche/Leerzeichen entfernen
+          export PGPASSWORD=$(printf '%s' "$raw" | tr -d '\r\n' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')
+
+          if [ -z "$PGPASSWORD" ]; then
+            echo "❌ Kein Passwort gefunden. Setze entweder das Secret SUPABASE_DB_PASSWORD"
+            echo "   (nur das Passwort) oder SUPABASE_DB_URL (kompletter Connection-String)."
+            exit 1
+          fi
+          echo "✅ Passwort gefunden (Länge: ${#PGPASSWORD} Zeichen)."
+          echo "   Verbinde mit Host=$PGHOST User=$PGUSER DB=$PGDATABASE Port=$PGPORT"
+
           files=(supabase/migrations/*.sql)
           if [ ${#files[@]} -eq 0 ]; then
             echo "Keine Migrationsdateien gefunden."; exit 0
