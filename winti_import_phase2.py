@@ -1270,6 +1270,113 @@ def scrape_eventbrite() -> list[dict]:
 
 
 # ── Scraper 12: opendata.swiss ────────────────────────────────────
+# ── Aggregator: Eventfrog (öffentliche REST-API) ─────────────────
+# Eventfrog ist ein Schweizer Event-/Ticketing-Aggregator und listet viele
+# Winterthurer Veranstaltungen verschiedener Veranstalter. Die öffentliche API
+# (docs.api.eventfrog.net) liefert Eventdaten als JSON. Benötigt einen
+# *Public API Key* (im Eventfrog-Konto erstellbar), Secret EVENTFROG_API_KEY.
+EVENTFROG_API_KEY = os.environ.get("EVENTFROG_API_KEY", "")
+EVENTFROG_BASE = os.environ.get("EVENTFROG_BASE", "https://api.eventfrog.net/api/v1")
+
+
+def _ef_first(d: dict, keys: list[str], default=""):
+    """Erster nicht-leerer Wert aus mehreren möglichen Feldnamen."""
+    for k in keys:
+        v = d.get(k)
+        if v:
+            return v
+    return default
+
+
+def _ef_to_event(it: dict) -> dict | None:
+    """Mappt einen Eventfrog-Datensatz defensiv auf unser Event-Format.
+    Feldnamen sind über mehrere Kandidaten abgesichert, da das genaue Schema
+    erst aus den CI-Logs verifiziert wird."""
+    if not isinstance(it, dict):
+        return None
+    title = _ef_first(it, ["name", "title", "eventName"])
+    if isinstance(title, dict):
+        title = title.get("de") or title.get("default") or next(iter(title.values()), "")
+    if not title:
+        return None
+    start = _ef_first(it, ["start", "startDate", "dateFrom", "begin", "from", "startsAt"])
+    event_date = parse_date(str(start))
+    if not event_date:
+        return None
+    # Ort / Stadt
+    loc = _ef_first(it, ["location", "venue", "place", "city"], "")
+    if isinstance(loc, dict):
+        loc = _ef_first(loc, ["name", "city", "town", "locality"], "")
+    location = str(loc) or "Winterthur"
+    url = _ef_first(it, ["url", "link", "permalink", "detailUrl"], "")
+    image_url = image_from_jsonld(_ef_first(it, ["image", "imageUrl", "img", "picture"], ""))
+    desc = str(_ef_first(it, ["description", "text", "subtitle"], ""))[:500]
+    sid = f"eventfrog_{str(title)[:50]}_{event_date}"
+    return {
+        "source":     "eventfrog",
+        "source_id":  re.sub(r"[^\w_-]", "_", sid)[:100],
+        "title":      str(title)[:200],
+        "cat":        detect_category(str(title), desc),
+        "location":   location[:200],
+        "event_date": event_date,
+        "event_time": str(start)[11:16] if len(str(start)) > 10 else "",
+        "price":      "",
+        "description": re.sub(r"<[^>]+>", "", desc).strip(),
+        "url":        str(url)[:300],
+        "image_url":  str(image_url)[:500],
+        "is_active":  True,
+    }
+
+
+def scrape_eventfrog() -> list[dict]:
+    """Holt Winterthur-Events über die öffentliche Eventfrog-API.
+    Selbst-diagnostizierend: loggt HTTP-Status, Antwort-Form und Beispiel-Felder,
+    damit das Mapping bei Bedarf über CI-Logs verfeinert werden kann."""
+    print("  → Eventfrog API abfragen…")
+    events: list[dict] = []
+    if not EVENTFROG_API_KEY:
+        print("  ⚠️  EVENTFROG_API_KEY fehlt – übersprungen")
+        return events
+    try:
+        url = f"{EVENTFROG_BASE}/events"
+        params = {"key": EVENTFROG_API_KEY, "perPage": 100, "text": "Winterthur"}
+        res = requests.get(url, params=params,
+                           headers={"Accept": "application/json", **HEADERS}, timeout=25)
+        print(f"    HTTP {res.status_code} @ {EVENTFROG_BASE}/events")
+        if res.status_code != 200:
+            print(f"    Antwort: {res.text[:200]}")
+            return events
+        try:
+            data = res.json()
+        except Exception:
+            print(f"    Keine JSON-Antwort: {res.text[:160]}")
+            return events
+        if isinstance(data, dict):
+            print(f"    Top-Level-Keys: {list(data.keys())[:15]}")
+            items = (data.get("datasets") or data.get("events")
+                     or data.get("items") or data.get("data") or [])
+        elif isinstance(data, list):
+            items = data
+        else:
+            items = []
+        if items:
+            print(f"    {len(items)} Einträge, Felder (1.): {list(items[0].keys())[:20]}")
+        for it in items:
+            ev = _ef_to_event(it)
+            if ev and "winterthur" in (ev["location"] + " " + ev["title"]).lower():
+                events.append(ev)
+        # Falls Ortsfilter zu strikt war, ohne Filter erneut bewerten
+        if not events and items:
+            for it in items:
+                ev = _ef_to_event(it)
+                if ev:
+                    events.append(ev)
+    except Exception as e:
+        print(f"  ⚠️  Eventfrog: {str(e)[:120]}")
+    print(f"  ✓ {len(events)} Events von Eventfrog")
+    return events
+
+
 def scrape_opendata_swiss() -> list[dict]:
     """
     Sucht Events im offenen Schweizer Behördendatenportal opendata.swiss.
@@ -1472,11 +1579,16 @@ def parse_date(date_str: str) -> str | None:
     """Parst verschiedene Datumsformate in YYYY-MM-DD."""
     if not date_str:
         return None
+    s = str(date_str).strip()
     try:
-        dt = dateparser.parse(date_str, dayfirst=True)
+        # ISO-8601 (YYYY-MM-DD…) ist eindeutig → NICHT dayfirst (sonst werden
+        # Tag/Monat vertauscht, z. B. 2026-07-01 → fälschlich 07. Januar).
+        # Für europäische Formate (TT.MM.JJJJ) bleibt dayfirst aktiv.
+        iso = bool(re.match(r"^\d{4}-\d{2}-\d{2}", s))
+        dt = dateparser.parse(s, dayfirst=not iso)
         if dt and dt.year >= datetime.now().year:
             return dt.strftime("%Y-%m-%d")
-    except:
+    except Exception:
         pass
     return None
 
@@ -1583,41 +1695,27 @@ def run():
     all_events += scrape_kunsthalle()
     all_events += scrape_stadt_winterthur()
     all_events += scrape_eventbrite()
+    all_events += scrape_eventfrog()
     all_events += scrape_opendata_swiss()
 
-    # JS-gerenderte SPA-Venues via Playwright (statisches HTML liefert dort 0).
-    print("\n🧭 SPA-Venues rendern (Playwright)…")
-    all_events += scrape_rendered(
-        "Fotomuseum",
-        ["https://www.fotomuseum.ch/de/program/", "https://www.fotomuseum.ch/de/events/"],
-        "fotomuseum", "Fotomuseum Winterthur", "kultur",
-        "article, .event, [class*='event'], [class*='program'], [class*='veranstaltung']",
-    )
-    all_events += scrape_rendered(
-        "Technorama",
-        ["https://www.technorama.ch/de/erlebnis/veranstaltungen",
-         "https://www.technorama.ch/besuch/veranstaltungen"],
-        "technorama", "Swiss Science Center Technorama", "kultur",
-        "article, .event, [class*='event'], [class*='veranstaltung'], [class*='teaser']",
-    )
-    all_events += scrape_rendered(
-        "Kunsthalle Winterthur",
-        ["https://www.kunsthallewinterthur.ch/", "https://www.kunsthallewinterthur.ch/ausstellungen/"],
-        "kunsthalle", "Kunsthalle Winterthur", "kultur",
-        "article, .event, [class*='event'], [class*='ausstellung'], [class*='exhibition']",
-    )
+    # JS-gerenderte Venues via Playwright – mit den per Recherche korrigierten
+    # URLs (theaterwinterthur.ch OHNE Bindestrich; Casinotheater /theater/spielplan).
+    # Hinweis: Mehrere Venue-Seiten (Fotomuseum, Technorama, Kunsthalle) sind
+    # bot-/JS-Challenge-geschützt und liefern auch gerendert nichts Brauchbares –
+    # für diese ist der Aggregator (Eventfrog/Guidle) der zuverlässige Weg.
+    print("\n🧭 Venues rendern (Playwright)…")
     all_events += scrape_rendered(
         "Theater Winterthur",
-        ["https://www.theater-winterthur.ch/de/spielplan",
-         "https://www.stadttheater-winterthur.ch/spielplan"],
+        ["https://www.theaterwinterthur.ch/spielplan-agenda",
+         "https://www.theaterwinterthur.ch/saisonprogramm-2025_26"],
         "stadttheater", "Theater Winterthur", "theater",
-        "article, .event, [class*='event'], [class*='vorstellung'], [class*='production'], [class*='spielplan']",
+        "article, .event, [class*='event'], [class*='vorstellung'], [class*='production'], [class*='spielplan'], [class*='teaser']",
     )
     all_events += scrape_rendered(
         "Casinotheater Winterthur",
-        ["https://www.casinotheater.ch/programm", "https://www.casinotheater.ch/de/programm"],
+        ["https://www.casinotheater.ch/theater/spielplan"],
         "casinotheater", "Casinotheater Winterthur", "theater",
-        "article, .event, [class*='event'], [class*='veranstaltung'], [class*='programm']",
+        "article, .event, [class*='event'], [class*='veranstaltung'], [class*='spielplan'], [class*='teaser']",
     )
 
     for feed_url, feed_source, feed_location in ICAL_FEEDS:
