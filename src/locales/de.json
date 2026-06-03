@@ -184,5 +184,16 @@
   "ad_create_failed": "Fehler beim Erstellen",
   "select_suffix": "wählen →",
   "nearby": "In der Nähe",
-  "location_unavailable": "Standort nicht verfügbar"
+  "location_unavailable": "Standort nicht verfügbar",
+  "onboarding_welcome_title": "Willkommen bei Winti Guide",
+  "onboarding_welcome_text": "Entdecke Winterthur – Orte, Events und Geheimtipps an einem Ort.",
+  "onboarding_language_title": "Deine Sprache",
+  "onboarding_interests_title": "Was interessiert dich?",
+  "onboarding_interests_text": "Wähle deine Lieblingskategorien (optional).",
+  "onboarding_location_title": "Orte in deiner Nähe",
+  "onboarding_location_text": "Erlaube den Standortzugriff, um Orte nach Distanz zu sortieren.",
+  "onboarding_allow_location": "Standort erlauben",
+  "onboarding_next": "Weiter",
+  "onboarding_start": "Los geht's",
+  "onboarding_skip": "Überspringen"
 }

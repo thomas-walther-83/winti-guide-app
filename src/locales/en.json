@@ -184,5 +184,16 @@
   "ad_create_failed": "Error creating",
   "select_suffix": "select →",
   "nearby": "Nearby",
-  "location_unavailable": "Location unavailable"
+  "location_unavailable": "Location unavailable",
+  "onboarding_welcome_title": "Welcome to Winti Guide",
+  "onboarding_welcome_text": "Discover Winterthur – places, events and hidden gems in one app.",
+  "onboarding_language_title": "Your language",
+  "onboarding_interests_title": "What are you into?",
+  "onboarding_interests_text": "Pick your favourite categories (optional).",
+  "onboarding_location_title": "Places near you",
+  "onboarding_location_text": "Allow location access to sort places by distance.",
+  "onboarding_allow_location": "Allow location",
+  "onboarding_next": "Next",
+  "onboarding_start": "Get started",
+  "onboarding_skip": "Skip"
 }

@@ -184,5 +184,16 @@
   "ad_create_failed": "Errore durante la creazione",
   "select_suffix": "scegli →",
   "nearby": "Nelle vicinanze",
-  "location_unavailable": "Posizione non disponibile"
+  "location_unavailable": "Posizione non disponibile",
+  "onboarding_welcome_title": "Benvenuto su Winti Guide",
+  "onboarding_welcome_text": "Scopri Winterthur – luoghi, eventi e consigli in un'unica app.",
+  "onboarding_language_title": "La tua lingua",
+  "onboarding_interests_title": "Cosa ti interessa?",
+  "onboarding_interests_text": "Scegli le tue categorie preferite (facoltativo).",
+  "onboarding_location_title": "Luoghi vicino a te",
+  "onboarding_location_text": "Consenti la posizione per ordinare i luoghi per distanza.",
+  "onboarding_allow_location": "Consenti posizione",
+  "onboarding_next": "Avanti",
+  "onboarding_start": "Iniziamo",
+  "onboarding_skip": "Salta"
 }

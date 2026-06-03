@@ -184,5 +184,16 @@
   "ad_create_failed": "Erreur lors de la création",
   "select_suffix": "choisir →",
   "nearby": "À proximité",
-  "location_unavailable": "Position indisponible"
+  "location_unavailable": "Position indisponible",
+  "onboarding_welcome_title": "Bienvenue sur Winti Guide",
+  "onboarding_welcome_text": "Découvrez Winterthour – lieux, événements et bons plans réunis.",
+  "onboarding_language_title": "Votre langue",
+  "onboarding_interests_title": "Qu'est-ce qui vous intéresse ?",
+  "onboarding_interests_text": "Choisissez vos catégories préférées (facultatif).",
+  "onboarding_location_title": "Lieux à proximité",
+  "onboarding_location_text": "Autorisez la localisation pour trier les lieux par distance.",
+  "onboarding_allow_location": "Autoriser la position",
+  "onboarding_next": "Suivant",
+  "onboarding_start": "Commencer",
+  "onboarding_skip": "Passer"
 }
