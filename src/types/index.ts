@@ -120,6 +120,7 @@ export interface Listing {
   phone?: string;
   website?: string;
   stars?: string;
+  image_url?: string;
   description?: string;
   lat?: number | null;
   lon?: number | null;
@@ -140,6 +141,7 @@ export interface Event {
   event_date: string;
   event_time?: string;
   price?: string;
+  image_url?: string;
   description?: string;
   url?: string;
   is_active?: boolean;

@@ -3,6 +3,7 @@ import {
   Modal,
   View,
   Text,
+  Image,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
@@ -68,7 +69,11 @@ function ListingDetail({
   return (
     <>
       <View style={[styles.hero, { backgroundColor: bg }]}>
-        <Text style={styles.heroEmoji}>{emoji}</Text>
+        {listing.image_url ? (
+          <Image source={{ uri: listing.image_url }} style={styles.heroImage} resizeMode="cover" />
+        ) : (
+          <Text style={styles.heroEmoji}>{emoji}</Text>
+        )}
         {listing.is_premium && (
           <View style={styles.premiumBadge}>
             <Ionicons name="star" size={12} color="#FFFFFF" />
@@ -153,7 +158,11 @@ function EventDetail({ event }: { event: Event }) {
   return (
     <>
       <View style={[styles.hero, { backgroundColor: theme.colors.primary }]}>
-        <Text style={styles.heroEmoji}>{emoji}</Text>
+        {event.image_url ? (
+          <Image source={{ uri: event.image_url }} style={styles.heroImage} resizeMode="cover" />
+        ) : (
+          <Text style={styles.heroEmoji}>{emoji}</Text>
+        )}
       </View>
       <ScrollView contentContainerStyle={styles.body}>
         <Text style={styles.name}>{event.title}</Text>
@@ -249,9 +258,14 @@ const styles = StyleSheet.create({
     height: 140,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   heroEmoji: {
     fontSize: 56,
+  },
+  heroImage: {
+    width: '100%',
+    height: '100%',
   },
   premiumBadge: {
     position: 'absolute',
@@ -260,7 +274,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: theme.colors.premium,
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: 4,
     borderRadius: theme.borderRadius.full,

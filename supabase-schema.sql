@@ -23,6 +23,7 @@ create table if not exists public.listings (
   phone       text default '',
   website     text default '',
   stars       text default '',
+  image_url   text default '',              -- optionales Titelbild (Fallback: Emoji-Block)
   description text default '',
 
   -- Geodaten (für Kartenansicht)
@@ -37,6 +38,9 @@ create table if not exists public.listings (
   created_at  timestamptz default now(),
   updated_at  timestamptz default now()
 );
+
+-- Migration für bestehende DBs: image_url nachträglich ergänzen (idempotent)
+alter table public.listings add column if not exists image_url text default '';
 
 -- Index für schnelle Suche
 create index if not exists idx_listings_category  on public.listings(category);
@@ -66,6 +70,7 @@ create table if not exists public.events (
   event_date  date not null,
   event_time  text default '',
   price       text default '',
+  image_url   text default '',              -- optionales Titelbild (Fallback: Emoji-Block)
   description text default '',
   url         text default '',
 
@@ -76,6 +81,9 @@ create table if not exists public.events (
   created_at  timestamptz default now(),
   updated_at  timestamptz default now()
 );
+
+-- Migration für bestehende DBs: image_url nachträglich ergänzen (idempotent)
+alter table public.events add column if not exists image_url text default '';
 
 -- Index für Kalender-Abfragen
 create index if not exists idx_events_date     on public.events(event_date);

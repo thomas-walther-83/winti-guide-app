@@ -2,6 +2,7 @@ import React from 'react';
 import {
   View,
   Text,
+  Image,
   TouchableOpacity,
   StyleSheet,
   Linking,
@@ -75,10 +76,14 @@ export function ListingCard({ listing, isSaved, onToggleSave, onShowOnMap }: Lis
       accessibilityRole="button"
       accessibilityLabel={`${listing.name} – Details öffnen`}
     >
-      {/* Left: colored emoji block */}
-      <View style={[styles.iconBlock, { backgroundColor: bgColor }]}>
-        <Text style={styles.emoji}>{emoji}</Text>
-      </View>
+      {/* Left: echtes Bild, sonst farbiger Emoji-Block als Fallback */}
+      {listing.image_url ? (
+        <Image source={{ uri: listing.image_url }} style={styles.image} resizeMode="cover" />
+      ) : (
+        <View style={[styles.iconBlock, { backgroundColor: bgColor }]}>
+          <Text style={styles.emoji}>{emoji}</Text>
+        </View>
+      )}
 
       {/* Right: content */}
       <View style={styles.content}>
@@ -175,6 +180,14 @@ const styles = StyleSheet.create({
     marginRight: theme.spacing.md,
     flexShrink: 0,
   },
+  image: {
+    width: 52,
+    height: 52,
+    borderRadius: theme.borderRadius.md,
+    marginRight: theme.spacing.md,
+    flexShrink: 0,
+    backgroundColor: theme.colors.surface,
+  },
   emoji: {
     fontSize: 24,
   },
@@ -197,7 +210,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.premium,
     flexShrink: 0,
   },
   subType: {
