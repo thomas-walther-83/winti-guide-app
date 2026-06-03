@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { useDetail } from '../context/DetailContext';
 import { useTranslation } from '../hooks/useTranslation';
+import { shareItem } from '../utils/share';
 import type { Listing, Event } from '../types';
 
 const LISTING_EMOJI: Record<string, string> = {
@@ -199,10 +200,28 @@ export function DetailModal() {
   const { t } = useTranslation();
   const visible = payload !== null;
 
+  const handleShare = () => {
+    if (!payload) return;
+    if (payload.kind === 'listing') {
+      shareItem(payload.listing.name, payload.listing.website || undefined);
+    } else {
+      shareItem(payload.event.title, payload.event.url || undefined);
+    }
+  };
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={close}>
       <View style={styles.backdrop}>
         <View style={styles.sheet}>
+          <TouchableOpacity
+            style={styles.shareButton}
+            onPress={handleShare}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel={t('share')}
+          >
+            <Ionicons name="share-outline" size={20} color={theme.colors.text} />
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.closeButton}
             onPress={close}
@@ -246,6 +265,18 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: theme.spacing.md,
     right: theme.spacing.md,
+    zIndex: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shareButton: {
+    position: 'absolute',
+    top: theme.spacing.md,
+    right: theme.spacing.md + 44,
     zIndex: 10,
     width: 36,
     height: 36,

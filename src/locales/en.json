@@ -195,5 +195,6 @@
   "onboarding_allow_location": "Allow location",
   "onboarding_next": "Next",
   "onboarding_start": "Get started",
-  "onboarding_skip": "Skip"
+  "onboarding_skip": "Skip",
+  "share": "Share"
 }

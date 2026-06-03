@@ -195,5 +195,6 @@
   "onboarding_allow_location": "Autoriser la position",
   "onboarding_next": "Suivant",
   "onboarding_start": "Commencer",
-  "onboarding_skip": "Passer"
+  "onboarding_skip": "Passer",
+  "share": "Partager"
 }
