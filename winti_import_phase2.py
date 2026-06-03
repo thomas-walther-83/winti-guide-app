@@ -48,12 +48,14 @@ EVENTBRITE_TOKEN = os.environ.get("EVENTBRITE_TOKEN", "DEIN-EVENTBRITE-TOKEN")
 EVENTBRITE_MAX_PAGES = 5  # Maximale Seitenzahl beim Eventbrite-Import (à 50 Events)
 
 # Öffentliche iCal-Feeds: (URL, source_name, default_location)
-# URLs ggf. anpassen oder weitere Feeds ergänzen.
-ICAL_FEEDS = [
-    ("https://stadtbibliothek.winterthur.ch/events.ics",   "stadtbibliothek",   "Stadtbibliothek Winterthur"),
-    ("https://naturmuseum.stadtwinterthur.ch/events.ics",  "naturmuseum",       "Naturmuseum Winterthur"),
-    ("https://gewerbemuseum.ch/events.ics",                "gewerbemuseum",     "Gewerbemuseum Winterthur"),
-]
+# Hinweis (Diagnose 2026-06-03): Für Winterthur existiert aktuell KEIN nutzbarer
+# öffentlicher iCal-/Open-Data-Event-Feed. Die früher hier konfigurierten URLs
+# waren alle ungültig (Domains nicht auflösbar bzw. lieferten HTML statt .ics)
+# und erzeugten bei jedem Lauf Fehler. opendata.swiss enthält keine
+# Winterthur-Veranstaltungsdaten. Für echte Abdeckung ist eine Datenpartnerschaft
+# (House of Winterthur / Stadt) oder manuelle Pflege nötig.
+# Sobald ein gültiger .ics-Feed bekannt ist, hier als (URL, source, location) ergänzen.
+ICAL_FEEDS: list[tuple[str, str, str]] = []
 
 HEADERS = {
     # Browser-User-Agent: viele Seiten (z. B. kunsthallewinterthur.ch) liefern
