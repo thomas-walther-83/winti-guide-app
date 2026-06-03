@@ -4,6 +4,8 @@ import { StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider } from './src/context/AuthContext';
+import { DetailProvider } from './src/context/DetailContext';
+import { DetailModal } from './src/components/DetailModal';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { CalendarScreen } from './src/screens/CalendarScreen';
 import { MapScreen } from './src/screens/MapScreen';
@@ -66,17 +68,20 @@ export default function App() {
 
   return (
     <AuthProvider>
-      <SafeAreaProvider>
-        <View style={styles.container}>
-          <StatusBar style="dark" />
-          <View style={styles.screen}>{renderScreen()}</View>
-          <NavigationBar
-            tabs={TABS as unknown as { key: string; label: string; emoji: string }[]}
-            activeTab={activeTab}
-            onTabPress={handleTabPress}
-          />
-        </View>
-      </SafeAreaProvider>
+      <DetailProvider>
+        <SafeAreaProvider>
+          <View style={styles.container}>
+            <StatusBar style="dark" />
+            <View style={styles.screen}>{renderScreen()}</View>
+            <NavigationBar
+              tabs={TABS as unknown as { key: string; label: string; emoji: string }[]}
+              activeTab={activeTab}
+              onTabPress={handleTabPress}
+            />
+          </View>
+          <DetailModal />
+        </SafeAreaProvider>
+      </DetailProvider>
     </AuthProvider>
   );
 }

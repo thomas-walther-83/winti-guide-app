@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
+import { useDetail } from '../context/DetailContext';
 import type { Listing } from '../types';
 
 const CATEGORY_EMOJI: Record<string, string> = {
@@ -44,6 +45,10 @@ interface ListingCardProps {
 export function ListingCard({ listing, isSaved, onToggleSave, onShowOnMap }: ListingCardProps) {
   const emoji = CATEGORY_EMOJI[listing.category] ?? '📍';
   const bgColor = CATEGORY_BG[listing.category] ?? theme.colors.primary;
+  const { open } = useDetail();
+
+  const openDetail = () =>
+    open({ kind: 'listing', listing, isSaved, onToggleSave, onShowOnMap });
 
   const handleWebsite = () => {
     if (listing.website) {
@@ -61,7 +66,13 @@ export function ListingCard({ listing, isSaved, onToggleSave, onShowOnMap }: Lis
   };
 
   return (
-    <View style={styles.card}>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={openDetail}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={`${listing.name} – Details öffnen`}
+    >
       {/* Left: colored emoji block */}
       <View style={[styles.iconBlock, { backgroundColor: bgColor }]}>
         <Text style={styles.emoji}>{emoji}</Text>
@@ -136,7 +147,7 @@ export function ListingCard({ listing, isSaved, onToggleSave, onShowOnMap }: Lis
           color={isSaved ? theme.colors.primary : theme.colors.textMuted}
         />
       </TouchableOpacity>
-    </View>
+    </TouchableOpacity>
   );
 }
 

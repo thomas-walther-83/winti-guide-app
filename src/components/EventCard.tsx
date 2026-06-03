@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
+import { useDetail } from '../context/DetailContext';
 import type { Event } from '../types';
 
 const CATEGORY_EMOJI: Record<string, string> = {
@@ -54,6 +55,7 @@ function formatMonth(dateStr: string): string {
 
 export function EventCard({ event }: EventCardProps) {
   const emoji = CATEGORY_EMOJI[event.cat] ?? '📅';
+  const { open } = useDetail();
 
   const handleUrl = () => {
     if (event.url) {
@@ -65,7 +67,13 @@ export function EventCard({ event }: EventCardProps) {
   const isToday = event.event_date === new Date().toISOString().split('T')[0];
 
   return (
-    <View style={styles.card}>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => open({ kind: 'event', event })}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={`${event.title} – Details öffnen`}
+    >
       {/* Date column */}
       <View style={styles.dateColumn}>
         <Text style={styles.weekday}>{formatWeekday(event.event_date)}</Text>
@@ -124,7 +132,7 @@ export function EventCard({ event }: EventCardProps) {
           </TouchableOpacity>
         ) : null}
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 

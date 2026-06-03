@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "splash": {
-      "backgroundColor": "#8B0000"
+      "backgroundColor": "#CC0000"
     },
     "ios": {
       "supportsTablet": false,
@@ -15,7 +15,7 @@
     "android": {
       "package": "ch.wintiGuide.app",
       "adaptiveIcon": {
-        "backgroundColor": "#8B0000"
+        "backgroundColor": "#CC0000"
       }
     },
     "web": {
@@ -24,7 +24,7 @@
       "name": "Winti Guide",
       "shortName": "Winti Guide",
       "lang": "de",
-      "themeColor": "#8B0000",
+      "themeColor": "#CC0000",
       "backgroundColor": "#F7F7F7"
     }
   }
