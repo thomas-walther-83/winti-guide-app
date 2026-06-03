@@ -1,0 +1,58 @@
+name: DB-Migration (Supabase)
+
+# Wendet die SQL-Dateien aus supabase/migrations/ auf die Datenbank an.
+# Alle Migrationen sind idempotent (ADD COLUMN IF NOT EXISTS, CREATE TABLE
+# IF NOT EXISTS, DROP/CREATE POLICY) und können beliebig oft laufen.
+#
+# Voraussetzung: Repository-Secret SUPABASE_DB_URL mit dem Postgres-
+# Connection-String (Supabase → Settings → Database → Connection string).
+# Empfehlung: den "Session pooler"-String verwenden – er ist IPv4-kompatibel,
+# was GitHub-Runner benötigen.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-migrate
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify secret is set
+        run: |
+          if [ -z "${SUPABASE_DB_URL}" ]; then
+            echo "❌ Repository-Secret SUPABASE_DB_URL fehlt."
+            echo "   Anlegen unter Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          echo "✅ Secret vorhanden."
+
+      - name: Ensure psql is available
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+          fi
+          psql --version
+
+      - name: Apply migrations
+        run: |
+          set -e
+          shopt -s nullglob
+          files=(supabase/migrations/*.sql)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "Keine Migrationsdateien gefunden."; exit 0
+          fi
+          for f in "${files[@]}"; do
+            echo "▶ Wende an: $f"
+            psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$f"
+          done
+          echo "✅ Alle Migrationen angewendet."
