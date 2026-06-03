@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useAppTier } from '../hooks/useAppTier';
+import { useTranslation } from '../hooks/useTranslation';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { theme } from '../styles/theme';
 
 // ── Stripe Checkout URLs ─────────────────────────────────────────────────────
@@ -29,6 +31,7 @@ type AuthMode = 'login' | 'register';
 export function AccountScreen() {
   const { user, signIn, signUp, signOut, loading: authLoading } = useAuth();
   const { tier, isPremium, loading: tierLoading, refresh: refreshTier } = useAppTier();
+  const { t } = useTranslation();
 
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
@@ -89,8 +92,10 @@ export function AccountScreen() {
       <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
-            <Text style={styles.title}>👤 Konto</Text>
+            <Text style={styles.title}>👤 {t('account')}</Text>
           </View>
+
+          <LanguageSwitcher />
 
           {/* Profile card */}
           <View style={styles.profileCard}>
@@ -192,8 +197,10 @@ export function AccountScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <Text style={styles.title}>👤 Konto</Text>
+          <Text style={styles.title}>👤 {t('account')}</Text>
         </View>
+
+        <LanguageSwitcher />
 
         <View style={styles.authCard}>
           {/* Mode toggle */}

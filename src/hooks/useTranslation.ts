@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useContext } from 'react';
 import type { Language } from '../types';
+import { LanguageContext } from '../context/LanguageContext';
 import de from '../locales/de.json';
 import en from '../locales/en.json';
 import fr from '../locales/fr.json';
@@ -18,11 +19,20 @@ interface UseTranslationResult {
 }
 
 export function useTranslation(): UseTranslationResult {
-  const [language, setLanguageState] = useState<Language>('de');
+  // App-weiter Sprach-State, falls ein LanguageProvider vorhanden ist;
+  // sonst lokaler Fallback (z. B. isolierte Hook-Tests ohne Provider).
+  const ctx = useContext(LanguageContext);
+  const [localLanguage, setLocalLanguage] = useState<Language>('de');
 
-  const setLanguage = useCallback((lang: Language) => {
-    setLanguageState(lang);
-  }, []);
+  const language = ctx ? ctx.language : localLanguage;
+  const setLanguageFn = ctx ? ctx.setLanguage : setLocalLanguage;
+
+  const setLanguage = useCallback(
+    (lang: Language) => {
+      setLanguageFn(lang);
+    },
+    [setLanguageFn],
+  );
 
   const t = useCallback(
     (key: TranslationKey): string => {

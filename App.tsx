@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider } from './src/context/AuthContext';
 import { DetailProvider } from './src/context/DetailContext';
+import { LanguageProvider } from './src/context/LanguageContext';
 import { DetailModal } from './src/components/DetailModal';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { CalendarScreen } from './src/screens/CalendarScreen';
@@ -13,20 +14,23 @@ import { SavedScreen } from './src/screens/SavedScreen';
 import { AccountScreen } from './src/screens/AccountScreen';
 import { PartnerPortalScreen } from './src/screens/PartnerPortalScreen';
 import { NavigationBar } from './src/components/NavigationBar';
+import { useTranslation } from './src/hooks/useTranslation';
 import { theme } from './src/styles/theme';
 import type { Listing } from './src/types';
 
 type TabKey = 'home' | 'calendar' | 'map' | 'saved' | 'account' | 'partner';
 
-const TABS = [
-  { key: 'home',     label: 'Entdecken', emoji: '🏠' },
-  { key: 'calendar', label: 'Kalender',  emoji: '📅' },
-  { key: 'map',      label: 'Karte',     emoji: '🗺️' },
-  { key: 'saved',    label: 'Gespeichert', emoji: '❤️' },
-  { key: 'account',  label: 'Konto',     emoji: '👤' },
+// Basis-Definition der Tabs; das Label wird zur Laufzeit übersetzt (i18n).
+const TAB_DEFS = [
+  { key: 'home',     emoji: '🏠', labelKey: 'home' },
+  { key: 'calendar', emoji: '📅', labelKey: 'calendar' },
+  { key: 'map',      emoji: '🗺️', labelKey: 'map' },
+  { key: 'saved',    emoji: '❤️', labelKey: 'saved' },
+  { key: 'account',  emoji: '👤', labelKey: 'account' },
 ] as const;
 
-export default function App() {
+function AppContent() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [mapFocusListing, setMapFocusListing] = useState<Listing | null>(null);
 
@@ -46,6 +50,12 @@ export default function App() {
     }
     setActiveTab(key as TabKey);
   };
+
+  const tabs = TAB_DEFS.map((tab) => ({
+    key: tab.key,
+    emoji: tab.emoji,
+    label: t(tab.labelKey),
+  }));
 
   const renderScreen = () => {
     switch (activeTab) {
@@ -67,22 +77,26 @@ export default function App() {
   };
 
   return (
-    <AuthProvider>
-      <DetailProvider>
-        <SafeAreaProvider>
-          <View style={styles.container}>
-            <StatusBar style="dark" />
-            <View style={styles.screen}>{renderScreen()}</View>
-            <NavigationBar
-              tabs={TABS as unknown as { key: string; label: string; emoji: string }[]}
-              activeTab={activeTab}
-              onTabPress={handleTabPress}
-            />
-          </View>
-          <DetailModal />
-        </SafeAreaProvider>
-      </DetailProvider>
-    </AuthProvider>
+    <View style={styles.container}>
+      <StatusBar style="dark" />
+      <View style={styles.screen}>{renderScreen()}</View>
+      <NavigationBar tabs={tabs} activeTab={activeTab} onTabPress={handleTabPress} />
+    </View>
+  );
+}
+
+export default function App() {
+  return (
+    <LanguageProvider>
+      <AuthProvider>
+        <DetailProvider>
+          <SafeAreaProvider>
+            <AppContent />
+            <DetailModal />
+          </SafeAreaProvider>
+        </DetailProvider>
+      </AuthProvider>
+    </LanguageProvider>
   );
 }
 
