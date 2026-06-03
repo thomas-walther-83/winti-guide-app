@@ -57,10 +57,10 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install requests beautifulsoup4 python-dateutil icalendar playwright
-
-      - name: Install Playwright browser (Chromium)
-        run: python -m playwright install --with-deps chromium
+        run: pip install requests beautifulsoup4 python-dateutil icalendar
+        # Hinweis: Playwright ist im Code optional (try/except) und aktuell nicht
+        # aktiv genutzt (Venue-Render-Aufrufe sind deaktiviert). Zum Reaktivieren
+        # hier ergänzen: `playwright` + Step `python -m playwright install --with-deps chromium`.
 
       - name: Determine targets
         id: targets

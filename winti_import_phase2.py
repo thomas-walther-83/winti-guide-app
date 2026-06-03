@@ -1709,25 +1709,17 @@ def run():
     all_events += scrape_eventfrog()
     all_events += scrape_opendata_swiss()
 
-    # JS-gerenderte Venues via Playwright – mit den per Recherche korrigierten
-    # URLs (theaterwinterthur.ch OHNE Bindestrich; Casinotheater /theater/spielplan).
-    # Hinweis: Mehrere Venue-Seiten (Fotomuseum, Technorama, Kunsthalle) sind
-    # bot-/JS-Challenge-geschützt und liefern auch gerendert nichts Brauchbares –
-    # für diese ist der Aggregator (Eventfrog/Guidle) der zuverlässige Weg.
-    print("\n🧭 Venues rendern (Playwright)…")
-    all_events += scrape_rendered(
-        "Theater Winterthur",
-        ["https://www.theaterwinterthur.ch/spielplan-agenda",
-         "https://www.theaterwinterthur.ch/saisonprogramm-2025_26"],
-        "stadttheater", "Theater Winterthur", "theater",
-        "article, .event, [class*='event'], [class*='vorstellung'], [class*='production'], [class*='spielplan'], [class*='teaser']",
-    )
-    all_events += scrape_rendered(
-        "Casinotheater Winterthur",
-        ["https://www.casinotheater.ch/theater/spielplan"],
-        "casinotheater", "Casinotheater Winterthur", "theater",
-        "article, .event, [class*='event'], [class*='veranstaltung'], [class*='spielplan'], [class*='teaser']",
-    )
+    # Playwright-Venue-Rendering ist vorbereitet (render_html/scrape_rendered),
+    # aber DEAKTIVIERT: Die getesteten Venue-Seiten sind bot-/JS-Challenge-
+    # geschützt (Casinotheater: "Einen Moment bitte…"; Fotomuseum/Technorama
+    # blockiert/404) oder liefern den Spielplan über ein separates Widget, das
+    # auch gerendert nicht im DOM erscheint (Theater Winterthur). Sie kosteten
+    # ~4 Min/Lauf für 0 Events. Der zuverlässige Weg ist der Aggregator
+    # (Eventfrog via API oben; langfristig Guidle/veranstaltungen.winterthur.ch
+    # per Vertrag). Sobald eine funktionierende Venue-URL bekannt ist, hier
+    # reaktivieren:
+    #   all_events += scrape_rendered("<Name>", ["<url>"], "<source>",
+    #       "<Ort>", "<cat>", "<css-selektoren>")
 
     for feed_url, feed_source, feed_location in ICAL_FEEDS:
         all_events += import_ical(feed_url, feed_source, default_location=feed_location)
