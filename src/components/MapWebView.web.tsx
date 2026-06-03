@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from '../hooks/useTranslation';
 
 interface Props {
   html: string;
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export function MapWebView({ html }: Props) {
+  const { t } = useTranslation();
   return (
     <iframe
       srcDoc={html}
@@ -16,7 +18,7 @@ export function MapWebView({ html }: Props) {
         width: '100%',
         height: '100%',
       }}
-      title="Karte"
+      title={t('map')}
       sandbox="allow-scripts allow-same-origin"
     />
   );

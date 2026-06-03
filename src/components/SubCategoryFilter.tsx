@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { theme } from '../styles/theme';
 import { SUB_CATEGORIES } from '../config/subcategories';
+import { useTranslation } from '../hooks/useTranslation';
 import type { ListingCategory } from '../types';
 
 interface SubCategoryFilterProps {
@@ -17,6 +18,7 @@ interface SubCategoryFilterProps {
 }
 
 export function SubCategoryFilter({ category, selected, onSelect }: SubCategoryFilterProps) {
+  const { t } = useTranslation();
   const subCategories = SUB_CATEGORIES[category] ?? [];
 
   if (subCategories.length === 0) return null;
@@ -34,7 +36,7 @@ export function SubCategoryFilter({ category, selected, onSelect }: SubCategoryF
         activeOpacity={0.7}
       >
         <Text style={[styles.label, selected === 'all' && styles.labelActive]}>
-          Alle
+          {t('all_categories')}
         </Text>
       </TouchableOpacity>
 

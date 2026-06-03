@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { theme } from '../styles/theme';
+import { useTranslation } from '../hooks/useTranslation';
 
 interface SectionHeaderProps {
   title: string;
@@ -11,14 +12,16 @@ interface SectionHeaderProps {
 export function SectionHeader({
   title,
   onShowAll,
-  showAllLabel = 'Alle anzeigen',
+  showAllLabel,
 }: SectionHeaderProps) {
+  const { t } = useTranslation();
+  const resolvedShowAllLabel = showAllLabel ?? t('show_all');
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{title}</Text>
       {onShowAll && (
         <TouchableOpacity onPress={onShowAll} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Text style={styles.link}>{showAllLabel}</Text>
+          <Text style={styles.link}>{resolvedShowAllLabel}</Text>
         </TouchableOpacity>
       )}
     </View>

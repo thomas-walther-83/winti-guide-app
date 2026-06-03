@@ -8,27 +8,29 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
+import { useTranslation } from '../hooks/useTranslation';
 import type { ListingCategory } from '../types';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+type TranslationKey = Parameters<ReturnType<typeof useTranslation>['t']>[0];
 
 interface CategoryItem {
   key: ListingCategory | 'all';
-  label: string;
+  labelKey: TranslationKey;
   icon: IoniconName;
 }
 
 const CATEGORIES: CategoryItem[] = [
-  { key: 'all', label: 'Alle', icon: 'grid-outline' },
-  { key: 'restaurants', label: 'Restaurants', icon: 'restaurant-outline' },
-  { key: 'cafes', label: 'Cafés', icon: 'cafe-outline' },
-  { key: 'bars', label: 'Bars', icon: 'wine-outline' },
-  { key: 'hotels', label: 'Hotels', icon: 'bed-outline' },
-  { key: 'sightseeing', label: 'Sightseeing', icon: 'camera-outline' },
-  { key: 'kultur', label: 'Kultur', icon: 'color-palette-outline' },
-  { key: 'geschaefte', label: 'Geschäfte', icon: 'bag-handle-outline' },
-  { key: 'sport', label: 'Sport', icon: 'bicycle-outline' },
-  { key: 'touren', label: 'Touren', icon: 'footsteps-outline' },
+  { key: 'all', labelKey: 'all_categories', icon: 'grid-outline' },
+  { key: 'restaurants', labelKey: 'restaurants', icon: 'restaurant-outline' },
+  { key: 'cafes', labelKey: 'cafes', icon: 'cafe-outline' },
+  { key: 'bars', labelKey: 'bars', icon: 'wine-outline' },
+  { key: 'hotels', labelKey: 'hotels', icon: 'bed-outline' },
+  { key: 'sightseeing', labelKey: 'sightseeing', icon: 'camera-outline' },
+  { key: 'kultur', labelKey: 'kultur', icon: 'color-palette-outline' },
+  { key: 'geschaefte', labelKey: 'geschaefte', icon: 'bag-handle-outline' },
+  { key: 'sport', labelKey: 'sport', icon: 'bicycle-outline' },
+  { key: 'touren', labelKey: 'touren', icon: 'footsteps-outline' },
 ];
 
 interface CategoryFilterProps {
@@ -37,6 +39,7 @@ interface CategoryFilterProps {
 }
 
 export function CategoryFilter({ selected, onSelect }: CategoryFilterProps) {
+  const { t } = useTranslation();
   return (
     <ScrollView
       horizontal
@@ -59,7 +62,7 @@ export function CategoryFilter({ selected, onSelect }: CategoryFilterProps) {
               color={isActive ? '#FFFFFF' : theme.colors.primary}
             />
             <Text style={[styles.label, isActive && styles.labelActive]}>
-              {cat.label}
+              {t(cat.labelKey)}
             </Text>
           </TouchableOpacity>
         );

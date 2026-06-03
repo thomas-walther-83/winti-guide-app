@@ -13,14 +13,15 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { askAiGuide, ChatMessage } from '../services/aiGuideService';
-
-const QUICK_SUGGESTIONS = [
-  'Gerade angekommen, was soll ich tun?',
-  'Was sind die Highlights in Winterthur?',
-  'Wo kann ich gut essen?',
-];
+import { useTranslation } from '../hooks/useTranslation';
 
 export function AiGuideCard() {
+  const { t } = useTranslation();
+  const QUICK_SUGGESTIONS = [
+    t('ai_suggestion_1'),
+    t('ai_suggestion_2'),
+    t('ai_suggestion_3'),
+  ];
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -47,7 +48,7 @@ export function AiGuideCard() {
     } catch {
       const errorMsg: ChatMessage = {
         role: 'assistant',
-        text: 'Entschuldigung, ich konnte deine Frage gerade nicht beantworten. Bitte versuche es erneut.',
+        text: t('ai_error'),
       };
       setMessages([...nextMessages, errorMsg]);
     } finally {
@@ -65,8 +66,8 @@ export function AiGuideCard() {
             <Text style={styles.headerEmoji}>🤖</Text>
           </View>
           <View style={styles.headerText}>
-            <Text style={styles.headerTitle}>Hast du eine Frage?</Text>
-            <Text style={styles.headerSubtitle}>Frag Thomas, deinen lokalen Guide.</Text>
+            <Text style={styles.headerTitle}>{t('ai_question_title')}</Text>
+            <Text style={styles.headerSubtitle}>{t('ai_question_subtitle')}</Text>
           </View>
         </View>
 
@@ -120,7 +121,7 @@ export function AiGuideCard() {
                 <Text style={styles.assistantLabel}>🤖</Text>
                 <View style={styles.typingIndicator}>
                   <ActivityIndicator size="small" color={theme.colors.textSecondary} />
-                  <Text style={styles.typingText}>Thomas tippt...</Text>
+                  <Text style={styles.typingText}>{t('ai_typing')}</Text>
                 </View>
               </View>
             )}
@@ -133,7 +134,7 @@ export function AiGuideCard() {
             style={styles.input}
             value={inputText}
             onChangeText={setInputText}
-            placeholder="Frage eingeben..."
+            placeholder={t('ai_input_placeholder')}
             placeholderTextColor={theme.colors.textMuted}
             returnKeyType="send"
             onSubmitEditing={() => sendMessage(inputText)}

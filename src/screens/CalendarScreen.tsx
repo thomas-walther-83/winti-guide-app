@@ -13,23 +13,25 @@ import { Ionicons } from '@expo/vector-icons';
 import { useEvents } from '../hooks/useEvents';
 import { useAppTier } from '../hooks/useAppTier';
 import { EventCard } from '../components/EventCard';
+import { useTranslation } from '../hooks/useTranslation';
 import { theme } from '../styles/theme';
 import type { EventCategory } from '../types';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+type TranslationKey = Parameters<ReturnType<typeof useTranslation>['t']>[0];
 
 const FREE_TIER_DAYS = 7; // Free users see events for the next 7 days
 
-const EVENT_CATEGORIES: { key: EventCategory | 'all'; label: string; icon: IoniconName }[] = [
-  { key: 'all', label: 'Alle', icon: 'calendar-outline' },
-  { key: 'festival', label: 'Festival', icon: 'musical-notes-outline' },
-  { key: 'musik', label: 'Musik', icon: 'headset-outline' },
-  { key: 'kultur', label: 'Kultur', icon: 'color-palette-outline' },
-  { key: 'markt', label: 'Markt', icon: 'storefront-outline' },
-  { key: 'theater', label: 'Theater', icon: 'film-outline' },
-  { key: 'tour', label: 'Tour', icon: 'footsteps-outline' },
-  { key: 'kulinarik', label: 'Kulinarik', icon: 'restaurant-outline' },
-  { key: 'sport', label: 'Sport', icon: 'bicycle-outline' },
+const EVENT_CATEGORIES: { key: EventCategory | 'all'; labelKey: TranslationKey; icon: IoniconName }[] = [
+  { key: 'all', labelKey: 'all_categories', icon: 'calendar-outline' },
+  { key: 'festival', labelKey: 'festival', icon: 'musical-notes-outline' },
+  { key: 'musik', labelKey: 'musik', icon: 'headset-outline' },
+  { key: 'kultur', labelKey: 'kultur', icon: 'color-palette-outline' },
+  { key: 'markt', labelKey: 'markt', icon: 'storefront-outline' },
+  { key: 'theater', labelKey: 'theater', icon: 'film-outline' },
+  { key: 'tour', labelKey: 'tour', icon: 'footsteps-outline' },
+  { key: 'kulinarik', labelKey: 'kulinarik', icon: 'restaurant-outline' },
+  { key: 'sport', labelKey: 'sport', icon: 'bicycle-outline' },
 ];
 
 function getToday(): string {
@@ -45,6 +47,7 @@ function addDays(dateStr: string, days: number): string {
 export function CalendarScreen({ onNavigateToAccount }: { onNavigateToAccount?: () => void }) {
   const [category, setCategory] = useState<EventCategory | 'all'>('all');
   const { isPremium } = useAppTier();
+  const { t } = useTranslation();
 
   const { events, loading, error, refresh } = useEvents({
     category: category === 'all' ? undefined : category,
@@ -78,8 +81,8 @@ export function CalendarScreen({ onNavigateToAccount }: { onNavigateToAccount?: 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Kalender</Text>
-        <Text style={styles.subtitle}>Kommende Events in Winterthur</Text>
+        <Text style={styles.title}>{t('calendar')}</Text>
+        <Text style={styles.subtitle}>{t('calendar_subtitle')}</Text>
       </View>
 
       <ScrollView
@@ -103,7 +106,7 @@ export function CalendarScreen({ onNavigateToAccount }: { onNavigateToAccount?: 
                 color={isActive ? '#FFFFFF' : theme.colors.primary}
               />
               <Text style={[styles.chipLabel, isActive && styles.chipLabelActive]}>
-                {cat.label}
+                {t(cat.labelKey)}
               </Text>
             </TouchableOpacity>
           );
@@ -113,7 +116,7 @@ export function CalendarScreen({ onNavigateToAccount }: { onNavigateToAccount?: 
       {loading && (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={styles.loadingText}>Laden...</Text>
+          <Text style={styles.loadingText}>{t('loading')}</Text>
         </View>
       )}
 
@@ -121,7 +124,7 @@ export function CalendarScreen({ onNavigateToAccount }: { onNavigateToAccount?: 
         <View style={styles.center}>
           <Text style={styles.errorText}>⚠️ {error}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={refresh}>
-            <Text style={styles.retryText}>Erneut versuchen</Text>
+            <Text style={styles.retryText}>{t('retry')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -129,8 +132,8 @@ export function CalendarScreen({ onNavigateToAccount }: { onNavigateToAccount?: 
       {!loading && !error && visibleEvents.length === 0 && (
         <View style={styles.center}>
           <Text style={styles.emptyEmoji}>🎭</Text>
-          <Text style={styles.emptyText}>Keine Events gefunden</Text>
-          <Text style={styles.emptyHint}>Schau bald wieder vorbei!</Text>
+          <Text style={styles.emptyText}>{t('no_events')}</Text>
+          <Text style={styles.emptyHint}>{t('check_back_soon')}</Text>
         </View>
       )}
 
@@ -142,7 +145,7 @@ export function CalendarScreen({ onNavigateToAccount }: { onNavigateToAccount?: 
             <View>
               <View style={styles.dateHeader}>
                 <Text style={styles.dateHeaderText}>
-                  {item.date === getToday() ? '🌟 Heute' : formatSectionDate(item.date)}
+                  {item.date === getToday() ? `🌟 ${t('today')}` : formatSectionDate(item.date)}
                 </Text>
               </View>
               {item.events.map((event) => (
@@ -164,10 +167,10 @@ export function CalendarScreen({ onNavigateToAccount }: { onNavigateToAccount?: 
                 <Text style={styles.premiumTeaserIcon}>🔒</Text>
                 <View style={styles.premiumTeaserInfo}>
                   <Text style={styles.premiumTeaserTitle}>
-                    Weitere {events.length - visibleEvents.length} Events verfügbar
+                    {t('more_events_prefix')} {events.length - visibleEvents.length} {t('more_events_suffix')}
                   </Text>
                   <Text style={styles.premiumTeaserSub}>
-                    Upgrade auf Premium für den vollständigen Kalender
+                    {t('upgrade_full_calendar')}
                   </Text>
                 </View>
                 <Text style={styles.premiumTeaserArrow}>→</Text>
