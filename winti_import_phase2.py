@@ -518,6 +518,17 @@ def scrape_rendered(name: str, urls: list[str], source: str,
             continue
         soup = BeautifulSoup(html, "html.parser")
 
+        # Diagnose: verrät im CI-Log die echte Seitenstruktur, damit URL/Selektor
+        # gezielt angepasst werden können (statt blind zu raten).
+        title = (soup.title.string if soup.title and soup.title.string else "").strip()[:80]
+        n_jsonld = len(soup.find_all("script", type="application/ld+json"))
+        n_event_class = len(soup.select("[class*='event'], [class*='veranstaltung'], [class*='programm']"))
+        n_article = len(soup.select("article"))
+        n_time = len(soup.select("time"))
+        print(f"    (diag {url.split('/')[2] if '//' in url else url}: "
+              f"len={len(html)} title='{title}' jsonld={n_jsonld} "
+              f"event-class={n_event_class} article={n_article} time={n_time})")
+
         # 1) JSON-LD (inkl. @graph/itemListElement)
         for script in soup.find_all("script", type="application/ld+json"):
             try:
