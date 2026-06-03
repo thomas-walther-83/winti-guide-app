@@ -432,6 +432,38 @@ def jsonld_to_event(data: dict, source: str) -> dict | None:
     }
 
 
+def expand_jsonld(data) -> list:
+    """Flacht JSON-LD-Daten zu einer Liste einzelner Knoten ab.
+
+    Viele Seiten verpacken Events in `@graph` oder in eine `ItemList`
+    (`itemListElement[].item`). Diese Wrapper werden hier rekursiv aufgelöst,
+    damit die enthaltenen Event-Knoten gefunden werden. Reine Wrapper ohne
+    Event-Typ schaden nicht – `jsonld_to_event` filtert sie heraus.
+    """
+    out: list = []
+
+    def walk(node):
+        if isinstance(node, list):
+            for n in node:
+                walk(n)
+            return
+        if not isinstance(node, dict):
+            return
+        graph = node.get("@graph")
+        if isinstance(graph, list):
+            for n in graph:
+                walk(n)
+        ile = node.get("itemListElement")
+        if isinstance(ile, list):
+            for el in ile:
+                if isinstance(el, dict):
+                    walk(el.get("item", el))
+        out.append(node)
+
+    walk(data)
+    return out
+
+
 # ── Scraper 2: myswitzerland.com ─────────────────────────────────
 def scrape_myswitzerland() -> list[dict]:
     """
@@ -454,7 +486,7 @@ def scrape_myswitzerland() -> list[dict]:
         for script in soup.find_all("script", type="application/ld+json"):
             try:
                 data = json.loads(script.string or "")
-                items = data if isinstance(data, list) else [data]
+                items = expand_jsonld(data)
                 for item in items:
                     ev = jsonld_to_event(item, "myswitzerland")
                     if ev:
@@ -506,7 +538,7 @@ def scrape_alte_kaserne() -> list[dict]:
         for script in soup.find_all("script", type="application/ld+json"):
             try:
                 data = json.loads(script.string or "")
-                items = data if isinstance(data, list) else [data]
+                items = expand_jsonld(data)
                 for item in items:
                     ev = jsonld_to_event(item, "altekaserne")
                     if ev:
@@ -603,7 +635,7 @@ def scrape_stadttheater() -> list[dict]:
             for script in soup.find_all("script", type="application/ld+json"):
                 try:
                     data = json.loads(script.string or "")
-                    items = data if isinstance(data, list) else [data]
+                    items = expand_jsonld(data)
                     for item in items:
                         ev = jsonld_to_event(item, "stadttheater")
                         if ev:
@@ -667,7 +699,7 @@ def scrape_casinotheater() -> list[dict]:
             for script in soup.find_all("script", type="application/ld+json"):
                 try:
                     data = json.loads(script.string or "")
-                    items = data if isinstance(data, list) else [data]
+                    items = expand_jsonld(data)
                     for item in items:
                         ev = jsonld_to_event(item, "casinotheater")
                         if ev:
@@ -729,7 +761,7 @@ def scrape_musikkollegium() -> list[dict]:
             for script in soup.find_all("script", type="application/ld+json"):
                 try:
                     data = json.loads(script.string or "")
-                    items = data if isinstance(data, list) else [data]
+                    items = expand_jsonld(data)
                     for item in items:
                         ev = jsonld_to_event(item, "musikkollegium")
                         if ev:
@@ -792,7 +824,7 @@ def scrape_fotomuseum() -> list[dict]:
             for script in soup.find_all("script", type="application/ld+json"):
                 try:
                     data = json.loads(script.string or "")
-                    items = data if isinstance(data, list) else [data]
+                    items = expand_jsonld(data)
                     for item in items:
                         ev = jsonld_to_event(item, "fotomuseum")
                         if ev:
@@ -854,7 +886,7 @@ def scrape_technorama() -> list[dict]:
             for script in soup.find_all("script", type="application/ld+json"):
                 try:
                     data = json.loads(script.string or "")
-                    items = data if isinstance(data, list) else [data]
+                    items = expand_jsonld(data)
                     for item in items:
                         ev = jsonld_to_event(item, "technorama")
                         if ev:
@@ -921,7 +953,7 @@ def scrape_kunsthalle() -> list[dict]:
             for script in soup.find_all("script", type="application/ld+json"):
                 try:
                     data = json.loads(script.string or "")
-                    items = data if isinstance(data, list) else [data]
+                    items = expand_jsonld(data)
                     for item in items:
                         ev = jsonld_to_event(item, "kunsthalle")
                         if ev:
@@ -999,7 +1031,7 @@ def scrape_stadt_winterthur() -> list[dict]:
                 for script in soup.find_all("script", type="application/ld+json"):
                     try:
                         data = json.loads(script.string or "")
-                        items = data if isinstance(data, list) else [data]
+                        items = expand_jsonld(data)
                         for item in items:
                             ev = jsonld_to_event(item, "stadt_winterthur")
                             if ev:
