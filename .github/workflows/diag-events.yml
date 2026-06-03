@@ -1,0 +1,21 @@
+name: Diagnose Event-Quellen (temporär)
+
+# Einmaliges Hilfswerkzeug zur Reparatur der Event-Scraper.
+# Läuft nur manuell, schreibt NICHTS in die Datenbank – gibt nur die
+# Seitenstruktur der Quellen ins Log aus. Wird nach der Reparatur entfernt.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install requests beautifulsoup4
+      - run: python3 winti_diag_events.py
