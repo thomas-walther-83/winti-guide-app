@@ -36,6 +36,34 @@ function openUrl(raw?: string) {
   Linking.openURL(url).catch(() => undefined);
 }
 
+/** Öffnet die Google-Maps-Routenführung zum Ziel (App, sonst Browser). */
+function openDirections(lat?: number | null, lon?: number | null, query?: string) {
+  let dest = '';
+  if (lat != null && lon != null && Number.isFinite(lat) && Number.isFinite(lon)) {
+    dest = `${lat},${lon}`;
+  } else if (query) {
+    dest = encodeURIComponent(query);
+  }
+  if (!dest) return;
+  Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${dest}`).catch(
+    () => undefined,
+  );
+}
+
+/** Öffnet den Ort in Google Maps (Suche nach Koordinaten oder Name/Adresse). */
+function openInGoogleMaps(lat?: number | null, lon?: number | null, query?: string) {
+  let q = '';
+  if (lat != null && lon != null && Number.isFinite(lat) && Number.isFinite(lon)) {
+    q = `${lat},${lon}`;
+  } else if (query) {
+    q = encodeURIComponent(query);
+  }
+  if (!q) return;
+  Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${q}`).catch(
+    () => undefined,
+  );
+}
+
 function formatDate(dateStr: string): string {
   try {
     return new Date(dateStr + 'T00:00:00').toLocaleDateString('de-CH', {
@@ -147,6 +175,34 @@ function ListingDetail({
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Navigation: Route + Google Maps (wenn Koordinaten oder Adresse vorhanden) */}
+        {((listing.lat != null && listing.lon != null) || listing.address) && (
+          <View style={styles.actions}>
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.actionPrimary]}
+              onPress={() =>
+                openDirections(listing.lat, listing.lon, `${listing.name} ${listing.address ?? ''}`.trim())
+              }
+              accessibilityRole="button"
+              accessibilityLabel={`Route zu ${listing.name}`}
+            >
+              <Ionicons name="navigate" size={16} color="#FFFFFF" />
+              <Text style={styles.actionPrimaryText}>{t('route')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.actionGhost]}
+              onPress={() =>
+                openInGoogleMaps(listing.lat, listing.lon, `${listing.name} ${listing.address ?? ''}`.trim())
+              }
+              accessibilityRole="button"
+              accessibilityLabel={`${listing.name} in Google Maps öffnen`}
+            >
+              <Ionicons name="map" size={16} color={theme.colors.text} />
+              <Text style={styles.actionGhostText}>{t('open_in_maps')}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
     </>
   );
@@ -187,6 +243,21 @@ function EventDetail({ event }: { event: Event }) {
             >
               <Text style={styles.actionPrimaryText}>{t('more_info')}</Text>
               <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        {/* Ort in Google Maps öffnen (Events haben nur einen Orts-Text) */}
+        {event.location ? (
+          <View style={styles.actions}>
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.actionGhost]}
+              onPress={() => openInGoogleMaps(null, null, `${event.location} Winterthur`)}
+              accessibilityRole="button"
+              accessibilityLabel={`${event.location} in Google Maps öffnen`}
+            >
+              <Ionicons name="map" size={16} color={theme.colors.text} />
+              <Text style={styles.actionGhostText}>{t('open_in_maps')}</Text>
             </TouchableOpacity>
           </View>
         ) : null}

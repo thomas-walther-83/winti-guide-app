@@ -437,6 +437,7 @@ def run():
 
     db = Supabase(SUPABASE_URL, SUPABASE_KEY)
     total_inserted = 0
+    total_with_img = 0
 
     # ── Phase 1a: OpenStreetMap ──────────────────────────────────
     print("\n🗺️  Phase 1a: OpenStreetMap")
@@ -465,6 +466,7 @@ def run():
         print(f"  → {len(unique)} eindeutige Einträge bereit")
         n = db.upsert("listings", unique)
         total_inserted += n
+        total_with_img += sum(1 for l in unique if l.get("image_url"))
         print(f"  ✓ {n} Einträge in Supabase gespeichert")
         time.sleep(1)
 
@@ -498,12 +500,16 @@ def run():
         print(f"  → {len(unique)} Winterthur-Einträge gefunden")
         n = db.upsert("listings", unique)
         total_inserted += n
+        total_with_img += sum(1 for l in unique if l.get("image_url"))
         print(f"  ✓ {n} Einträge in Supabase gespeichert")
         time.sleep(1)
 
     # ── Zusammenfassung ──────────────────────────────────────────
     print("\n" + "═" * 60)
     print(f"  ✅ Import abgeschlossen: {total_inserted} Einträge total")
+    if total_inserted:
+        pct = round(total_with_img / total_inserted * 100)
+        print(f"  🖼️  Mit Bild: {total_with_img}/{total_inserted} Einträge ({pct}%)")
     print(f"  🕐 {datetime.now().strftime('%d.%m.%Y %H:%M')}")
     print("═" * 60)
 

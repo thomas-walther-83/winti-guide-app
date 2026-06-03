@@ -5,7 +5,9 @@ import {
   StyleSheet,
   ActivityIndicator,
   SafeAreaView,
+  TouchableOpacity,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { MapWebView } from '../components/MapWebView';
 import { CategoryFilter } from '../components/CategoryFilter';
 import { SubCategoryFilter } from '../components/SubCategoryFilter';
@@ -13,7 +15,9 @@ import { fetchListingsWithCoords } from '../services/supabaseService';
 import { getErrorMessage } from '../utils/errors';
 import { SUB_CATEGORY_ALIASES } from '../config/subcategories';
 import { useTranslation } from '../hooks/useTranslation';
+import { useLocation } from '../hooks/useLocation';
 import { theme } from '../styles/theme';
+import type { LatLon } from '../utils/distance';
 import type { Listing, ListingCategory } from '../types';
 
 // Winterthur city center coordinates
@@ -42,7 +46,11 @@ function htmlEscape(str: string): string {
     .replace(/'/g, '&#39;');
 }
 
-function buildLeafletHTML(listings: Listing[], focusListing?: Listing | null): string {
+function buildLeafletHTML(
+  listings: Listing[],
+  focusListing?: Listing | null,
+  userCoords?: LatLon | null,
+): string {
   const markers = listings
     .filter(
       (l) =>
@@ -68,6 +76,23 @@ function buildLeafletHTML(listings: Listing[], focusListing?: Listing | null): s
     })
     .join('\n');
 
+  const hasUser =
+    userCoords != null &&
+    Number.isFinite(userCoords.lat) &&
+    Number.isFinite(userCoords.lon);
+
+  // Eigener Standort als blauer Marker mit Genauigkeits-Halo.
+  const userMarker = hasUser
+    ? `L.circle([${userCoords!.lat}, ${userCoords!.lon}], {
+        radius: 60, fillColor: '#007AFF', color: '#007AFF',
+        weight: 1, opacity: 0.4, fillOpacity: 0.12
+      }).addTo(map);
+      L.circleMarker([${userCoords!.lat}, ${userCoords!.lon}], {
+        radius: 7, fillColor: '#007AFF', color: '#FFFFFF',
+        weight: 3, opacity: 1, fillOpacity: 1
+      }).bindPopup('📍 Dein Standort').addTo(map);`
+    : '';
+
   const focusScript =
     focusListing?.lat != null &&
     focusListing?.lon != null &&
@@ -75,7 +100,9 @@ function buildLeafletHTML(listings: Listing[], focusListing?: Listing | null): s
     Number.isFinite(focusListing.lon)
       ? `map.setView([${focusListing.lat}, ${focusListing.lon}], 17);
     if (typeof focusMarker !== 'undefined') { focusMarker.openPopup(); }`
-      : '';
+      : hasUser
+        ? `map.setView([${userCoords!.lat}, ${userCoords!.lon}], 15);`
+        : '';
 
   return `<!DOCTYPE html>
 <html>
@@ -112,6 +139,7 @@ function buildLeafletHTML(listings: Listing[], focusListing?: Listing | null): s
     }).addTo(map);
 
     ${markers}
+    ${userMarker}
     ${focusScript}
   </script>
 </body>
@@ -125,6 +153,12 @@ export function MapScreen({ focusListing }: { focusListing?: Listing | null }) {
   const [selectedCategory, setSelectedCategory] = useState<ListingCategory | 'all'>('all');
   const [selectedSubType, setSelectedSubType] = useState<string>('all');
   const { t } = useTranslation();
+  const { coords: userCoords, status: locStatus, request: requestLocation } = useLocation();
+
+  // Standort einmalig beim Öffnen der Karte anfragen.
+  useEffect(() => {
+    requestLocation();
+  }, [requestLocation]);
 
   // Reset subcategory whenever category changes
   useEffect(() => {
@@ -159,7 +193,7 @@ export function MapScreen({ focusListing }: { focusListing?: Listing | null }) {
     return result;
   })();
 
-  const html = buildLeafletHTML(filteredListings, focusListing);
+  const html = buildLeafletHTML(filteredListings, focusListing, userCoords);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -196,11 +230,36 @@ export function MapScreen({ focusListing }: { focusListing?: Listing | null }) {
       )}
 
       {!error && (
-        <MapWebView
-          html={html}
-          loading={loading}
-          onError={(e) => setError(e.nativeEvent.description)}
-        />
+        <View style={styles.mapWrap}>
+          <MapWebView
+            html={html}
+            loading={loading}
+            onError={(e) => setError(e.nativeEvent.description)}
+          />
+          {locStatus !== 'unavailable' && (
+            <TouchableOpacity
+              style={styles.locateBtn}
+              onPress={requestLocation}
+              accessibilityRole="button"
+              accessibilityLabel={t('my_location')}
+            >
+              {locStatus === 'requesting' ? (
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+              ) : (
+                <Ionicons
+                  name="locate"
+                  size={22}
+                  color={userCoords ? theme.colors.primary : theme.colors.textSecondary}
+                />
+              )}
+            </TouchableOpacity>
+          )}
+          {locStatus === 'denied' && (
+            <View style={styles.locHint}>
+              <Text style={styles.locHintText}>{t('location_denied')}</Text>
+            </View>
+          )}
+        </View>
       )}
     </SafeAreaView>
   );
@@ -250,5 +309,36 @@ const styles = StyleSheet.create({
     color: theme.colors.error,
     fontSize: 15,
     textAlign: 'center',
+  },
+  mapWrap: {
+    flex: 1,
+  },
+  locateBtn: {
+    position: 'absolute',
+    right: theme.spacing.md,
+    bottom: theme.spacing.lg,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: theme.colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...theme.shadow.small,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  locHint: {
+    position: 'absolute',
+    left: theme.spacing.md,
+    right: theme.spacing.md + 60,
+    bottom: theme.spacing.lg + 4,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.md,
+  },
+  locHintText: {
+    color: '#FFFFFF',
+    fontSize: 12,
   },
 });

@@ -2,6 +2,7 @@ import React from 'react';
 import {
   View,
   Text,
+  Image,
   TouchableOpacity,
   StyleSheet,
   Linking,
@@ -94,7 +95,16 @@ export function EventCard({ event }: EventCardProps) {
       {/* Content */}
       <View style={styles.content}>
         <View style={styles.titleRow}>
-          <Text style={styles.emoji}>{emoji}</Text>
+          {/* Echtes Bild als Vorschau, sonst Emoji als Fallback */}
+          {event.image_url ? (
+            <Image
+              source={{ uri: event.image_url }}
+              style={styles.thumb}
+              resizeMode="cover"
+            />
+          ) : (
+            <Text style={styles.emoji}>{emoji}</Text>
+          )}
           <Text style={styles.title} numberOfLines={2}>
             {event.title}
           </Text>
@@ -205,6 +215,13 @@ const styles = StyleSheet.create({
   },
   emoji: {
     fontSize: 16,
+  },
+  thumb: {
+    width: 40,
+    height: 40,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.surface,
+    flexShrink: 0,
   },
   title: {
     flex: 1,

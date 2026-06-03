@@ -1401,6 +1401,39 @@ def deduplicate(events: list[dict]) -> list[dict]:
     return unique
 
 
+def enrich_event_images(events: list[dict], cap: int = 60) -> int:
+    """
+    Holt für Events OHNE Bild, aber MIT eigener Detailseiten-URL, das og:image
+    der Detailseite nach (z. B. Musikkollegium-Konzerte verlinken pro Konzert
+    eine Seite mit eigenem Bild). Begrenzt auf `cap` zusätzliche Requests, damit
+    der Lauf nicht ausufert. Gibt die Anzahl neu gesetzter Bilder zurück.
+    """
+    added = 0
+    requests_made = 0
+    for ev in events:
+        if requests_made >= cap:
+            break
+        if ev.get("image_url"):
+            continue
+        url = (ev.get("url") or "").strip()
+        if not url.startswith("http"):
+            continue
+        requests_made += 1
+        try:
+            res = requests.get(url, headers=HEADERS, timeout=10)
+            if res.status_code != 200:
+                continue
+            soup = BeautifulSoup(res.text, "html.parser")
+            img = extract_image_from_html(soup, url)
+            if img:
+                ev["image_url"] = img[:500]
+                added += 1
+            time.sleep(0.3)
+        except Exception:
+            continue
+    return added
+
+
 # ── Hauptprogramm ────────────────────────────────────────────────
 def run():
     print("═" * 60)
@@ -1441,6 +1474,13 @@ def run():
     unique = deduplicate(valid)
     print(f"  Nach Bereinigung: {len(unique)} eindeutige Events")
 
+    # Fehlende Bilder über die jeweilige Detailseite (og:image) nachladen.
+    missing_before = sum(1 for e in unique if not e.get("image_url"))
+    if missing_before:
+        print(f"\n🖼️  Bilder nachladen für {missing_before} Events ohne Bild…")
+        added = enrich_event_images(unique)
+        print(f"  ✓ {added} zusätzliche Bilder gefunden")
+
     # In Supabase speichern
     print("\n💾 In Supabase speichern…")
     n = db.upsert_events(unique)
@@ -1468,6 +1508,11 @@ def run():
         print("\n  Aufschlüsselung nach Kategorie:")
         for cat, cnt in sorted(by_cat.items(), key=lambda x: -x[1]):
             print(f"    {cat}: {cnt} Events")
+
+    with_img = sum(1 for ev in unique if ev.get("image_url"))
+    if unique:
+        pct = round(with_img / len(unique) * 100)
+        print(f"\n  🖼️  Mit Bild: {with_img}/{len(unique)} Events ({pct}%)")
 
 
 if __name__ == "__main__":
