@@ -10,13 +10,20 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "ch.wintiGuide.app"
+      "bundleIdentifier": "ch.wintiGuide.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Winti Guide zeigt deinen Standort auf der Karte und berechnet Entfernungen zu Orten in der Nähe."
+      }
     },
     "android": {
       "package": "ch.wintiGuide.app",
       "adaptiveIcon": {
         "backgroundColor": "#CC0000"
-      }
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "bundler": "metro",

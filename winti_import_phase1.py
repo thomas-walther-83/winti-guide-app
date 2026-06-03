@@ -20,7 +20,12 @@ import time
 import json
 import sys
 from datetime import datetime
-from urllib.parse import urljoin
+from urllib.parse import urljoin, quote
+
+# Aussagekräftiger User-Agent (Wikidata/Wikimedia verlangen das).
+WIKI_HEADERS = {
+    "User-Agent": "WintiGuide/1.0 (Stadtführer Winterthur; kontakt@wintiguide.ch)",
+}
 
 
 # ── Bild-Extraktion ──────────────────────────────────────────────
@@ -53,6 +58,85 @@ def image_from_field(image, base_url: str = "") -> str:
     if base_url and not url.startswith("http"):
         return urljoin(base_url, url)
     return url
+
+
+def commons_file_to_url(name: str, width: int = 800) -> str:
+    """Wandelt einen Wikimedia-Commons-Dateinamen in eine DIREKT anzeigbare
+    Bild-URL um (Special:FilePath liefert das tatsächliche Bild, nicht die
+    Wiki-Seite). 'Category:'-Einträge sind keine Dateien → leer.
+    """
+    name = (name or "").strip()
+    if not name:
+        return ""
+    if name.startswith("//"):
+        return "https:" + name
+    if name.startswith("http"):
+        return name
+    if name.lower().startswith("category:"):
+        return ""
+    if name.lower().startswith("file:"):
+        name = name.split(":", 1)[1]
+    name = name.strip().replace(" ", "_")
+    if not name:
+        return ""
+    return f"https://commons.wikimedia.org/wiki/Special:FilePath/{quote(name)}?width={width}"
+
+
+def enrich_listing_images_via_wikidata(listings: list, cap_ids: int = 400) -> int:
+    """Holt Bilder für Listings OHNE Bild, aber MIT Wikidata-ID (OSM-Tag
+    `wikidata`/`brand:wikidata`). Fragt das Wikidata-Property P18 (Bild) in
+    50er-Batches ab und baut daraus direkte Commons-URLs. Gibt die Anzahl neu
+    gesetzter Bilder zurück. Die temporäre `_wikidata`-Markierung wird hier
+    NICHT entfernt – das übernimmt der Aufrufer vor dem Upsert.
+    """
+    pending: dict[str, list] = {}
+    for l in listings:
+        if l.get("image_url"):
+            continue
+        qid = (l.get("_wikidata") or "").strip()
+        if qid.startswith("Q"):
+            pending.setdefault(qid, []).append(l)
+    if not pending:
+        return 0
+
+    qids = list(pending.keys())[:cap_ids]
+    added = 0
+    for i in range(0, len(qids), 50):
+        batch = qids[i:i + 50]
+        try:
+            res = requests.get(
+                "https://www.wikidata.org/w/api.php",
+                params={
+                    "action": "wbgetentities",
+                    "ids": "|".join(batch),
+                    "props": "claims",
+                    "format": "json",
+                },
+                headers=WIKI_HEADERS,
+                timeout=20,
+            )
+            if res.status_code != 200:
+                continue
+            entities = res.json().get("entities", {})
+            for qid, ent in entities.items():
+                claims = (ent.get("claims") or {}).get("P18")
+                if not claims:
+                    continue
+                try:
+                    fname = claims[0]["mainsnak"]["datavalue"]["value"]
+                except (KeyError, IndexError, TypeError):
+                    continue
+                url = commons_file_to_url(fname)
+                if not url:
+                    continue
+                for l in pending.get(qid, []):
+                    if not l.get("image_url"):
+                        l["image_url"] = url[:500]
+                        added += 1
+            time.sleep(0.3)
+        except Exception:
+            continue
+    return added
 
 # ── Konfiguration ────────────────────────────────────────────────
 # Niemals Secrets im Code hardcoden! Der service_role-Key umgeht RLS und gibt
@@ -198,17 +282,18 @@ def osm_to_listing(el: dict, category: str) -> dict:
     lat = el.get("lat") or (el.get("center") or {}).get("lat")
     lon = el.get("lon") or (el.get("center") or {}).get("lon")
 
-    # Bild nur aus vorhandenen OSM-Tags (KEINE zusätzlichen Requests):
-    #  - image: meist direkte Bild-URL
-    #  - wikimedia_commons: "File:Name.jpg" oder "Category:…" → Commons-Seite
+    # Bild aus OSM-Tags (ohne Extra-Request):
+    #  - image: direkte Bild-URL
+    #  - wikimedia_commons: "File:Name.jpg" → direkte Bild-URL via Special:FilePath
+    # Wikidata-IDs (wikidata/brand:wikidata) werden gemerkt und später per
+    # P18-Abfrage in Bilder aufgelöst (enrich_listing_images_via_wikidata).
     image_url = (tags.get("image") or "").strip()
+    if image_url.startswith("//"):
+        image_url = "https:" + image_url
     if not image_url:
         commons = (tags.get("wikimedia_commons") or "").strip()
         if commons:
-            if commons.startswith("http"):
-                image_url = commons
-            else:
-                image_url = "https://commons.wikimedia.org/wiki/" + commons.replace(" ", "_")
+            image_url = commons_file_to_url(commons)
 
     return {
         "source":     "osm",
@@ -228,6 +313,8 @@ def osm_to_listing(el: dict, category: str) -> dict:
         "is_active":  True,
         "is_premium": False,
         "updated_at": datetime.utcnow().isoformat(),
+        # Temporär (nicht in DB): für die Wikidata-Bildanreicherung.
+        "_wikidata":  (tags.get("wikidata") or tags.get("brand:wikidata") or "").strip(),
     }
 
 
@@ -464,6 +551,13 @@ def run():
                 unique.append(l)
 
         print(f"  → {len(unique)} eindeutige Einträge bereit")
+        # Fehlende Bilder über Wikidata (P18) → Commons nachladen.
+        img_added = enrich_listing_images_via_wikidata(unique)
+        if img_added:
+            print(f"  🖼️  {img_added} Bilder über Wikidata ergänzt")
+        # Temporäre Markierung entfernen (existiert nicht als DB-Spalte).
+        for l in unique:
+            l.pop("_wikidata", None)
         n = db.upsert("listings", unique)
         total_inserted += n
         total_with_img += sum(1 for l in unique if l.get("image_url"))
