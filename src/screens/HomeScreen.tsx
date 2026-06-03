@@ -9,9 +9,9 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useListings } from '../hooks/useListings';
 import { useAppTier } from '../hooks/useAppTier';
+import { useFavorites } from '../hooks/useFavorites';
 import { fetchPartnerAds } from '../services/supabaseService';
 import { ListingCard } from '../components/ListingCard';
 import { PartnerAdBanner } from '../components/PartnerAdBanner';
@@ -28,25 +28,7 @@ import { theme } from '../styles/theme';
 import { SUB_CATEGORY_ALIASES } from '../config/subcategories';
 import type { Listing, ListingCategory, PartnerAd } from '../types';
 
-const SAVED_KEY = 'winti_saved_listings';
 const AD_FREQUENCY = 5; // Show an ad every N listings
-
-async function loadSaved(): Promise<string[]> {
-  try {
-    const val = await AsyncStorage.getItem(SAVED_KEY);
-    return val ? JSON.parse(val) : [];
-  } catch {
-    return [];
-  }
-}
-
-async function toggleSaved(id: string, current: string[]): Promise<string[]> {
-  const next = current.includes(id)
-    ? current.filter((x) => x !== id)
-    : [...current, id];
-  await AsyncStorage.setItem(SAVED_KEY, JSON.stringify(next));
-  return next;
-}
 
 function getFormattedDate(): string {
   return new Date().toLocaleDateString('de-CH', {
@@ -72,7 +54,7 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
   const [category, setCategory] = useState<ListingCategory | 'all'>('all');
   const [subType, setSubType] = useState<string>('all');
   const [search, setSearch] = useState('');
-  const [savedIds, setSavedIds] = useState<string[]>([]);
+  const { savedIds, toggle: handleToggleSave } = useFavorites();
   const [partnerAds, setPartnerAds] = useState<PartnerAd[]>([]);
 
   const [nearby, setNearby] = useState(false);
@@ -85,10 +67,6 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
     if (!nearby && !coords) requestLocation();
     setNearby((v) => !v);
   };
-
-  React.useEffect(() => {
-    loadSaved().then(setSavedIds);
-  }, []);
 
   // Load partner ads for free users
   useEffect(() => {
@@ -177,11 +155,6 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
     });
     return result;
   }, [filteredListings, partnerAds, isPremium]);
-
-  const handleToggleSave = async (listing: Listing) => {
-    const next = await toggleSaved(listing.id, savedIds);
-    setSavedIds(next);
-  };
 
   const categoryLabel = category === 'all' ? t('all_places') : t(category as 'restaurants');
 

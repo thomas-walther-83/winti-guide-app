@@ -7,60 +7,48 @@ import {
   TouchableOpacity,
   SafeAreaView,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fetchListings } from '../services/supabaseService';
 import { useAppTier } from '../hooks/useAppTier';
+import { useFavorites } from '../hooks/useFavorites';
 import { ListingCard } from '../components/ListingCard';
 import { useTranslation } from '../hooks/useTranslation';
 import { theme } from '../styles/theme';
 import type { Listing } from '../types';
 
-const SAVED_KEY = 'winti_saved_listings';
 const FREE_SAVE_LIMIT = 5;
 
 export function SavedScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigateToAccount?: () => void; onNavigateToMap?: (listing: Listing) => void }) {
-  const [savedIds, setSavedIds] = useState<string[]>([]);
+  const { savedIds, toggle: handleToggleSave } = useFavorites();
   const [savedListings, setSavedListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const { isPremium } = useAppTier();
   const { t } = useTranslation();
 
+  // Lädt die vollständigen Listing-Daten zu den gespeicherten IDs nach,
+  // wann immer sich die (lokal + Cloud gemergten) Favoriten ändern.
   useEffect(() => {
+    let active = true;
     async function load() {
       try {
         setLoading(true);
-        const val = await AsyncStorage.getItem(SAVED_KEY);
-        const ids: string[] = val ? JSON.parse(val) : [];
-        setSavedIds(ids);
-
-        if (ids.length > 0) {
+        if (savedIds.length > 0) {
           const all = await fetchListings();
-          const saved = all.filter((l) => ids.includes(l.id));
-          setSavedListings(saved);
-        } else {
+          const saved = all.filter((l) => savedIds.includes(l.id));
+          if (active) setSavedListings(saved);
+        } else if (active) {
           setSavedListings([]);
         }
       } catch (err) {
         console.error('Error loading saved:', err);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     }
     load();
-  }, []);
-
-  const handleToggleSave = async (listing: Listing) => {
-    const next = savedIds.includes(listing.id)
-      ? savedIds.filter((x) => x !== listing.id)
-      : [...savedIds, listing.id];
-    await AsyncStorage.setItem(SAVED_KEY, JSON.stringify(next));
-    setSavedIds(next);
-    setSavedListings((prev) =>
-      next.includes(listing.id)
-        ? [...prev, listing]
-        : prev.filter((l) => l.id !== listing.id),
-    );
-  };
+    return () => {
+      active = false;
+    };
+  }, [savedIds]);
 
   // For free users, only show the first FREE_SAVE_LIMIT items
   const visibleListings = isPremium ? savedListings : savedListings.slice(0, FREE_SAVE_LIMIT);
