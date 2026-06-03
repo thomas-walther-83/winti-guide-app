@@ -61,12 +61,13 @@ class Supabase:
         total = 0
         for i in range(0, len(records), 50):
             batch = records[i:i+50]
+            # on_conflict MUSS als URL-Parameter stehen (nicht als Header), damit
+            # PostgREST auf der Unique-Spalte source_id merged statt 409 zu werfen.
             res = requests.post(
-                f"{self.url}/rest/v1/{table}",
+                f"{self.url}/rest/v1/{table}?on_conflict=source_id",
                 headers={
                     **self.headers,
                     "Prefer": "resolution=merge-duplicates,return=minimal",
-                    "on_conflict": "source_id"
                 },
                 json=batch
             )
@@ -153,7 +154,7 @@ def osm_to_listing(el: dict, category: str) -> dict:
         "phone":      tags.get("phone") or tags.get("contact:phone") or "",
         "website":    tags.get("website") or tags.get("contact:website") or "",
         "stars":      tags.get("stars", ""),
-        "desc":       tags.get("description") or tags.get("description:de") or "",
+        "description": tags.get("description") or tags.get("description:de") or "",
         "lat":        lat,
         "lon":        lon,
         "is_active":  True,
@@ -216,6 +217,13 @@ OSM_QUERIES = {
         '"leisure"="climbing"',
         '"leisure"="pitch"',
         '"amenity"="public_bath"',
+    ],
+    # Touren: benannte Wander-/Velorouten aus OSM (geführte Stadtführungen wären
+    # kuratierter Partner-Content und kommen nicht aus OSM).
+    "touren": [
+        '"route"="hiking"',
+        '"route"="foot"',
+        '"route"="bicycle"',
     ],
 }
 
@@ -322,7 +330,7 @@ def zt_to_listing(item: dict, category: str) -> dict:
         "phone":      phone[:50],
         "website":    website[:300],
         "stars":      stars,
-        "desc":       desc,
+        "description": desc,
         "lat":        lat,
         "lon":        lon,
         "is_active":  True,
