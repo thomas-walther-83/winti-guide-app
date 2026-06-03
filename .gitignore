@@ -36,3 +36,6 @@ coverage/
 # Python
 __pycache__/
 *.pyc
+
+# Claude Code (agent worktrees & local state)
+.claude/
