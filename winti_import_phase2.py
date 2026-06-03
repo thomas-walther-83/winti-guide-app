@@ -29,6 +29,7 @@ import time
 import re
 import sys
 import json
+from urllib.parse import urljoin
 try:
     from icalendar import Calendar as ICalendar
     ICAL_AVAILABLE = True
@@ -67,6 +68,70 @@ HEADERS = {
     "Accept-Language": "de-CH,de;q=0.9",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 }
+
+# ── Bild-Extraktion ──────────────────────────────────────────────
+def image_from_jsonld(image, base_url: str = "") -> str:
+    """Holt eine Bild-URL aus dem JSON-LD `image`-Feld.
+
+    Unterstützt String, Liste (erstes Element) und Objekt mit `url`/`@id`.
+    Relative URLs werden gegen base_url absolut gemacht. "" wenn nichts.
+    """
+    if not image:
+        return ""
+    # Liste → erstes brauchbares Element
+    if isinstance(image, list):
+        for entry in image:
+            url = image_from_jsonld(entry, base_url)
+            if url:
+                return url
+        return ""
+    # Objekt (ImageObject) → url / @id / contentUrl
+    if isinstance(image, dict):
+        url = image.get("url") or image.get("@id") or image.get("contentUrl") or ""
+    elif isinstance(image, str):
+        url = image
+    else:
+        return ""
+    url = (url or "").strip()
+    if not url:
+        return ""
+    if url.startswith("//"):
+        return "https:" + url
+    if base_url and not url.startswith("http"):
+        return urljoin(base_url, url)
+    return url
+
+
+def extract_image_from_html(soup, base_url: str = "") -> str:
+    """Liefert die erste passende Bild-URL aus einem geladenen HTML-Dokument.
+
+    Reihenfolge: og:image → twitter:image → JSON-LD `image`. Relative URLs
+    werden gegen base_url absolut gemacht. Leerstring wenn nichts gefunden.
+    """
+    if soup is None:
+        return ""
+    # 1) Open-Graph
+    og = soup.find("meta", attrs={"property": "og:image"})
+    if og and og.get("content"):
+        return image_from_jsonld(og["content"].strip(), base_url)
+    # 2) Twitter Card
+    tw = soup.find("meta", attrs={"name": "twitter:image"})
+    if tw and tw.get("content"):
+        return image_from_jsonld(tw["content"].strip(), base_url)
+    # 3) JSON-LD image
+    for script in soup.find_all("script", type="application/ld+json"):
+        try:
+            data = json.loads(script.string or "")
+        except Exception:
+            continue
+        entries = data if isinstance(data, list) else [data]
+        for entry in entries:
+            if isinstance(entry, dict) and entry.get("image"):
+                url = image_from_jsonld(entry["image"], base_url)
+                if url:
+                    return url
+    return ""
+
 
 # Kategorie-Mapping: Schlüsselwörter → Winti-Guide-Kategorie
 CATEGORY_MAP = {
@@ -111,16 +176,33 @@ class Supabase:
             batch = events[i:i+50]
             # on_conflict=source_id ist nötig, damit PostgREST auf der Unique-Spalte
             # source_id (nicht dem Primary Key) merged – sonst 409 duplicate key.
-            res = requests.post(
-                f"{self.url}/rest/v1/events?on_conflict=source_id",
-                headers={**self.hdrs, "Prefer": "resolution=merge-duplicates,return=minimal"},
-                json=batch
-            )
+            res = self._post_events(batch)
+            # Robustheit: Falls die image_url-Spalte in der Live-DB noch fehlt,
+            # antwortet PostgREST mit PGRST204. Dann Batch ohne image_url erneut
+            # senden, damit nicht der ganze Import scheitert.
+            if res.status_code not in (200, 201) and self._is_missing_image_column(res):
+                print("  ⚠️  image_url-Spalte fehlt – bitte ALTER TABLE ausführen "
+                      "(ALTER TABLE events ADD COLUMN image_url text). "
+                      "Sende Batch ohne image_url erneut.")
+                stripped = [{k: v for k, v in ev.items() if k != "image_url"} for ev in batch]
+                res = self._post_events(stripped)
             if res.status_code not in (200, 201):
                 print(f"  ⚠️  Supabase Fehler {res.status_code}: {res.text[:200]}")
             else:
                 total += len(batch)
         return total
+
+    def _post_events(self, batch: list[dict]):
+        return requests.post(
+            f"{self.url}/rest/v1/events?on_conflict=source_id",
+            headers={**self.hdrs, "Prefer": "resolution=merge-duplicates,return=minimal"},
+            json=batch
+        )
+
+    @staticmethod
+    def _is_missing_image_column(res) -> bool:
+        body = (res.text or "").lower()
+        return "image_url" in body and ("pgrst204" in body or "column" in body)
 
     def get_existing_source_ids(self, source: str) -> set:
         res = requests.get(
@@ -201,6 +283,12 @@ def scrape_winterthur_com() -> list[dict]:
                                 events.append(ev)
                     except:
                         pass
+                # Seiten-Bild (og:image) als Fallback für Events ohne Bild.
+                page_img = extract_image_from_html(soup, page_url)
+                if page_img:
+                    for ev in events:
+                        if not ev.get("image_url"):
+                            ev["image_url"] = page_img[:500]
             time.sleep(2)
         except:
             pass
@@ -258,6 +346,13 @@ def parse_event_card(item, source: str, base_url: str) -> dict | None:
         href = link["href"]
         url = href if href.startswith("http") else base_url.rstrip("/") + "/" + href.lstrip("/")
 
+    # Bild: <img src>/data-src im bereits geladenen Card-HTML (kein Extra-Request).
+    image_url = ""
+    img = item.find("img")
+    if img:
+        src = img.get("src") or img.get("data-src") or img.get("data-original") or ""
+        image_url = image_from_jsonld(src.strip(), base_url) if src else ""
+
     source_id = f"{source}_{title[:50]}_{event_date}"
 
     return {
@@ -271,6 +366,7 @@ def parse_event_card(item, source: str, base_url: str) -> dict | None:
         "price":      "",
         "description": desc,
         "url":        url[:300],
+        "image_url":  image_url[:500],
         "is_active":  True,
     }
 
@@ -314,6 +410,10 @@ def jsonld_to_event(data: dict, source: str) -> dict | None:
     url  = data.get("url", "")
     time_str = start[11:16] if len(start) > 10 else ""
 
+    # Bild aus JSON-LD `image` (String / Liste / ImageObject). Relative URLs
+    # werden gegen die Event-URL aufgelöst, falls vorhanden.
+    image_url = image_from_jsonld(data.get("image"), url)
+
     source_id = f"{source}_{title[:50]}_{event_date}"
 
     return {
@@ -327,6 +427,7 @@ def jsonld_to_event(data: dict, source: str) -> dict | None:
         "price":      price,
         "description": re.sub(r"<[^>]+>", "", desc).strip(),
         "url":        url[:300],
+        "image_url":  image_url[:500],
         "is_active":  True,
     }
 
@@ -360,6 +461,13 @@ def scrape_myswitzerland() -> list[dict]:
                         events.append(ev)
             except:
                 pass
+
+        # Seiten-Bild (og:image) als Fallback – nutzt das geladene HTML.
+        page_img = extract_image_from_html(soup, "https://www.myswitzerland.com")
+        if page_img:
+            for ev in events:
+                if not ev.get("image_url"):
+                    ev["image_url"] = page_img[:500]
 
         # HTML-Fallback: Event-Cards parsen
         if not events:
@@ -407,6 +515,13 @@ def scrape_alte_kaserne() -> list[dict]:
             except:
                 pass
 
+        # Seiten-Bild (og:image) als Fallback – nutzt das geladene HTML.
+        page_img = extract_image_from_html(soup, "https://www.altekaserne.ch")
+        if page_img:
+            for ev in events:
+                if not ev.get("image_url"):
+                    ev["image_url"] = page_img[:500]
+
         # HTML: TYPO3-News-Liste (article.cNewsListItem mit .news-list-date / .teaser-text)
         if not events:
             # Items sind <div class="cNewsListItem">, kein <article>-Tag
@@ -436,6 +551,11 @@ def scrape_alte_kaserne() -> list[dict]:
                     print(f"      (debug altekaserne #{i}: date_raw='{date_raw[:40]}' -> {event_date} | title='{title[:50]}')")
                 if not title or len(title) < 3 or not event_date:
                     continue
+                # Bild aus dem Card-<img> (bereits geladenes HTML, kein Extra-Request)
+                img = card.find("img")
+                img_src = (img.get("src") or img.get("data-src") or
+                           img.get("data-original") or "") if img else ""
+                image_url = image_from_jsonld(img_src.strip(), "https://www.altekaserne.ch") if img_src else ""
                 source_id = re.sub(r"[^\w_-]", "_", f"altekaserne_{title[:50]}_{event_date}")[:100]
                 events.append({
                     "source":     "altekaserne",
@@ -448,6 +568,7 @@ def scrape_alte_kaserne() -> list[dict]:
                     "price":      "",
                     "description": desc,
                     "url":        url[:300],
+                    "image_url":  image_url[:500],
                     "is_active":  True,
                 })
 
@@ -492,6 +613,13 @@ def scrape_stadttheater() -> list[dict]:
                             events.append(ev)
                 except Exception:
                     pass
+
+            # Seiten-Bild (og:image) als Fallback – nutzt das geladene HTML.
+            page_img = extract_image_from_html(soup, base_url)
+            if page_img:
+                for ev in events:
+                    if not ev.get("image_url"):
+                        ev["image_url"] = page_img[:500]
 
             # HTML-Fallback
             if not events:
@@ -549,6 +677,13 @@ def scrape_casinotheater() -> list[dict]:
                 except Exception:
                     pass
 
+            # Seiten-Bild (og:image) als Fallback – nutzt das geladene HTML.
+            page_img = extract_image_from_html(soup, base_url)
+            if page_img:
+                for ev in events:
+                    if not ev.get("image_url"):
+                        ev["image_url"] = page_img[:500]
+
             if not events:
                 for card in soup.select(
                     "article, .event, .programm-item, [class*='event'], [class*='show']"
@@ -603,6 +738,14 @@ def scrape_musikkollegium() -> list[dict]:
                             events.append(ev)
                 except Exception:
                     pass
+
+            # Seiten-Bild (og:image) als Fallback für Events ohne eigenes Bild –
+            # nutzt das bereits geladene HTML, kein zusätzlicher Request.
+            page_img = extract_image_from_html(soup, base_url)
+            if page_img:
+                for ev in events:
+                    if not ev.get("image_url"):
+                        ev["image_url"] = page_img[:500]
 
             if not events:
                 for card in soup.select(
@@ -659,6 +802,13 @@ def scrape_fotomuseum() -> list[dict]:
                 except Exception:
                     pass
 
+            # Seiten-Bild (og:image) als Fallback – nutzt das geladene HTML.
+            page_img = extract_image_from_html(soup, base_url)
+            if page_img:
+                for ev in events:
+                    if not ev.get("image_url"):
+                        ev["image_url"] = page_img[:500]
+
             if not events:
                 for card in soup.select(
                     "article, .event, .programm-item, [class*='event'], [class*='teaser']"
@@ -713,6 +863,13 @@ def scrape_technorama() -> list[dict]:
                             events.append(ev)
                 except Exception:
                     pass
+
+            # Seiten-Bild (og:image) als Fallback – nutzt das geladene HTML.
+            page_img = extract_image_from_html(soup, base_url)
+            if page_img:
+                for ev in events:
+                    if not ev.get("image_url"):
+                        ev["image_url"] = page_img[:500]
 
             if not events:
                 for card in soup.select(
@@ -773,6 +930,13 @@ def scrape_kunsthalle() -> list[dict]:
                             events.append(ev)
                 except Exception:
                     pass
+
+            # Seiten-Bild (og:image) als Fallback – nutzt das geladene HTML.
+            page_img = extract_image_from_html(soup, base_url)
+            if page_img:
+                for ev in events:
+                    if not ev.get("image_url"):
+                        ev["image_url"] = page_img[:500]
 
             if not events:
                 for card in soup.select(
@@ -842,6 +1006,13 @@ def scrape_stadt_winterthur() -> list[dict]:
                                 events.append(ev)
                     except Exception:
                         pass
+
+                # Seiten-Bild (og:image) als Fallback – nutzt das geladene HTML.
+                page_img = extract_image_from_html(soup, base_url)
+                if page_img:
+                    for ev in events:
+                        if not ev.get("image_url"):
+                            ev["image_url"] = page_img[:500]
 
                 if not events:
                     for card in soup.select(
@@ -936,6 +1107,11 @@ def scrape_eventbrite() -> list[dict]:
                         price = min_price["display"]
 
                 time_str = start[11:16] if len(start) > 10 else ""
+                # Bild: Eventbrite-Logo (bereits in der API-Antwort enthalten)
+                logo = eb.get("logo") or {}
+                image_url = ""
+                if isinstance(logo, dict):
+                    image_url = (logo.get("original") or {}).get("url") or logo.get("url") or ""
                 eb_id = eb.get("id", "")
                 source_id = f"eventbrite_{eb_id}" if eb_id else None
                 if not source_id:
@@ -952,6 +1128,7 @@ def scrape_eventbrite() -> list[dict]:
                     "price":      price,
                     "description": desc,
                     "url":        eb.get("url", "")[:300],
+                    "image_url":  (image_url or "")[:500],
                     "is_active":  True,
                 })
 
@@ -1049,6 +1226,9 @@ def _opendata_item_to_event(item: dict) -> dict | None:
     location = str(props.get("location") or props.get("ort") or "Winterthur")[:200]
     desc = str(props.get("description") or props.get("beschreibung") or "")[:500]
     url = str(props.get("url") or props.get("link") or "")[:300]
+    image_url = image_from_jsonld(
+        props.get("image") or props.get("bild") or props.get("photo"), url
+    )
 
     source_id = re.sub(r"[^\w_-]", "_", f"opendata_{title[:40]}_{event_date}")
 
@@ -1063,6 +1243,7 @@ def _opendata_item_to_event(item: dict) -> dict | None:
         "price":      "",
         "description": desc,
         "url":        url,
+        "image_url":  image_url[:500],
         "is_active":  True,
     }
 
@@ -1126,6 +1307,15 @@ def import_ical(url: str, source_name: str, default_location: str = "Winterthur"
 
                 url_val = str(component.get("URL", "")).strip()[:300]
 
+                # Bild aus iCal ATTACH (häufig ein Bild-Link), sonst leer.
+                image_url = ""
+                attach = component.get("ATTACH")
+                if attach is not None:
+                    attach_val = attach[0] if isinstance(attach, list) else attach
+                    attach_str = str(attach_val).strip()
+                    if attach_str.lower().startswith(("http://", "https://")):
+                        image_url = attach_str
+
                 uid = str(component.get("UID", "")).strip()
                 source_id = (
                     f"{source_name}_{uid[:60]}"
@@ -1144,6 +1334,7 @@ def import_ical(url: str, source_name: str, default_location: str = "Winterthur"
                     "price":      "",
                     "description": desc,
                     "url":        url_val,
+                    "image_url":  image_url[:500],
                     "is_active":  True,
                 })
             except Exception:

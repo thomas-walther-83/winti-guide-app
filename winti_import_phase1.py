@@ -20,6 +20,39 @@ import time
 import json
 import sys
 from datetime import datetime
+from urllib.parse import urljoin
+
+
+# ── Bild-Extraktion ──────────────────────────────────────────────
+def image_from_field(image, base_url: str = "") -> str:
+    """Holt eine Bild-URL aus einem beliebigen Bildfeld.
+
+    Unterstützt String, Liste (erstes brauchbares Element) und Objekt mit
+    `url`/`@id`/`contentUrl`. Relative URLs werden gegen base_url absolut
+    gemacht. Leerstring wenn nichts gefunden.
+    """
+    if not image:
+        return ""
+    if isinstance(image, list):
+        for entry in image:
+            url = image_from_field(entry, base_url)
+            if url:
+                return url
+        return ""
+    if isinstance(image, dict):
+        url = image.get("url") or image.get("@id") or image.get("contentUrl") or ""
+    elif isinstance(image, str):
+        url = image
+    else:
+        return ""
+    url = (url or "").strip()
+    if not url:
+        return ""
+    if url.startswith("//"):
+        return "https:" + url
+    if base_url and not url.startswith("http"):
+        return urljoin(base_url, url)
+    return url
 
 # ── Konfiguration ────────────────────────────────────────────────
 # Niemals Secrets im Code hardcoden! Der service_role-Key umgeht RLS und gibt
@@ -63,19 +96,36 @@ class Supabase:
             batch = records[i:i+50]
             # on_conflict MUSS als URL-Parameter stehen (nicht als Header), damit
             # PostgREST auf der Unique-Spalte source_id merged statt 409 zu werfen.
-            res = requests.post(
-                f"{self.url}/rest/v1/{table}?on_conflict=source_id",
-                headers={
-                    **self.headers,
-                    "Prefer": "resolution=merge-duplicates,return=minimal",
-                },
-                json=batch
-            )
+            res = self._post_batch(table, batch)
+            # Robustheit: Falls die image_url-Spalte in der Live-DB noch fehlt,
+            # antwortet PostgREST mit PGRST204. Dann Batch ohne image_url erneut
+            # senden, damit nicht der ganze Import scheitert.
+            if res.status_code not in (200, 201, 204) and self._is_missing_image_column(res):
+                print("  ⚠️  image_url-Spalte fehlt – bitte ALTER TABLE ausführen "
+                      "(ALTER TABLE listings ADD COLUMN image_url text). "
+                      "Sende Batch ohne image_url erneut.")
+                stripped = [{k: v for k, v in r.items() if k != "image_url"} for r in batch]
+                res = self._post_batch(table, stripped)
             if res.status_code not in (200, 201, 204):
                 print(f"  ⚠️  Supabase Fehler: {res.status_code} – {res.text[:200]}")
             else:
                 total += len(batch)
         return total
+
+    def _post_batch(self, table, batch):
+        return requests.post(
+            f"{self.url}/rest/v1/{table}?on_conflict=source_id",
+            headers={
+                **self.headers,
+                "Prefer": "resolution=merge-duplicates,return=minimal",
+            },
+            json=batch
+        )
+
+    @staticmethod
+    def _is_missing_image_column(res) -> bool:
+        body = (res.text or "").lower()
+        return "image_url" in body and ("pgrst204" in body or "column" in body)
 
     def delete_by_source(self, table, source):
         """Löscht alle Einträge einer bestimmten Quelle (für Neuimport)."""
@@ -148,6 +198,18 @@ def osm_to_listing(el: dict, category: str) -> dict:
     lat = el.get("lat") or (el.get("center") or {}).get("lat")
     lon = el.get("lon") or (el.get("center") or {}).get("lon")
 
+    # Bild nur aus vorhandenen OSM-Tags (KEINE zusätzlichen Requests):
+    #  - image: meist direkte Bild-URL
+    #  - wikimedia_commons: "File:Name.jpg" oder "Category:…" → Commons-Seite
+    image_url = (tags.get("image") or "").strip()
+    if not image_url:
+        commons = (tags.get("wikimedia_commons") or "").strip()
+        if commons:
+            if commons.startswith("http"):
+                image_url = commons
+            else:
+                image_url = "https://commons.wikimedia.org/wiki/" + commons.replace(" ", "_")
+
     return {
         "source":     "osm",
         "source_id":  f"osm_{el['id']}",
@@ -162,6 +224,7 @@ def osm_to_listing(el: dict, category: str) -> dict:
         "description": tags.get("description") or tags.get("description:de") or "",
         "lat":        lat,
         "lon":        lon,
+        "image_url":  image_url[:500],
         "is_active":  True,
         "is_premium": False,
         "updated_at": datetime.utcnow().isoformat(),
@@ -329,6 +392,14 @@ def zt_to_listing(item: dict, category: str) -> dict:
         if isinstance(prop, dict) and "stern" in str(prop.get("name", "")).lower():
             stars = str(prop.get("value", ""))
 
+    # Bild: ZT-API-Items haben oft ein Bildfeld (image / mainImage / photo,
+    # je als String, Liste oder Objekt mit url/@id). Defensiv übernehmen.
+    image_url = ""
+    for key in ("image", "mainImage", "photo", "images", "primaryImage"):
+        image_url = image_from_field(item.get(key))
+        if image_url:
+            break
+
     source_id = f"zt_{item.get('identifier') or item.get('@id') or name}"
 
     return {
@@ -345,6 +416,7 @@ def zt_to_listing(item: dict, category: str) -> dict:
         "description": desc,
         "lat":        lat,
         "lon":        lon,
+        "image_url":  image_url[:500],
         "is_active":  True,
         "is_premium": False,
         "updated_at": datetime.utcnow().isoformat(),
