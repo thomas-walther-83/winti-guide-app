@@ -107,8 +107,10 @@ class Supabase:
         total = 0
         for i in range(0, len(events), 50):
             batch = events[i:i+50]
+            # on_conflict=source_id ist nötig, damit PostgREST auf der Unique-Spalte
+            # source_id (nicht dem Primary Key) merged – sonst 409 duplicate key.
             res = requests.post(
-                f"{self.url}/rest/v1/events",
+                f"{self.url}/rest/v1/events?on_conflict=source_id",
                 headers={**self.hdrs, "Prefer": "resolution=merge-duplicates,return=minimal"},
                 json=batch
             )
@@ -405,7 +407,8 @@ def scrape_alte_kaserne() -> list[dict]:
 
         # HTML: TYPO3-News-Liste (article.cNewsListItem mit .news-list-date / .teaser-text)
         if not events:
-            cards = soup.select("article.cNewsListItem") or soup.select("article")
+            # Items sind <div class="cNewsListItem">, kein <article>-Tag
+            cards = soup.select(".cNewsListItem") or soup.select("article")
             print(f"      (debug altekaserne: {len(cards)} article-Elemente)")
             for i, card in enumerate(cards[:40]):
                 # Datum
