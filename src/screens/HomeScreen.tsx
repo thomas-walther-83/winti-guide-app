@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   SafeAreaView,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useListings } from '../hooks/useListings';
 import { useAppTier } from '../hooks/useAppTier';
@@ -21,6 +22,8 @@ import { FeaturedRow } from '../components/FeaturedRow';
 import { SectionHeader } from '../components/SectionHeader';
 import { AiGuideCard } from '../components/AiGuideCard';
 import { useTranslation } from '../hooks/useTranslation';
+import { useLocation } from '../hooks/useLocation';
+import { distanceKm, formatDistance } from '../utils/distance';
 import { theme } from '../styles/theme';
 import { SUB_CATEGORY_ALIASES } from '../config/subcategories';
 import type { Listing, ListingCategory, PartnerAd } from '../types';
@@ -60,6 +63,7 @@ type HeaderSection =
   | { type: 'ai-guide' }
   | { type: 'categories' }
   | { type: 'subcategories' }
+  | { type: 'nearby' }
   | { type: 'section-title'; title: string };
 
 type ListItem = HeaderSection | { type: 'listing'; data: Listing } | { type: 'ad'; data: PartnerAd };
@@ -71,8 +75,16 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [partnerAds, setPartnerAds] = useState<PartnerAd[]>([]);
 
+  const [nearby, setNearby] = useState(false);
+
   const { isPremium } = useAppTier();
   const { t } = useTranslation();
+  const { coords, status: locStatus, request: requestLocation } = useLocation();
+
+  const toggleNearby = () => {
+    if (!nearby && !coords) requestLocation();
+    setNearby((v) => !v);
+  };
 
   React.useEffect(() => {
     loadSaved().then(setSavedIds);
@@ -116,8 +128,31 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
       const aliases = SUB_CATEGORY_ALIASES[subType] ?? [subType.toLowerCase()];
       result = result.filter((l) => aliases.includes((l.sub_type ?? '').toLowerCase()));
     }
+    if (nearby && coords) {
+      // Einträge mit Koordinaten nach Distanz sortieren; ohne Koordinaten ans Ende.
+      result = [...result].sort((a, b) => {
+        const da = a.lat != null && a.lon != null
+          ? distanceKm(coords, { lat: a.lat, lon: a.lon }) : Infinity;
+        const db = b.lat != null && b.lon != null
+          ? distanceKm(coords, { lat: b.lat, lon: b.lon }) : Infinity;
+        return da - db;
+      });
+    }
     return result;
-  }, [listings, search, subType]);
+  }, [listings, search, subType, nearby, coords]);
+
+  // Distanz pro Eintrag (nur wenn "In der Nähe" aktiv und Standort vorhanden)
+  const distances = useMemo(() => {
+    const map = new Map<string, number>();
+    if (nearby && coords) {
+      for (const l of filteredListings) {
+        if (l.lat != null && l.lon != null) {
+          map.set(l.id, distanceKm(coords, { lat: l.lat, lon: l.lon }));
+        }
+      }
+    }
+    return map;
+  }, [nearby, coords, filteredListings]);
 
   // Pick up to 6 featured listings (premium first, then others)
   const featuredListings = useMemo(() => {
@@ -155,6 +190,7 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
     const items: ListItem[] = [
       { type: 'header' },
       { type: 'search' },
+      { type: 'nearby' },
       { type: 'categories' },
     ];
 
@@ -217,6 +253,35 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
           />
         );
 
+      case 'nearby':
+        return (
+          <View style={styles.nearbyRow}>
+            <TouchableOpacity
+              style={[styles.nearbyBtn, nearby && styles.nearbyBtnActive]}
+              onPress={toggleNearby}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityState={{ selected: nearby }}
+              accessibilityLabel={t('nearby')}
+            >
+              <Ionicons
+                name={nearby ? 'navigate' : 'navigate-outline'}
+                size={16}
+                color={nearby ? '#FFFFFF' : theme.colors.primary}
+              />
+              <Text style={[styles.nearbyText, nearby && styles.nearbyTextActive]}>
+                {t('nearby')}
+              </Text>
+              {nearby && locStatus === 'requesting' && (
+                <ActivityIndicator size="small" color="#FFFFFF" style={{ marginLeft: 4 }} />
+              )}
+            </TouchableOpacity>
+            {nearby && (locStatus === 'denied' || locStatus === 'unavailable') && (
+              <Text style={styles.nearbyHint}>{t('location_unavailable')}</Text>
+            )}
+          </View>
+        );
+
       case 'categories':
         return <CategoryFilter selected={category} onSelect={setCategory} />;
 
@@ -261,6 +326,7 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
             isSaved={savedIds.includes((item as { type: 'listing'; data: Listing }).data.id)}
             onToggleSave={handleToggleSave}
             onShowOnMap={onNavigateToMap}
+            distanceKm={distances.get((item as { type: 'listing'; data: Listing }).data.id)}
           />
         );
 
@@ -359,6 +425,40 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: theme.colors.surface,
+  },
+  nearbyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.xs,
+  },
+  nearbyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.borderRadius.full,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+    minHeight: 40,
+  },
+  nearbyBtnActive: {
+    backgroundColor: theme.colors.primary,
+  },
+  nearbyText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.primary,
+  },
+  nearbyTextActive: {
+    color: '#FFFFFF',
+  },
+  nearbyHint: {
+    flex: 1,
+    fontSize: 12,
+    color: theme.colors.textMuted,
   },
   list: {
     paddingBottom: theme.spacing.xl,

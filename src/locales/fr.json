@@ -182,5 +182,7 @@
   "ad_submitted_body": "Votre annonce sera examinée par l'administrateur puis activée.",
   "title_required": "Le titre est un champ obligatoire.",
   "ad_create_failed": "Erreur lors de la création",
-  "select_suffix": "choisir →"
+  "select_suffix": "choisir →",
+  "nearby": "À proximité",
+  "location_unavailable": "Position indisponible"
 }

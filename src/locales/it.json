@@ -182,5 +182,7 @@
   "ad_submitted_body": "Il tuo annuncio sarà verificato dall'amministratore e poi attivato.",
   "title_required": "Il titolo è un campo obbligatorio.",
   "ad_create_failed": "Errore durante la creazione",
-  "select_suffix": "scegli →"
+  "select_suffix": "scegli →",
+  "nearby": "Nelle vicinanze",
+  "location_unavailable": "Posizione non disponibile"
 }

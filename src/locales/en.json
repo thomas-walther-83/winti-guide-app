@@ -182,5 +182,7 @@
   "ad_submitted_body": "Your ad will be reviewed by the admin and then activated.",
   "title_required": "Title is a required field.",
   "ad_create_failed": "Error creating",
-  "select_suffix": "select →"
+  "select_suffix": "select →",
+  "nearby": "Nearby",
+  "location_unavailable": "Location unavailable"
 }

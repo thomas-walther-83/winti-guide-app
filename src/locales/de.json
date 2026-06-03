@@ -182,5 +182,7 @@
   "ad_submitted_body": "Deine Anzeige wird vom Admin geprüft und dann freigeschaltet.",
   "title_required": "Titel ist ein Pflichtfeld.",
   "ad_create_failed": "Fehler beim Erstellen",
-  "select_suffix": "wählen →"
+  "select_suffix": "wählen →",
+  "nearby": "In der Nähe",
+  "location_unavailable": "Standort nicht verfügbar"
 }

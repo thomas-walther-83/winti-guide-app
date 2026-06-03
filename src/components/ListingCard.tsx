@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { useDetail } from '../context/DetailContext';
 import { useTranslation } from '../hooks/useTranslation';
+import { formatDistance } from '../utils/distance';
 import type { Listing } from '../types';
 
 const CATEGORY_EMOJI: Record<string, string> = {
@@ -42,9 +43,10 @@ interface ListingCardProps {
   isSaved: boolean;
   onToggleSave: (listing: Listing) => void;
   onShowOnMap?: (listing: Listing) => void;
+  distanceKm?: number;
 }
 
-export function ListingCard({ listing, isSaved, onToggleSave, onShowOnMap }: ListingCardProps) {
+export function ListingCard({ listing, isSaved, onToggleSave, onShowOnMap, distanceKm }: ListingCardProps) {
   const emoji = CATEGORY_EMOJI[listing.category] ?? '📍';
   const bgColor = CATEGORY_BG[listing.category] ?? theme.colors.primary;
   const { open } = useDetail();
@@ -106,6 +108,13 @@ export function ListingCard({ listing, isSaved, onToggleSave, onShowOnMap }: Lis
           <Text style={styles.address} numberOfLines={1}>
             {listing.address}
           </Text>
+        ) : null}
+
+        {distanceKm != null ? (
+          <View style={styles.distanceRow}>
+            <Ionicons name="navigate" size={11} color={theme.colors.primary} />
+            <Text style={styles.distanceText}>{formatDistance(distanceKm)}</Text>
+          </View>
         ) : null}
 
         {listing.hours ? (
@@ -212,6 +221,17 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: theme.colors.premium,
     flexShrink: 0,
+  },
+  distanceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginTop: 2,
+  },
+  distanceText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.primary,
   },
   subType: {
     fontSize: 13,
