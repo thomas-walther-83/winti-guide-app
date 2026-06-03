@@ -12,31 +12,8 @@ import { theme } from '../styles/theme';
 import { useDetail } from '../context/DetailContext';
 import { useTranslation } from '../hooks/useTranslation';
 import { formatDistance } from '../utils/distance';
+import { getListingVisual } from '../config/categoryVisuals';
 import type { Listing } from '../types';
-
-const CATEGORY_EMOJI: Record<string, string> = {
-  restaurants: '🍽️',
-  cafes: '☕',
-  bars: '🍸',
-  hotels: '🏨',
-  sightseeing: '🏛️',
-  kultur: '🎨',
-  geschaefte: '🛍️',
-  sport: '🏊',
-  touren: '🗺️',
-};
-
-const CATEGORY_BG: Record<string, string> = {
-  restaurants: '#C0392B',
-  cafes: '#8B6914',
-  bars: '#6C3483',
-  hotels: '#1A5276',
-  sightseeing: '#1E8449',
-  kultur: '#C0392B',
-  geschaefte: '#A04000',
-  sport: '#117A65',
-  touren: '#2E4057',
-};
 
 interface ListingCardProps {
   listing: Listing;
@@ -47,8 +24,7 @@ interface ListingCardProps {
 }
 
 export function ListingCard({ listing, isSaved, onToggleSave, onShowOnMap, distanceKm }: ListingCardProps) {
-  const emoji = CATEGORY_EMOJI[listing.category] ?? '📍';
-  const bgColor = CATEGORY_BG[listing.category] ?? theme.colors.primary;
+  const visual = getListingVisual(listing.category);
   const { open } = useDetail();
   const { t } = useTranslation();
 
@@ -82,8 +58,8 @@ export function ListingCard({ listing, isSaved, onToggleSave, onShowOnMap, dista
       {listing.image_url ? (
         <Image source={{ uri: listing.image_url }} style={styles.image} resizeMode="cover" />
       ) : (
-        <View style={[styles.iconBlock, { backgroundColor: bgColor }]}>
-          <Text style={styles.emoji}>{emoji}</Text>
+        <View style={[styles.iconBlock, { backgroundColor: visual.bg }]}>
+          <Ionicons name={visual.icon} size={26} color="#FFFFFF" />
         </View>
       )}
 
@@ -196,9 +172,6 @@ const styles = StyleSheet.create({
     marginRight: theme.spacing.md,
     flexShrink: 0,
     backgroundColor: theme.colors.surface,
-  },
-  emoji: {
-    fontSize: 24,
   },
   content: {
     flex: 1,

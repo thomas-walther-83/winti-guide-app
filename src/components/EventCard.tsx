@@ -11,18 +11,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { useDetail } from '../context/DetailContext';
 import { useTranslation } from '../hooks/useTranslation';
+import { getEventVisual } from '../config/categoryVisuals';
 import type { Event } from '../types';
-
-const CATEGORY_EMOJI: Record<string, string> = {
-  festival: '🎪',
-  musik: '🎵',
-  kultur: '🎨',
-  markt: '🛍️',
-  theater: '🎭',
-  tour: '🗺️',
-  kulinarik: '🍷',
-  sport: '🏅',
-};
 
 interface EventCardProps {
   event: Event;
@@ -56,7 +46,7 @@ function formatMonth(dateStr: string): string {
 }
 
 export function EventCard({ event }: EventCardProps) {
-  const emoji = CATEGORY_EMOJI[event.cat] ?? '📅';
+  const visual = getEventVisual(event.cat);
   const { open } = useDetail();
   const { t } = useTranslation();
 
@@ -103,7 +93,9 @@ export function EventCard({ event }: EventCardProps) {
               resizeMode="cover"
             />
           ) : (
-            <Text style={styles.emoji}>{emoji}</Text>
+            <View style={[styles.iconBlock, { backgroundColor: visual.bg }]}>
+              <Ionicons name={visual.icon} size={20} color="#FFFFFF" />
+            </View>
           )}
           <Text style={styles.title} numberOfLines={2}>
             {event.title}
@@ -162,7 +154,7 @@ const styles = StyleSheet.create({
   },
   dateColumn: {
     width: 72,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.secondary,
     alignItems: 'center',
     justifyContent: 'center',
     padding: theme.spacing.sm,
@@ -213,8 +205,13 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: theme.spacing.xs,
   },
-  emoji: {
-    fontSize: 16,
+  iconBlock: {
+    width: 40,
+    height: 40,
+    borderRadius: theme.borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   thumb: {
     width: 40,
