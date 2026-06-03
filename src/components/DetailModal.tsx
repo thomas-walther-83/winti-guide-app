@@ -14,21 +14,8 @@ import { theme } from '../styles/theme';
 import { useDetail } from '../context/DetailContext';
 import { useTranslation } from '../hooks/useTranslation';
 import { shareItem } from '../utils/share';
+import { getListingVisual, getEventVisual } from '../config/categoryVisuals';
 import type { Listing, Event } from '../types';
-
-const LISTING_EMOJI: Record<string, string> = {
-  restaurants: '🍽️', cafes: '☕', bars: '🍸', hotels: '🏨', sightseeing: '🏛️',
-  kultur: '🎨', geschaefte: '🛍️', sport: '🏊', touren: '🗺️',
-};
-const LISTING_BG: Record<string, string> = {
-  restaurants: '#C0392B', cafes: '#8B6914', bars: '#6C3483', hotels: '#1A5276',
-  sightseeing: '#1E8449', kultur: '#C0392B', geschaefte: '#A04000', sport: '#117A65',
-  touren: '#2E4057',
-};
-const EVENT_EMOJI: Record<string, string> = {
-  festival: '🎪', musik: '🎵', kultur: '🎨', markt: '🛍️', theater: '🎭',
-  tour: '🗺️', kulinarik: '🍷', sport: '🏅',
-};
 
 function openUrl(raw?: string) {
   if (!raw) return;
@@ -92,16 +79,15 @@ function ListingDetail({
   onShowOnMap?: (l: Listing) => void;
   onClose: () => void;
 }) {
-  const emoji = LISTING_EMOJI[listing.category] ?? '📍';
-  const bg = LISTING_BG[listing.category] ?? theme.colors.primary;
+  const visual = getListingVisual(listing.category);
   const { t } = useTranslation();
   return (
     <>
-      <View style={[styles.hero, { backgroundColor: bg }]}>
+      <View style={[styles.hero, { backgroundColor: visual.bg }]}>
         {listing.image_url ? (
           <Image source={{ uri: listing.image_url }} style={styles.heroImage} resizeMode="cover" />
         ) : (
-          <Text style={styles.heroEmoji}>{emoji}</Text>
+          <Ionicons name={visual.icon} size={56} color="#FFFFFF" />
         )}
         {listing.is_premium && (
           <View style={styles.premiumBadge}>
@@ -209,16 +195,16 @@ function ListingDetail({
 }
 
 function EventDetail({ event }: { event: Event }) {
-  const emoji = EVENT_EMOJI[event.cat] ?? '📅';
+  const visual = getEventVisual(event.cat);
   const isFree = event.price && ['kostenlos', 'free', '0'].includes(event.price.toLowerCase());
   const { t } = useTranslation();
   return (
     <>
-      <View style={[styles.hero, { backgroundColor: theme.colors.primary }]}>
+      <View style={[styles.hero, { backgroundColor: visual.bg }]}>
         {event.image_url ? (
           <Image source={{ uri: event.image_url }} style={styles.heroImage} resizeMode="cover" />
         ) : (
-          <Text style={styles.heroEmoji}>{emoji}</Text>
+          <Ionicons name={visual.icon} size={56} color="#FFFFFF" />
         )}
       </View>
       <ScrollView contentContainerStyle={styles.body}>
@@ -361,9 +347,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-  },
-  heroEmoji: {
-    fontSize: 56,
   },
   heroImage: {
     width: '100%',

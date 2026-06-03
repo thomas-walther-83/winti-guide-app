@@ -9,6 +9,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useListings } from '../hooks/useListings';
 import { useAppTier } from '../hooks/useAppTier';
 import { useFavorites } from '../hooks/useFavorites';
@@ -26,6 +27,7 @@ import { useLocation } from '../hooks/useLocation';
 import { distanceKm, formatDistance } from '../utils/distance';
 import { theme } from '../styles/theme';
 import { SUB_CATEGORY_ALIASES } from '../config/subcategories';
+import { INTERESTS_KEY } from './OnboardingScreen';
 import type { Listing, ListingCategory, PartnerAd } from '../types';
 
 const AD_FREQUENCY = 5; // Show an ad every N listings
@@ -58,6 +60,7 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
   const [partnerAds, setPartnerAds] = useState<PartnerAd[]>([]);
 
   const [nearby, setNearby] = useState(false);
+  const [interests, setInterests] = useState<ListingCategory[]>([]);
 
   const { isPremium } = useAppTier();
   const { t } = useTranslation();
@@ -67,6 +70,25 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
     if (!nearby && !coords) requestLocation();
     setNearby((v) => !v);
   };
+
+  // Im Onboarding gewählte Interessen laden (für Personalisierung der Reihenfolge)
+  useEffect(() => {
+    let active = true;
+    AsyncStorage.getItem(INTERESTS_KEY)
+      .then((raw) => {
+        if (!active || !raw) return;
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          setInterests(parsed.filter((c): c is ListingCategory => typeof c === 'string'));
+        }
+      })
+      .catch(() => {
+        // ignorieren – Fallback ist die unveränderte Reihenfolge
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Load partner ads for free users
   useEffect(() => {
@@ -90,6 +112,22 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
     category: category === 'all' ? undefined : category,
     search: search.trim() || undefined,
   });
+
+  const interestSet = useMemo(() => new Set(interests), [interests]);
+
+  // Stabile Sortierung: Einträge passender Interessen zuerst (sonst Reihenfolge unverändert).
+  const prioritizeByInterest = (items: Listing[]): Listing[] => {
+    if (interestSet.size === 0) return items;
+    return items
+      .map((listing, index) => ({ listing, index }))
+      .sort((a, b) => {
+        const aMatch = interestSet.has(a.listing.category) ? 0 : 1;
+        const bMatch = interestSet.has(b.listing.category) ? 0 : 1;
+        if (aMatch !== bMatch) return aMatch - bMatch;
+        return a.index - b.index;
+      })
+      .map((entry) => entry.listing);
+  };
 
   const filteredListings = useMemo(() => {
     let result = listings;
@@ -115,9 +153,13 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
           ? distanceKm(coords, { lat: b.lat, lon: b.lon }) : Infinity;
         return da - db;
       });
+    } else if (category === 'all' && !search.trim()) {
+      // Ohne aktiven Standort-/Such-/Kategoriefilter nach Interessen gewichten.
+      result = prioritizeByInterest(result);
     }
     return result;
-  }, [listings, search, subType, nearby, coords]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listings, search, subType, nearby, coords, category, interestSet]);
 
   // Distanz pro Eintrag (nur wenn "In der Nähe" aktiv und Standort vorhanden)
   const distances = useMemo(() => {
@@ -134,10 +176,11 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
 
   // Pick up to 6 featured listings (premium first, then others)
   const featuredListings = useMemo(() => {
-    const premium = listings.filter((l) => l.is_premium);
-    const others = listings.filter((l) => !l.is_premium);
+    const premium = prioritizeByInterest(listings.filter((l) => l.is_premium));
+    const others = prioritizeByInterest(listings.filter((l) => !l.is_premium));
     return [...premium, ...others].slice(0, 6);
-  }, [listings]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listings, interestSet]);
 
   // Interleave ads between listings for free-tier users
   const listItems: ListItem[] = useMemo(() => {

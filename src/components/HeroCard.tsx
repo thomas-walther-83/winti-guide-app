@@ -95,9 +95,20 @@ export function HeroCard({
 
   return (
     <View style={[styles.card, { width, height }, style]}>
-      <View style={[styles.colorBackground, { backgroundColor: bgColor }]}>
-        {cardContent}
-      </View>
+      {listing.image_url ? (
+        <ImageBackground
+          source={{ uri: listing.image_url }}
+          style={styles.colorBackground}
+          imageStyle={styles.imageRadius}
+          resizeMode="cover"
+        >
+          {cardContent}
+        </ImageBackground>
+      ) : (
+        <View style={[styles.colorBackground, { backgroundColor: bgColor }]}>
+          {cardContent}
+        </View>
+      )}
     </View>
   );
 }
@@ -110,6 +121,9 @@ const styles = StyleSheet.create({
   },
   colorBackground: {
     flex: 1,
+  },
+  imageRadius: {
+    borderRadius: theme.borderRadius.lg,
   },
   overlay: {
     position: 'relative',
