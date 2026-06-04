@@ -563,6 +563,58 @@ def scrape_rendered(name: str, urls: list[str], source: str,
     return events
 
 
+def scrape_generic_html(name: str, url: str, source: str, default_location: str,
+                        default_cat: str,
+                        card_selectors: str = "article, [class*='event'], [class*='veranstaltung'], "
+                                              "[class*='agenda'], [class*='kalender'], [class*='termin'], li") -> list[dict]:
+    """Generischer (nicht gerenderter) Scraper: lädt die Seite per requests und
+    nutzt dieselben Parser (JSON-LD via expand_jsonld, sonst HTML-Cards). Für
+    Quellen mit serverseitig geliefertem HTML / strukturierten Daten."""
+    print(f"  → {name} scrapen…")
+    events: list[dict] = []
+    try:
+        res = requests.get(url, headers=HEADERS, timeout=15)
+        if res.status_code != 200:
+            print(f"  ⚠️  {name} HTTP {res.status_code}")
+            print(f"  ✓ 0 Events von {name}")
+            return events
+        soup = BeautifulSoup(res.text, "html.parser")
+        n_jsonld = len(soup.find_all("script", type="application/ld+json"))
+        print(f"    (diag {name}: len={len(res.text)} jsonld={n_jsonld} "
+              f"cards={len(soup.select(card_selectors))})")
+
+        for script in soup.find_all("script", type="application/ld+json"):
+            try:
+                data = json.loads(script.string or "")
+            except Exception:
+                continue
+            for item in expand_jsonld(data):
+                ev = jsonld_to_event(item, source)
+                if ev:
+                    ev["location"] = ev.get("location") or default_location
+                    ev["cat"] = ev.get("cat") or default_cat
+                    events.append(ev)
+
+        if not events:
+            for card in soup.select(card_selectors)[:80]:
+                ev = parse_event_card(card, source, url)
+                if ev:
+                    ev["location"] = ev.get("location") or default_location
+                    ev["cat"] = ev.get("cat") or default_cat
+                    events.append(ev)
+
+        if events:
+            page_img = extract_image_from_html(soup, url)
+            if page_img:
+                for ev in events:
+                    if not ev.get("image_url"):
+                        ev["image_url"] = page_img[:500]
+    except Exception as e:
+        print(f"  ⚠️  {name} Fehler: {e}")
+    print(f"  ✓ {len(events)} Events von {name}")
+    return events
+
+
 # ── Scraper 2: myswitzerland.com ─────────────────────────────────
 def scrape_myswitzerland() -> list[dict]:
     """
@@ -1755,6 +1807,22 @@ def run():
     all_events += scrape_eventbrite()
     all_events += scrape_eventfrog()
     all_events += scrape_opendata_swiss()
+
+    # Weitere Quellen (vom Nutzer vorgeschlagen) – generischer JSON-LD/HTML-Scraper.
+    all_events += scrape_generic_html(
+        "coucoumagazin.ch", "https://www.coucoumagazin.ch/de/kalender.html",
+        "coucou", "Winterthur", "kultur")
+    all_events += scrape_generic_html(
+        "junge-altstadt.ch", "https://junge-altstadt.ch/events/",
+        "jungealtstadt", "Altstadt Winterthur", "festival")
+    all_events += scrape_generic_html(
+        "stadt.winterthur Agenda",
+        "https://stadt.winterthur.ch/themen/leben-in-winterthur/kultur/kultur-erleben/agenda",
+        "stadtwinti_agenda", "Winterthur", "kultur")
+    all_events += scrape_generic_html(
+        "winterthur.com Veranstaltungen",
+        "https://www.winterthur.com/de/kunst-kultur/veranstaltungen.html",
+        "winterthurcom_va", "Winterthur", "kultur")
 
     # Playwright-Venue-Rendering ist vorbereitet (render_html/scrape_rendered),
     # aber DEAKTIVIERT: Die getesteten Venue-Seiten sind bot-/JS-Challenge-
