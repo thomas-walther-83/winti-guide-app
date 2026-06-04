@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   SafeAreaView,
+  ScrollView,
   FlatList,
   ActivityIndicator,
   Modal,
@@ -30,6 +31,7 @@ import {
   reorderStops,
 } from '../services/toursService';
 import { distanceKm } from '../utils/distance';
+import { CURATED_TOURS } from '../config/curatedTours';
 import type { UserTour, TourStop, Listing } from '../types';
 import type { MapTour } from './MapScreen';
 
@@ -114,21 +116,50 @@ export function ToursScreen({ onNavigateToAccount, onShowTour }: Props) {
     ]);
   };
 
+  const renderCurated = () => (
+    <View>
+      <Text style={styles.sectionTitle}>{t('tours_curated')}</Text>
+      {CURATED_TOURS.map((ct) => (
+        <TouchableOpacity
+          key={ct.id}
+          style={styles.curatedCard}
+          activeOpacity={0.85}
+          onPress={() =>
+            onShowTour?.({ id: `curated_${ct.id}`, name: ct.name, stops: ct.stops, savedWaypoints: null })
+          }
+        >
+          <Text style={styles.curatedEmoji}>{ct.emoji}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.curatedName} numberOfLines={1}>{ct.name}</Text>
+            <Text style={styles.curatedDesc} numberOfLines={2}>{ct.description}</Text>
+            <Text style={styles.curatedMeta}>{ct.stops.length} {t('tours_stops_label')}</Text>
+          </View>
+          <Ionicons name="map" size={20} color={theme.colors.primary} />
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
   // ── Nicht eingeloggt ───────────────────────────────────────────────
   if (!user) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>{t('tours_title')}</Text>
+          <Text style={styles.subtitle}>{t('tours_subtitle')}</Text>
         </View>
-        <View style={styles.center}>
-          <Ionicons name="trail-sign-outline" size={56} color={theme.colors.textMuted} />
-          <Text style={styles.emptyTitle}>{t('tours_login_title')}</Text>
-          <Text style={styles.emptyHint}>{t('tours_login_hint')}</Text>
-          <TouchableOpacity style={styles.primaryBtn} onPress={onNavigateToAccount}>
-            <Text style={styles.primaryBtnText}>{t('to_login')}</Text>
-          </TouchableOpacity>
-        </View>
+        <ScrollView contentContainerStyle={styles.scroll}>
+          {renderCurated()}
+          <Text style={styles.sectionTitle}>{t('tours_my')}</Text>
+          <View style={styles.loginCard}>
+            <Ionicons name="trail-sign-outline" size={40} color={theme.colors.textMuted} />
+            <Text style={styles.emptyTitle}>{t('tours_login_title')}</Text>
+            <Text style={styles.emptyHint}>{t('tours_login_hint')}</Text>
+            <TouchableOpacity style={styles.primaryBtn} onPress={onNavigateToAccount}>
+              <Text style={styles.primaryBtnText}>{t('to_login')}</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -160,47 +191,49 @@ export function ToursScreen({ onNavigateToAccount, onShowTour }: Props) {
         <Text style={styles.subtitle}>{t('tours_subtitle')}</Text>
       </View>
 
-      {!isPremium && (
-        <TouchableOpacity style={styles.limitBanner} onPress={onNavigateToAccount} activeOpacity={0.8}>
-          <Ionicons name="star" size={14} color={theme.colors.primary} />
-          <Text style={styles.limitText}>
-            {t('tours_free_limit').replace('{n}', String(FREE_MAX_TOURS))}
+      <ScrollView contentContainerStyle={styles.scroll}>
+        {renderCurated()}
+
+        <Text style={styles.sectionTitle}>{t('tours_my')}</Text>
+
+        {!isPremium && (
+          <TouchableOpacity style={styles.limitBanner} onPress={onNavigateToAccount} activeOpacity={0.8}>
+            <Ionicons name="star" size={14} color={theme.colors.primary} />
+            <Text style={styles.limitText}>
+              {t('tours_free_limit').replace('{n}', String(FREE_MAX_TOURS))}
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity
+          style={[styles.createBtn, atTourLimit && styles.createBtnDisabled]}
+          onPress={() => (atTourLimit ? onNavigateToAccount?.() : setPrompt({ mode: 'create', value: '' }))}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="add" size={20} color="#FFFFFF" />
+          <Text style={styles.createBtnText}>
+            {atTourLimit ? t('tours_upgrade_for_more') : t('tours_new')}
           </Text>
         </TouchableOpacity>
-      )}
 
-      <TouchableOpacity
-        style={[styles.createBtn, atTourLimit && styles.createBtnDisabled]}
-        onPress={() => (atTourLimit ? onNavigateToAccount?.() : setPrompt({ mode: 'create', value: '' }))}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="add" size={20} color="#FFFFFF" />
-        <Text style={styles.createBtnText}>
-          {atTourLimit ? t('tours_upgrade_for_more') : t('tours_new')}
-        </Text>
-      </TouchableOpacity>
-
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-        </View>
-      ) : error ? (
-        <View style={styles.center}>
+        {loading ? (
+          <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginTop: theme.spacing.lg }} />
+        ) : error ? (
           <Text style={styles.errorText}>⚠️ {error}</Text>
-        </View>
-      ) : tours.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={styles.emptyEmoji}>🧭</Text>
-          <Text style={styles.emptyTitle}>{t('tours_empty_title')}</Text>
-          <Text style={styles.emptyHint}>{t('tours_empty_hint')}</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={tours}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <TouchableOpacity style={styles.tourRow} onPress={() => setOpenTour(item)} activeOpacity={0.7}>
+        ) : tours.length === 0 ? (
+          <View style={styles.emptyInline}>
+            <Text style={styles.emptyEmoji}>🧭</Text>
+            <Text style={styles.emptyTitle}>{t('tours_empty_title')}</Text>
+            <Text style={styles.emptyHint}>{t('tours_empty_hint')}</Text>
+          </View>
+        ) : (
+          tours.map((item) => (
+            <TouchableOpacity
+              key={item.id}
+              style={styles.tourRow}
+              onPress={() => setOpenTour(item)}
+              activeOpacity={0.7}
+            >
               <View style={styles.tourIcon}>
                 <Ionicons name="trail-sign" size={20} color={theme.colors.primary} />
               </View>
@@ -218,9 +251,9 @@ export function ToursScreen({ onNavigateToAccount, onShowTour }: Props) {
               </TouchableOpacity>
               <Ionicons name="chevron-forward" size={18} color={theme.colors.textMuted} />
             </TouchableOpacity>
-          )}
-        />
-      )}
+          ))
+        )}
+      </ScrollView>
 
       {renderPrompt()}
     </SafeAreaView>
@@ -527,6 +560,41 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
   },
   optimizeBtnText: { color: theme.colors.primary, fontWeight: '700', fontSize: 15 },
   list: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.lg },
+  scroll: { paddingBottom: theme.spacing.xxl },
+  sectionTitle: {
+    fontFamily: theme.fonts.displayBold,
+    fontSize: 19,
+    fontWeight: '700',
+    color: theme.colors.text,
+    paddingHorizontal: theme.spacing.md,
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+  },
+  curatedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: theme.colors.surface,
+    marginHorizontal: theme.spacing.md,
+    marginVertical: theme.spacing.xs,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    ...theme.shadow.small,
+  },
+  curatedEmoji: { fontSize: 30 },
+  curatedName: { fontSize: 16, fontWeight: '700', color: theme.colors.text },
+  curatedDesc: { fontSize: 13, color: theme.colors.textSecondary, marginTop: 1 },
+  curatedMeta: { fontSize: 12, color: theme.colors.primary, fontWeight: '700', marginTop: 3 },
+  loginCard: {
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: theme.colors.surface,
+    marginHorizontal: theme.spacing.md,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.lg,
+    ...theme.shadow.small,
+  },
+  emptyInline: { alignItems: 'center', gap: 6, paddingVertical: theme.spacing.lg },
   tourRow: {
     flexDirection: 'row',
     alignItems: 'center',

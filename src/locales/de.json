@@ -247,5 +247,7 @@
   "theme_light": "Hell",
   "theme_dark": "Dunkel",
   "tours_optimize": "Reihenfolge optimieren",
-  "open_now": "Jetzt geöffnet"
+  "open_now": "Jetzt geöffnet",
+  "tours_curated": "Empfohlene Touren",
+  "tours_my": "Meine Touren"
 }

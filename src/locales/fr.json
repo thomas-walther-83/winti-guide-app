@@ -247,5 +247,7 @@
   "theme_light": "Clair",
   "theme_dark": "Sombre",
   "tours_optimize": "Optimiser l'ordre",
-  "open_now": "Ouvert"
+  "open_now": "Ouvert",
+  "tours_curated": "Tours recommandés",
+  "tours_my": "Mes tours"
 }
