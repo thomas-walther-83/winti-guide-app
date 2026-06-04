@@ -16,6 +16,7 @@ import { useFavorites } from '../hooks/useFavorites';
 import { fetchPartnerAds } from '../services/supabaseService';
 import { ListingCard } from '../components/ListingCard';
 import { ListingRow } from '../components/ListingRow';
+import { ScrollTopButton } from '../components/ScrollTopButton';
 import { PartnerAdBanner } from '../components/PartnerAdBanner';
 import { CategoryFilter } from '../components/CategoryFilter';
 import { SubCategoryFilter } from '../components/SubCategoryFilter';
@@ -491,17 +492,10 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
         />
       )}
 
-      {showScrollTop && (
-        <TouchableOpacity
-          style={styles.scrollTopBtn}
-          onPress={() => listRef.current?.scrollToOffset({ offset: 0, animated: true })}
-          activeOpacity={0.85}
-          accessibilityRole="button"
-          accessibilityLabel={t('scroll_to_top')}
-        >
-          <Ionicons name="arrow-up" size={22} color="#FFFFFF" />
-        </TouchableOpacity>
-      )}
+      <ScrollTopButton
+        visible={showScrollTop}
+        onPress={() => listRef.current?.scrollToOffset({ offset: 0, animated: true })}
+      />
     </SafeAreaView>
   );
 }

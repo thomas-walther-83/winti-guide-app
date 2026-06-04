@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   View,
   FlatList,
@@ -14,9 +14,10 @@ import { useEvents } from '../hooks/useEvents';
 import { useAppTier } from '../hooks/useAppTier';
 import { EventCard } from '../components/EventCard';
 import { MonthCalendar } from '../components/MonthCalendar';
+import { ScrollTopButton } from '../components/ScrollTopButton';
 import { useTranslation } from '../hooks/useTranslation';
 import { theme } from '../styles/theme';
-import type { EventCategory } from '../types';
+import type { EventCategory, Event } from '../types';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 type TranslationKey = Parameters<ReturnType<typeof useTranslation>['t']>[0];
@@ -87,6 +88,9 @@ export function CalendarScreen({ onNavigateToAccount }: { onNavigateToAccount?: 
   const [rangeFrom, setRangeFrom] = useState<string | null>(null);
   const [rangeTo, setRangeTo] = useState<string | null>(null);
 
+  const listRef = useRef<FlatList>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
   // Free tier: limit to next FREE_TIER_DAYS days
   const visibleEvents = useMemo(() => {
     if (isPremium) return events;
@@ -105,7 +109,7 @@ export function CalendarScreen({ onNavigateToAccount }: { onNavigateToAccount?: 
   }, [visibleEvents, rangeFrom, rangeTo]);
 
   const groupedEvents = useMemo(() => {
-    const groups: { date: string; events: typeof rangeEvents }[] = [];
+    const groups: { date: string; events: Event[] }[] = [];
     const seen = new Set<string>();
     for (const event of rangeEvents) {
       if (!seen.has(event.event_date)) {
@@ -237,10 +241,16 @@ export function CalendarScreen({ onNavigateToAccount }: { onNavigateToAccount?: 
 
       {!loading && !error && (
         <FlatList
+          ref={listRef}
           data={groupedEvents}
           keyExtractor={(item) => item.date}
           ListHeaderComponent={listHeader}
-          renderItem={({ item }) => (
+          scrollEventThrottle={16}
+          onScroll={(e) => {
+            const y = e.nativeEvent.contentOffset.y;
+            setShowScrollTop((prev) => (prev !== y > 700 ? y > 700 : prev));
+          }}
+          renderItem={({ item }: { item: { date: string; events: Event[] } }) => (
             <View>
               <View style={styles.dateHeader}>
                 <Text style={styles.dateHeaderText}>
@@ -279,6 +289,11 @@ export function CalendarScreen({ onNavigateToAccount }: { onNavigateToAccount?: 
           }
         />
       )}
+
+      <ScrollTopButton
+        visible={showScrollTop}
+        onPress={() => listRef.current?.scrollToOffset({ offset: 0, animated: true })}
+      />
     </SafeAreaView>
   );
 }

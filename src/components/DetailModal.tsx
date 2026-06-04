@@ -10,6 +10,7 @@ import {
   Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from '../styles/theme';
 import { useDetail } from '../context/DetailContext';
 import { useTranslation } from '../hooks/useTranslation';
@@ -58,22 +59,29 @@ function ListingDetail({
   const [addToTourOpen, setAddToTourOpen] = useState(false);
   return (
     <>
-      <View style={[styles.hero, { backgroundColor: visual.bg }]}>
+      <View style={styles.hero}>
         {listing.image_url ? (
           <Image source={{ uri: listing.image_url }} style={styles.heroImage} resizeMode="cover" />
         ) : (
-          <Ionicons name={visual.icon} size={56} color="#FFFFFF" />
+          <View style={[styles.heroImage, styles.heroFallback, { backgroundColor: visual.bg }]}>
+            <Ionicons name={visual.icon} size={72} color="rgba(255,255,255,0.92)" />
+          </View>
         )}
+        <LinearGradient
+          colors={['transparent', 'rgba(15,11,8,0.15)', 'rgba(15,11,8,0.82)']}
+          locations={[0, 0.45, 1]}
+          style={styles.heroGradient}
+        />
         {listing.is_premium && (
           <View style={styles.premiumBadge}>
             <Ionicons name="star" size={12} color="#FFFFFF" />
             <Text style={styles.premiumBadgeText}>{t('premium')}</Text>
           </View>
         )}
+        <Text style={styles.heroName} numberOfLines={3}>{listing.name}</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.body}>
-        <Text style={styles.name}>{listing.name}</Text>
         <View style={styles.tagRow}>
           {listing.sub_type ? <Text style={styles.tag}>{listing.sub_type}</Text> : null}
           {listing.stars ? <Text style={styles.tag}>⭐ {listing.stars}</Text> : null}
@@ -190,16 +198,22 @@ function EventDetail({ event }: { event: Event }) {
   const { t } = useTranslation();
   return (
     <>
-      <View style={[styles.hero, { backgroundColor: visual.bg }]}>
+      <View style={styles.hero}>
         {event.image_url ? (
           <Image source={{ uri: event.image_url }} style={styles.heroImage} resizeMode="cover" />
         ) : (
-          <Ionicons name={visual.icon} size={56} color="#FFFFFF" />
+          <View style={[styles.heroImage, styles.heroFallback, { backgroundColor: visual.bg }]}>
+            <Ionicons name={visual.icon} size={72} color="rgba(255,255,255,0.92)" />
+          </View>
         )}
+        <LinearGradient
+          colors={['transparent', 'rgba(15,11,8,0.15)', 'rgba(15,11,8,0.82)']}
+          locations={[0, 0.45, 1]}
+          style={styles.heroGradient}
+        />
+        <Text style={styles.heroName} numberOfLines={3}>{event.title}</Text>
       </View>
       <ScrollView contentContainerStyle={styles.body}>
-        <Text style={styles.name}>{event.title}</Text>
-
         <View style={styles.infoBlock}>
           <InfoRow icon="calendar-outline">{formatDate(event.event_date)}</InfoRow>
           {event.event_time ? <InfoRow icon="time-outline">{event.event_time}</InfoRow> : null}
@@ -333,18 +347,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   hero: {
-    height: 140,
-    alignItems: 'center',
-    justifyContent: 'center',
+    height: 210,
+    justifyContent: 'flex-end',
     overflow: 'hidden',
   },
   heroImage: {
+    ...StyleSheet.absoluteFillObject,
     width: '100%',
     height: '100%',
+    backgroundColor: theme.colors.surfaceAlt,
+  },
+  heroFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  heroName: {
+    fontFamily: theme.fonts.displayBold,
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.md,
+    letterSpacing: -0.3,
   },
   premiumBadge: {
     position: 'absolute',
-    bottom: theme.spacing.sm,
+    top: theme.spacing.md,
     left: theme.spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
