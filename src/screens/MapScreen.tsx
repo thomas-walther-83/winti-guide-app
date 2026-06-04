@@ -413,8 +413,11 @@ export function MapScreen({
   // Tour-Modus (aus „Meine Touren" → Auf Karte zeigen). Synchron zum Prop,
   // lokal schließbar über das X im Tour-Header.
   const [activeTour, setActiveTour] = useState<MapTour | null>(focusTour ?? null);
+  // Aktuell in der Karte gezogene Route (Stops + Zwischenpunkte) für Teilen / Google Maps.
+  const liveRouteRef = useRef<TourRouteWaypoint[] | null>(null);
   useEffect(() => {
     setActiveTour(focusTour ?? null);
+    liveRouteRef.current = null;
   }, [focusTour]);
 
   // Popup-Tap aus der Karte → nativen Detail-Dialog öffnen (wie in Entdecken).
@@ -432,6 +435,7 @@ export function MapScreen({
   const routeSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleTourRouteChange = useCallback(
     (waypoints: TourRouteWaypoint[]) => {
+      liveRouteRef.current = waypoints;
       const tourId = activeTour?.id;
       if (!tourId) return;
       if (routeSaveTimer.current) clearTimeout(routeSaveTimer.current);
@@ -442,15 +446,24 @@ export function MapScreen({
     [activeTour],
   );
 
+  // Beste verfügbare Routenpunkte: live gezogen → gespeichert → reine Stops.
+  const tourRoutePoints = useCallback((): { lat: number; lon: number }[] => {
+    const live = liveRouteRef.current;
+    if (live && live.length >= 2) return live.map((w) => ({ lat: w.lat, lon: w.lon }));
+    const saved = activeTour?.savedWaypoints;
+    if (saved && saved.length >= 2) return saved.map((w) => ({ lat: w.lat, lon: w.lon }));
+    return activeTour?.stops ?? [];
+  }, [activeTour]);
+
   const shareTour = useCallback(() => {
     if (!activeTour) return;
     const lines = activeTour.stops.map((s, i) => `${i + 1}. ${s.name}`).join('\n');
-    shareItem(`${activeTour.name}\n${lines}`, googleMapsTourUrl(activeTour.stops) ?? undefined);
-  }, [activeTour]);
+    shareItem(`${activeTour.name}\n${lines}`, googleMapsTourUrl(tourRoutePoints()) ?? undefined);
+  }, [activeTour, tourRoutePoints]);
 
   const openTourMaps = useCallback(() => {
-    if (activeTour) openTourInGoogleMaps(activeTour.stops);
-  }, [activeTour]);
+    if (activeTour) openTourInGoogleMaps(tourRoutePoints());
+  }, [activeTour, tourRoutePoints]);
 
   // Standort einmalig beim Öffnen der Karte anfragen.
   useEffect(() => {

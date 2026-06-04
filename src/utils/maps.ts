@@ -54,22 +54,34 @@ export function openInGoogleMaps(lat?: number | null, lon?: number | null, query
 }
 
 /**
- * Baut eine Google-Maps-Routen-URL für eine ganze Tour (zu Fuß): erster Stop =
- * Start, letzter = Ziel, dazwischen als Wegpunkte. Gibt null bei < 2 Stops.
+ * Baut eine Google-Maps-Routen-URL für eine ganze Tour (zu Fuß): erster Punkt =
+ * Start, letzter = Ziel, dazwischen als Wegpunkte. Übergeben wird die volle
+ * (ggf. gezogene) Route; da Google-Maps-Links nur ~9 Zwischenpunkte erlauben,
+ * werden zu viele Stützpunkte gleichmäßig ausgedünnt. Null bei < 2 Punkten.
  */
-export function googleMapsTourUrl(stops: { lat: number; lon: number }[]): string | null {
-  const pts = stops.filter((s) => Number.isFinite(s.lat) && Number.isFinite(s.lon));
+export function googleMapsTourUrl(points: { lat: number; lon: number }[]): string | null {
+  const pts = points.filter((s) => Number.isFinite(s.lat) && Number.isFinite(s.lon));
   if (pts.length < 2) return null;
   const origin = `${pts[0].lat},${pts[0].lon}`;
   const destination = `${pts[pts.length - 1].lat},${pts[pts.length - 1].lon}`;
-  const mids = pts.slice(1, -1).map((p) => `${p.lat},${p.lon}`).join('|');
+
+  let middle = pts.slice(1, -1);
+  const MAX_WAYPOINTS = 9;
+  if (middle.length > MAX_WAYPOINTS) {
+    const step = (middle.length - 1) / (MAX_WAYPOINTS - 1);
+    const sampled: { lat: number; lon: number }[] = [];
+    for (let i = 0; i < MAX_WAYPOINTS; i++) sampled.push(middle[Math.round(i * step)]);
+    middle = sampled;
+  }
+  const mids = middle.map((p) => `${p.lat},${p.lon}`).join('|');
+
   let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=walking`;
   if (mids) url += `&waypoints=${encodeURIComponent(mids)}`;
   return url;
 }
 
 /** Öffnet die ganze Tour als Fuß-Route in Google Maps. */
-export function openTourInGoogleMaps(stops: { lat: number; lon: number }[]): void {
-  const url = googleMapsTourUrl(stops);
+export function openTourInGoogleMaps(points: { lat: number; lon: number }[]): void {
+  const url = googleMapsTourUrl(points);
   if (url) Linking.openURL(url).catch(() => undefined);
 }
