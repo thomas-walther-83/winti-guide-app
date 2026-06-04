@@ -245,5 +245,7 @@
   "appearance": "Apparence",
   "theme_system": "Système",
   "theme_light": "Clair",
-  "theme_dark": "Sombre"
+  "theme_dark": "Sombre",
+  "tours_optimize": "Optimiser l'ordre",
+  "open_now": "Ouvert"
 }

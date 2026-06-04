@@ -29,6 +29,7 @@ import {
   removeStop,
   reorderStops,
 } from '../services/toursService';
+import { distanceKm } from '../utils/distance';
 import type { UserTour, TourStop, Listing } from '../types';
 import type { MapTour } from './MapScreen';
 
@@ -314,6 +315,58 @@ function TourDetail({
     await removeStop(stop.id);
   };
 
+  // Reihenfolge optimieren: kürzester Fußweg (Luftlinie) ab dem ersten Stop –
+  // Nearest-Neighbor + 2-opt. Stops ohne Koordinaten bleiben am Ende.
+  const hasCoord = (s: TourStop) => s.listing?.lat != null && s.listing?.lon != null;
+  const canOptimize = stops.filter(hasCoord).length >= 3;
+  const optimize = async () => {
+    const pt = (s: TourStop) => ({ lat: s.listing!.lat as number, lon: s.listing!.lon as number });
+    const withCoords = stops.filter(hasCoord);
+    const without = stops.filter((s) => !hasCoord(s));
+    if (withCoords.length < 3) return;
+
+    // Nearest-Neighbor ab erstem Stop.
+    const remaining = [...withCoords];
+    const ordered: TourStop[] = [remaining.shift()!];
+    while (remaining.length) {
+      const last = pt(ordered[ordered.length - 1]);
+      let bi = 0;
+      let bd = Infinity;
+      remaining.forEach((s, i) => {
+        const d = distanceKm(last, pt(s));
+        if (d < bd) { bd = d; bi = i; }
+      });
+      ordered.push(remaining.splice(bi, 1)[0]);
+    }
+
+    // 2-opt (erster Stop bleibt Start).
+    const dist = (a: TourStop, b: TourStop) => distanceKm(pt(a), pt(b));
+    let improved = true;
+    while (improved) {
+      improved = false;
+      for (let i = 1; i < ordered.length - 1; i++) {
+        for (let k = i + 1; k < ordered.length; k++) {
+          const a = ordered[i - 1];
+          const b = ordered[i];
+          const c = ordered[k];
+          const d = ordered[k + 1];
+          const before = dist(a, b) + (d ? dist(c, d) : 0);
+          const after = dist(a, c) + (d ? dist(b, d) : 0);
+          if (after + 1e-9 < before) {
+            const seg = ordered.slice(i, k + 1).reverse();
+            ordered.splice(i, seg.length, ...seg);
+            improved = true;
+          }
+        }
+      }
+    }
+
+    const finalOrder = [...ordered, ...without];
+    setStops(finalOrder);
+    setSavedWaypoints(null);
+    await reorderStops(tour.id, finalOrder.map((s) => s.id));
+  };
+
   const mapStops = stops
     .filter((s) => s.listing?.lat != null && s.listing?.lon != null)
     .map((s) => ({
@@ -337,16 +390,28 @@ function TourDetail({
         </TouchableOpacity>
       </View>
 
-      {mapStops.length >= 2 && onShowTour && (
-        <TouchableOpacity
-          style={styles.createBtn}
-          onPress={() => onShowTour({ id: tour.id, name: tour.name, stops: mapStops, savedWaypoints })}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="map" size={18} color="#FFFFFF" />
-          <Text style={styles.createBtnText}>{t('show_on_map')}</Text>
-        </TouchableOpacity>
-      )}
+      <View style={styles.detailActions}>
+        {mapStops.length >= 2 && onShowTour && (
+          <TouchableOpacity
+            style={[styles.createBtn, styles.detailActionFlex]}
+            onPress={() => onShowTour({ id: tour.id, name: tour.name, stops: mapStops, savedWaypoints })}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="map" size={18} color="#FFFFFF" />
+            <Text style={styles.createBtnText}>{t('show_on_map')}</Text>
+          </TouchableOpacity>
+        )}
+        {canOptimize && (
+          <TouchableOpacity
+            style={[styles.optimizeBtn, styles.detailActionFlex]}
+            onPress={optimize}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="git-compare-outline" size={18} color={theme.colors.primary} />
+            <Text style={styles.optimizeBtnText}>{t('tours_optimize')}</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       {loading ? (
         <View style={styles.center}>
@@ -446,6 +511,21 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
   },
   createBtnDisabled: { backgroundColor: theme.colors.textMuted },
   createBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
+  detailActions: { flexDirection: 'row', gap: theme.spacing.sm, paddingHorizontal: theme.spacing.md },
+  detailActionFlex: { flex: 1, marginHorizontal: 0 },
+  optimizeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginBottom: theme.spacing.sm,
+    paddingVertical: 12,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1.5,
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.surface,
+  },
+  optimizeBtnText: { color: theme.colors.primary, fontWeight: '700', fontSize: 15 },
   list: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.lg },
   tourRow: {
     flexDirection: 'row',

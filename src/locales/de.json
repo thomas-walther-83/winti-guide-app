@@ -245,5 +245,7 @@
   "appearance": "Darstellung",
   "theme_system": "System",
   "theme_light": "Hell",
-  "theme_dark": "Dunkel"
+  "theme_dark": "Dunkel",
+  "tours_optimize": "Reihenfolge optimieren",
+  "open_now": "Jetzt geöffnet"
 }

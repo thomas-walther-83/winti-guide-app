@@ -28,6 +28,7 @@ import { AiGuideCard } from '../components/AiGuideCard';
 import { useTranslation } from '../hooks/useTranslation';
 import { useLocation } from '../hooks/useLocation';
 import { distanceKm, formatDistance } from '../utils/distance';
+import { isOpenNow } from '../utils/openingHours';
 import { useTheme } from '../context/ThemeContext';
 import type { AppTheme } from '../styles/theme';
 import { matchesSubType } from '../config/subcategories';
@@ -72,6 +73,7 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
   const [partnerAds, setPartnerAds] = useState<PartnerAd[]>([]);
 
   const [nearby, setNearby] = useState(false);
+  const [openNow, setOpenNow] = useState(false);
   const [interests, setInterests] = useState<ListingCategory[]>([]);
 
   // Ansicht: grosse Foto-Karten oder kompakte Liste (persistiert).
@@ -190,6 +192,9 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
     if (collection) {
       result = result.filter((l) => matchesCollection(l, collection));
     }
+    if (openNow) {
+      result = result.filter((l) => isOpenNow(l.hours) === true);
+    }
     if (nearby && coords) {
       // Einträge mit Koordinaten nach Distanz sortieren; ohne Koordinaten ans Ende.
       result = [...result].sort((a, b) => {
@@ -205,7 +210,7 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
     }
     return result;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listings, search, subType, nearby, coords, category, interestSet, activeCollection]);
+  }, [listings, search, subType, nearby, coords, category, interestSet, activeCollection, openNow]);
 
   // Distanz pro Eintrag (nur wenn "In der Nähe" aktiv und Standort vorhanden)
   const distances = useMemo(() => {
@@ -345,6 +350,25 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
                 <ActivityIndicator size="small" color="#FFFFFF" style={{ marginLeft: 4 }} />
               )}
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.nearbyBtn, openNow && styles.nearbyBtnActive]}
+              onPress={() => setOpenNow((v) => !v)}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityState={{ selected: openNow }}
+              accessibilityLabel={t('open_now')}
+            >
+              <Ionicons
+                name={openNow ? 'time' : 'time-outline'}
+                size={16}
+                color={openNow ? '#FFFFFF' : theme.colors.primary}
+              />
+              <Text style={[styles.nearbyText, openNow && styles.nearbyTextActive]}>
+                {t('open_now')}
+              </Text>
+            </TouchableOpacity>
+
             {nearby && (locStatus === 'denied' || locStatus === 'unavailable') && (
               <Text style={styles.nearbyHint}>{t('location_unavailable')}</Text>
             )}
@@ -583,6 +607,7 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
   nearbyRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
     marginBottom: theme.spacing.xs,

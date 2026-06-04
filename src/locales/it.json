@@ -245,5 +245,7 @@
   "appearance": "Aspetto",
   "theme_system": "Sistema",
   "theme_light": "Chiaro",
-  "theme_dark": "Scuro"
+  "theme_dark": "Scuro",
+  "tours_optimize": "Ottimizza ordine",
+  "open_now": "Aperto ora"
 }
