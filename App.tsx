@@ -17,6 +17,7 @@ import { AccountScreen } from './src/screens/AccountScreen';
 import { PartnerPortalScreen } from './src/screens/PartnerPortalScreen';
 import { NavigationBar } from './src/components/NavigationBar';
 import { OnboardingScreen, ONBOARDING_KEY } from './src/screens/OnboardingScreen';
+import { useFonts, Fraunces_600SemiBold, Fraunces_700Bold } from '@expo-google-fonts/fraunces';
 import { useTranslation } from './src/hooks/useTranslation';
 import { theme } from './src/styles/theme';
 import type { Listing } from './src/types';
@@ -123,6 +124,11 @@ function AppContent() {
 }
 
 export default function App() {
+  // Editorial-Display-Schrift laden; bis dahin neutralen Hintergrund zeigen.
+  const [fontsLoaded] = useFonts({ Fraunces_600SemiBold, Fraunces_700Bold });
+  if (!fontsLoaded) {
+    return <View style={styles.container} />;
+  }
   return (
     <LanguageProvider>
       <AuthProvider>

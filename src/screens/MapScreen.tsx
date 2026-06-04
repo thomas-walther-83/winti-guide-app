@@ -644,6 +644,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   title: {
+    fontFamily: theme.fonts.displayBold,
     fontSize: 26,
     fontWeight: '800',
     color: theme.colors.text,

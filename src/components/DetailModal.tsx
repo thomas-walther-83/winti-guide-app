@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.surface,
     borderTopLeftRadius: theme.borderRadius.xl,
     borderTopRightRadius: theme.borderRadius.xl,
     maxHeight: '90%',
@@ -364,6 +364,7 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
   },
   name: {
+    fontFamily: theme.fonts.displayBold,
     fontSize: 22,
     fontWeight: '800',
     color: theme.colors.text,

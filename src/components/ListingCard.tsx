@@ -1,18 +1,11 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  Image,
-  TouchableOpacity,
-  StyleSheet,
-  Linking,
-} from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from '../styles/theme';
 import { useDetail } from '../context/DetailContext';
 import { useTranslation } from '../hooks/useTranslation';
 import { formatDistance } from '../utils/distance';
-import { openInGoogleMaps, listingMapsQuery } from '../utils/maps';
 import { getListingVisual } from '../config/categoryVisuals';
 import type { Listing } from '../types';
 
@@ -32,257 +25,190 @@ export function ListingCard({ listing, isSaved, onToggleSave, onShowOnMap, dista
   const openDetail = () =>
     open({ kind: 'listing', listing, isSaved, onToggleSave, onShowOnMap });
 
-  const handleWebsite = () => {
-    if (listing.website) {
-      const url = listing.website.startsWith('http')
-        ? listing.website
-        : `https://${listing.website}`;
-      Linking.openURL(url).catch(console.error);
-    }
-  };
-
-  const handlePhone = () => {
-    if (listing.phone) {
-      Linking.openURL(`tel:${listing.phone}`).catch(console.error);
-    }
-  };
-
-  const handleGoogleMaps = () =>
-    openInGoogleMaps(null, null, listingMapsQuery(listing.name, listing.address));
-
   return (
     <TouchableOpacity
       style={styles.card}
       onPress={openDetail}
-      activeOpacity={0.7}
+      activeOpacity={0.85}
       accessibilityRole="button"
       accessibilityLabel={`${listing.name} – Details öffnen`}
     >
-      {/* Left: echtes Bild, sonst farbiger Emoji-Block als Fallback */}
-      {listing.image_url ? (
-        <Image source={{ uri: listing.image_url }} style={styles.image} resizeMode="cover" />
-      ) : (
-        <View style={[styles.iconBlock, { backgroundColor: visual.bg }]}>
-          <Ionicons name={visual.icon} size={26} color="#FFFFFF" />
-        </View>
-      )}
-
-      {/* Right: content */}
-      <View style={styles.content}>
-        <View style={styles.titleRow}>
-          <Text style={styles.name} numberOfLines={1}>
-            {listing.name}
-          </Text>
-          {listing.is_premium && (
-            <View style={styles.premiumDot} />
-          )}
-        </View>
-
-        {listing.sub_type ? (
-          <Text style={styles.subType} numberOfLines={1}>
-            {listing.sub_type}
-          </Text>
-        ) : null}
-
-        {listing.address ? (
-          <Text style={styles.address} numberOfLines={1}>
-            {listing.address}
-          </Text>
-        ) : null}
-
-        {distanceKm != null ? (
-          <View style={styles.distanceRow}>
-            <Ionicons name="navigate" size={11} color={theme.colors.primary} />
-            <Text style={styles.distanceText}>{formatDistance(distanceKm)}</Text>
-          </View>
-        ) : null}
-
-        {listing.hours ? (
-          <Text style={styles.hours} numberOfLines={1}>
-            {listing.hours}
-          </Text>
-        ) : null}
-
-        {(listing.website || listing.phone) && (
-          <View style={styles.actions}>
-            {listing.phone && (
-              <TouchableOpacity style={styles.actionBtn} onPress={handlePhone}>
-                <Ionicons name="call-outline" size={13} color={theme.colors.text} />
-                <Text style={styles.actionText}>{t('call')}</Text>
-              </TouchableOpacity>
-            )}
-            {listing.website && (
-              <TouchableOpacity style={[styles.actionBtn, styles.actionBtnPrimary]} onPress={handleWebsite}>
-                <Ionicons name="globe-outline" size={13} color="#FFFFFF" />
-                <Text style={styles.actionTextPrimary}>{t('website')}</Text>
-              </TouchableOpacity>
-            )}
+      {/* Foto-Hero (oder farbiger Fallback) mit Verlauf und Titel-Overlay */}
+      <View style={styles.hero}>
+        {listing.image_url ? (
+          <Image source={{ uri: listing.image_url }} style={styles.image} resizeMode="cover" />
+        ) : (
+          <View style={[styles.image, styles.fallback, { backgroundColor: visual.bg }]}>
+            <Ionicons name={visual.icon} size={56} color="rgba(255,255,255,0.9)" />
           </View>
         )}
 
-        {((onShowOnMap && listing.lat != null && listing.lon != null) ||
-          listing.lat != null ||
-          listing.address) && (
-          <View style={styles.mapRow}>
-            {onShowOnMap && listing.lat != null && listing.lon != null && (
-              <TouchableOpacity style={styles.mapBtn} onPress={() => onShowOnMap(listing)}>
-                <Ionicons name="map-outline" size={13} color={theme.colors.primary} />
-                <Text style={styles.mapBtnText}>{t('show_on_map')}</Text>
-              </TouchableOpacity>
+        <LinearGradient
+          colors={['transparent', 'rgba(15,11,8,0.05)', 'rgba(15,11,8,0.78)']}
+          locations={[0, 0.5, 1]}
+          style={styles.gradient}
+        />
+
+        {/* Kategorie/Subtyp-Chip oben links */}
+        {(listing.sub_type || listing.is_premium) && (
+          <View style={styles.chipRow}>
+            {listing.is_premium && (
+              <View style={[styles.chip, styles.chipPremium]}>
+                <Ionicons name="star" size={11} color="#FFFFFF" />
+                <Text style={styles.chipPremiumText}>{t('premium')}</Text>
+              </View>
             )}
-            <TouchableOpacity style={styles.mapBtn} onPress={handleGoogleMaps}>
-              <Ionicons name="navigate-outline" size={13} color={theme.colors.primary} />
-              <Text style={styles.mapBtnText}>{t('open_in_maps')}</Text>
-            </TouchableOpacity>
+            {listing.sub_type ? (
+              <View style={styles.chip}>
+                <Text style={styles.chipText} numberOfLines={1}>{listing.sub_type}</Text>
+              </View>
+            ) : null}
           </View>
         )}
+
+        {/* Speichern oben rechts */}
+        <TouchableOpacity
+          style={styles.saveButton}
+          onPress={() => onToggleSave(listing)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel={isSaved ? t('saved_label') : t('save')}
+        >
+          <Ionicons
+            name={isSaved ? 'heart' : 'heart-outline'}
+            size={20}
+            color={isSaved ? theme.colors.primary : '#FFFFFF'}
+          />
+        </TouchableOpacity>
+
+        {/* Titel-Overlay unten */}
+        <Text style={styles.name} numberOfLines={2}>{listing.name}</Text>
       </View>
 
-      {/* Save button */}
-      <TouchableOpacity
-        style={styles.saveButton}
-        onPress={() => onToggleSave(listing)}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-      >
-        <Ionicons
-          name={isSaved ? 'heart' : 'heart-outline'}
-          size={20}
-          color={isSaved ? theme.colors.primary : theme.colors.textMuted}
-        />
-      </TouchableOpacity>
+      {/* Meta-Zeile auf weisser Fläche */}
+      <View style={styles.meta}>
+        {distanceKm != null && (
+          <View style={styles.metaItem}>
+            <Ionicons name="navigate" size={13} color={theme.colors.primary} />
+            <Text style={[styles.metaText, styles.metaAccent]}>{formatDistance(distanceKm)}</Text>
+          </View>
+        )}
+        {listing.address ? (
+          <View style={[styles.metaItem, styles.metaFlex]}>
+            <Ionicons name="location-outline" size={13} color={theme.colors.textMuted} />
+            <Text style={styles.metaText} numberOfLines={1}>{listing.address}</Text>
+          </View>
+        ) : null}
+        {!listing.address && listing.hours ? (
+          <View style={[styles.metaItem, styles.metaFlex]}>
+            <Ionicons name="time-outline" size={13} color={theme.colors.textMuted} />
+            <Text style={styles.metaText} numberOfLines={1}>{listing.hours}</Text>
+          </View>
+        ) : null}
+      </View>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: theme.colors.background,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    backgroundColor: theme.colors.surface,
     marginHorizontal: theme.spacing.md,
-    marginVertical: theme.spacing.xs,
+    marginVertical: theme.spacing.sm,
     borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.md,
+    overflow: 'hidden',
     ...theme.shadow.small,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
   },
-  iconBlock: {
-    width: 52,
-    height: 52,
-    borderRadius: theme.borderRadius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: theme.spacing.md,
-    flexShrink: 0,
+  hero: {
+    height: 170,
+    justifyContent: 'flex-end',
   },
   image: {
-    width: 52,
-    height: 52,
-    borderRadius: theme.borderRadius.md,
-    marginRight: theme.spacing.md,
-    flexShrink: 0,
-    backgroundColor: theme.colors.surface,
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+    backgroundColor: theme.colors.surfaceAlt,
   },
-  content: {
-    flex: 1,
-    gap: 2,
+  fallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  titleRow: {
+  gradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  chipRow: {
+    position: 'absolute',
+    top: theme.spacing.sm,
+    left: theme.spacing.sm,
+    flexDirection: 'row',
+    gap: 6,
+    maxWidth: '72%',
+  },
+  chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: theme.borderRadius.full,
   },
-  name: {
-    fontSize: 15,
+  chipText: {
+    fontSize: 11,
     fontWeight: '700',
     color: theme.colors.text,
-    flex: 1,
+    letterSpacing: 0.2,
   },
-  premiumDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  chipPremium: {
     backgroundColor: theme.colors.premium,
-    flexShrink: 0,
   },
-  distanceRow: {
+  chipPremiumText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+  },
+  saveButton: {
+    position: 'absolute',
+    top: theme.spacing.sm,
+    right: theme.spacing.sm,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(20,16,12,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  name: {
+    fontFamily: theme.fonts.displayBold,
+    fontSize: 21,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    paddingHorizontal: theme.spacing.md,
+    paddingBottom: theme.spacing.sm,
+    letterSpacing: -0.2,
+  },
+  meta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    marginTop: 2,
+    gap: theme.spacing.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm + 2,
   },
-  distanceText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: theme.colors.primary,
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
-  subType: {
+  metaFlex: {
+    flex: 1,
+  },
+  metaText: {
     fontSize: 13,
     color: theme.colors.textSecondary,
   },
-  address: {
-    fontSize: 12,
-    color: theme.colors.textMuted,
-  },
-  hours: {
-    fontSize: 12,
-    color: theme.colors.textMuted,
-  },
-  saveButton: {
-    padding: theme.spacing.xs,
-    marginLeft: theme.spacing.xs,
-    flexShrink: 0,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-    marginTop: theme.spacing.sm,
-  },
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 5,
-    paddingHorizontal: theme.spacing.sm,
-    borderRadius: theme.borderRadius.sm,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  actionBtnPrimary: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
-  },
-  actionText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: theme.colors.text,
-  },
-  actionTextPrimary: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#FFFFFF',
-  },
-  mapRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: theme.spacing.sm,
-  },
-  mapBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 5,
-    paddingHorizontal: theme.spacing.sm,
-    borderRadius: theme.borderRadius.sm,
-    borderWidth: 1,
-    borderColor: theme.colors.primary,
-    marginTop: theme.spacing.sm,
-    alignSelf: 'flex-start',
-  },
-  mapBtnText: {
-    fontSize: 12,
-    fontWeight: '500',
+  metaAccent: {
     color: theme.colors.primary,
+    fontWeight: '700',
   },
 });

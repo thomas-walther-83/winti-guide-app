@@ -38,6 +38,7 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.sm,
   },
   title: {
+    fontFamily: theme.fonts.displayBold,
     fontSize: 19,
     fontWeight: '800',
     color: theme.colors.text,

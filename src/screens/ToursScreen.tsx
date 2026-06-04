@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
     paddingTop: theme.spacing.md,
     paddingBottom: theme.spacing.sm,
   },
-  title: { fontSize: 26, fontWeight: '700', color: theme.colors.text },
+  title: { fontSize: 26, fontWeight: '700', fontFamily: theme.fonts.displayBold, color: theme.colors.text },
   subtitle: { fontSize: 14, color: theme.colors.textSecondary, marginTop: 2 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: theme.spacing.lg, gap: 8 },
   emptyEmoji: { fontSize: 44 },
@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
   stopActions: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm },
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: theme.spacing.lg },
-  modalCard: { backgroundColor: theme.colors.background, borderRadius: theme.borderRadius.lg, padding: theme.spacing.lg, gap: theme.spacing.md },
+  modalCard: { backgroundColor: theme.colors.surface, borderRadius: theme.borderRadius.lg, padding: theme.spacing.lg, gap: theme.spacing.md },
   modalTitle: { fontSize: 18, fontWeight: '700', color: theme.colors.text },
   input: {
     borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.borderRadius.sm,

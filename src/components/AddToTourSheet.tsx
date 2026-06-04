@@ -135,7 +135,7 @@ export function AddToTourSheet({ listing, visible, onClose }: Props) {
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.surface,
     borderTopLeftRadius: theme.borderRadius.lg,
     borderTopRightRadius: theme.borderRadius.lg,
     padding: theme.spacing.lg,

@@ -456,6 +456,7 @@ const styles = StyleSheet.create({
     fontSize: 34,
   },
   appName: {
+    fontFamily: theme.fonts.displayBold,
     fontSize: 26,
     fontWeight: '800',
     color: theme.colors.primary,

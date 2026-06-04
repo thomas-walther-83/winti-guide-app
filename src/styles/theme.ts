@@ -1,26 +1,35 @@
 export const theme = {
   colors: {
+    // Rot bleibt die Marke – aber als gezielter Akzent, nicht als Grundton.
     primary: '#CC0000',
-    primaryLight: '#E50000',
-    primaryDark: '#990000',
-    secondary: '#1A5276',
-    background: '#FFFFFF',
-    surface: '#F8F8F8',
-    // Text-Kontraste WCAG-AA-konform auf Weiss (>= 4.5:1):
-    text: '#1A1A1A',
-    textSecondary: '#5E5E5E',
-    textMuted: '#767676',
-    border: '#E8E8E8',
+    primaryLight: '#E23B3B',
+    primaryDark: '#9E0000',
+    // Zarter Rot-Ton für Banner/Chips auf hellem Grund.
+    primarySoft: '#F6E7E6',
+    secondary: '#27323A',
+    // Warme, neutrale „Papier“-Basis statt reinem Weiss; Karten liegen in Weiss darüber.
+    background: '#FAF8F4',
+    surface: '#FFFFFF',
+    surfaceAlt: '#F1ECE4',
+    // Warme, WCAG-AA-konforme Textkontraste.
+    text: '#1C1A17',
+    textSecondary: '#5F594F',
+    textMuted: '#8E867A',
+    border: '#EBE6DD',
     error: '#DC2626',
     success: '#16A34A',
-    // Premium in Gold (Farbhierarchie statt überall Rot); Speichern bleibt Rot (Herz).
     premium: '#B8860B',
     saved: '#CC0000',
     tabBar: '#FFFFFF',
     tabBarActive: '#CC0000',
-    tabBarInactive: '#767676',
-    searchBackground: '#F2F2F2',
-    heroBannerOverlay: 'rgba(0,0,0,0.45)',
+    tabBarInactive: '#8E867A',
+    searchBackground: '#F1ECE4',
+    heroBannerOverlay: 'rgba(18,14,10,0.40)',
+  },
+  // Editorial-Display-Serif (Fraunces) für Titel; Fliesstext bleibt System-Sans.
+  fonts: {
+    display: 'Fraunces_600SemiBold',
+    displayBold: 'Fraunces_700Bold',
   },
   spacing: {
     xs: 4,
@@ -31,23 +40,26 @@ export const theme = {
     xxl: 48,
   },
   borderRadius: {
-    sm: 6,
-    md: 12,
-    lg: 16,
-    xl: 24,
+    sm: 8,
+    md: 14,
+    lg: 20,
+    xl: 28,
     full: 9999,
   },
   typography: {
     title: {
-      fontSize: 24,
+      fontSize: 28,
+      fontFamily: 'Fraunces_700Bold',
       fontWeight: '700' as const,
+      letterSpacing: -0.3,
     },
     subtitle: {
       fontSize: 18,
+      fontFamily: 'Fraunces_600SemiBold',
       fontWeight: '600' as const,
     },
     body: {
-      fontSize: 14,
+      fontSize: 15,
       fontWeight: '400' as const,
     },
     caption: {
@@ -56,25 +68,25 @@ export const theme = {
     },
     label: {
       fontSize: 11,
-      fontWeight: '600' as const,
+      fontWeight: '700' as const,
       textTransform: 'uppercase' as const,
-      letterSpacing: 0.5,
+      letterSpacing: 0.8,
     },
   },
   shadow: {
     small: {
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.08,
-      shadowRadius: 4,
+      shadowColor: '#2A2118',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.06,
+      shadowRadius: 8,
       elevation: 2,
     },
     medium: {
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.12,
-      shadowRadius: 8,
-      elevation: 4,
+      shadowColor: '#2A2118',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.1,
+      shadowRadius: 18,
+      elevation: 5,
     },
   },
 } as const;

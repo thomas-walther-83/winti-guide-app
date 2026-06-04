@@ -142,7 +142,7 @@ export function EventCard({ event }: EventCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.lg,
     flexDirection: 'row',
     marginHorizontal: theme.spacing.md,
@@ -221,6 +221,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   title: {
+    fontFamily: theme.fonts.displayBold,
     flex: 1,
     fontSize: 15,
     fontWeight: '700',
