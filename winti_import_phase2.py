@@ -1782,6 +1782,50 @@ def enrich_event_images(events: list[dict], cap: int = 40, budget_s: int = 120) 
     return added
 
 
+def debug_source_structure(name: str, url: str) -> None:
+    """Einmalige Struktur-Diagnose einer Quelle (nur via DEBUG_SOURCES aktiv):
+    listet häufige CSS-Klassen, datumstragende Elemente und Event-Links, damit
+    ein maßgeschneiderter Scraper geschrieben werden kann."""
+    from collections import Counter
+    print(f"  🔬 DEBUG {name} ({url})")
+    try:
+        res = requests.get(url, headers=HEADERS, timeout=20)
+        soup = BeautifulSoup(res.text, "html.parser")
+        print(f"    status={res.status_code} len={len(res.text)}")
+        cls = Counter()
+        for el in soup.find_all(True):
+            c = el.get("class")
+            if c:
+                cls[".".join(c)] += 1
+        print("    — top Klassen —")
+        for k, v in cls.most_common(22):
+            print(f"      {v:4d}  {k[:90]}")
+        date_re = re.compile(
+            r"\d{1,2}\.\s*(jan|feb|mär|maerz|apr|mai|jun|jul|aug|sep|okt|nov|dez)"
+            r"|\d{1,2}\.\d{1,2}\.\d{2,4}", re.I)
+        print("    — datumstragende Elemente —")
+        seen = 0
+        for txt in soup.find_all(string=date_re):
+            p = txt.parent
+            print(f"      <{p.name} class={p.get('class')}> {txt.strip()[:70]!r}")
+            seen += 1
+            if seen >= 12:
+                break
+        print("    — Event-Links —")
+        n = 0
+        for a in soup.select("a[href]"):
+            href = a.get("href", "")
+            t = a.get_text(strip=True)
+            if t and len(t) > 6 and any(w in href.lower() for w in
+                                        ("event", "veranstalt", "agenda", "kalender", "detail", "anlass")):
+                print(f"      {href[:75]} | {t[:50]}")
+                n += 1
+                if n >= 10:
+                    break
+    except Exception as e:
+        print(f"    DEBUG error: {e}")
+
+
 class _SourceTimeout(Exception):
     pass
 
@@ -1829,6 +1873,14 @@ def run():
 
     print("\n📅 Events scrapen…")
     print("-" * 40)
+
+    # Struktur-Diagnose (nur wenn DEBUG_SOURCES gesetzt) – zum Schreiben
+    # maßgeschneiderter Scraper für coucou + Stadt-Agenda.
+    if os.environ.get("DEBUG_SOURCES"):
+        debug_source_structure("coucoumagazin.ch", "https://www.coucoumagazin.ch/de/kalender.html")
+        debug_source_structure(
+            "stadt.winterthur Agenda",
+            "https://stadt.winterthur.ch/themen/leben-in-winterthur/kultur/kultur-erleben/agenda")
 
     # Jede Quelle mit hartem Pro-Quelle-Zeitlimit (SIGALRM). Verhindert, dass eine
     # einzelne langsame/„tröpfelnde“ Quelle den ganzen Lauf blockiert (requests-

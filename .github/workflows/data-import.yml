@@ -23,6 +23,10 @@ on:
           - both
           - events
           - listings
+      debug:
+        description: 'Quellen-Struktur ausgeben (coucou + Agenda)? 1 = ja'
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -40,6 +44,7 @@ jobs:
       SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       EVENTBRITE_TOKEN: ${{ secrets.EVENTBRITE_TOKEN }}
       EVENTFROG_API_KEY: ${{ secrets.EVENTFROG_API_KEY }}
+      DEBUG_SOURCES: ${{ github.event.inputs.debug }}
       PYTHONUNBUFFERED: '1'   # Live-Logs (sonst erst am Ende → keine Per-Quelle-Diagnose)
     steps:
       - name: Checkout
