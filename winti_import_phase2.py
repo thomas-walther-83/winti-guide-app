@@ -1871,7 +1871,9 @@ def debug_source_structure(name: str, url: str) -> None:
         print(f"    DEBUG error: {e}")
 
 
-class _SourceTimeout(Exception):
+class _SourceTimeout(BaseException):
+    # BaseException (nicht Exception), damit die inneren try/except Exception der
+    # Scraper das harte Zeitlimit NICHT verschlucken.
     pass
 
 
