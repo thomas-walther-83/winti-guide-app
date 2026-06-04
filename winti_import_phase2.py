@@ -621,6 +621,51 @@ def scrape_generic_html(name: str, url: str, source: str, default_location: str,
     return events
 
 
+def scrape_coucou() -> list[dict]:
+    """coucoumagazin.ch Kalender: Event-Links folgen dem Muster
+    /de/kalender/<ID>/<Titel>.html, Datums-Header stehen als <span> („Do 4. Jun“)
+    in Dokumentreihenfolge davor. Wir laufen das Dokument durch und ordnen jedem
+    Event-Link das zuletzt gesehene Datum zu."""
+    print("  → coucoumagazin.ch scrapen…")
+    events: list[dict] = []
+    try:
+        res = requests.get("https://www.coucoumagazin.ch/de/kalender.html", headers=HEADERS, timeout=20)
+        soup = BeautifulSoup(res.text, "html.parser")
+        date_re = re.compile(r"\b\d{1,2}\.\s*(jan|feb|mär|apr|mai|jun|jul|aug|sep|okt|nov|dez)", re.I)
+        current = None
+        seen = set()
+        for el in soup.find_all(["span", "a"]):
+            if el.name == "span":
+                txt = el.get_text(strip=True)
+                if txt and date_re.search(txt):
+                    d = parse_german_date(txt)
+                    if d:
+                        current = d
+            elif el.name == "a":
+                href = el.get("href", "") or ""
+                if current and re.search(r"/de/kalender/\d+/", href):
+                    title = el.get_text(strip=True)
+                    if not title or len(title) < 3 or title.lower() in ("kalender", "mehr", "details"):
+                        continue
+                    key = (title.lower()[:40], current)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    url = href if href.startswith("http") else "https://www.coucoumagazin.ch" + href
+                    sid = re.sub(r"[^\w_-]", "_", f"coucou_{title[:50]}_{current}")[:100]
+                    events.append({
+                        "source": "coucou", "source_id": sid, "title": title[:200],
+                        "event_date": current, "location": "Winterthur",
+                        "cat": detect_category(title), "url": url, "image_url": "",
+                    })
+                    if len(events) >= 200:
+                        break
+    except Exception as e:
+        print(f"  ⚠️  coucou Fehler: {e}")
+    print(f"  ✓ {len(events)} Events von coucoumagazin.ch")
+    return events
+
+
 # ── Scraper 2: myswitzerland.com ─────────────────────────────────
 def scrape_myswitzerland() -> list[dict]:
     """
@@ -1900,21 +1945,17 @@ def run():
     all_events += run_source("eventfrog", scrape_eventfrog)
     all_events += run_source("opendata.swiss", scrape_opendata_swiss)
 
-    # Weitere Quellen (vom Nutzer vorgeschlagen) – generischer JSON-LD/HTML-Scraper.
-    all_events += run_source("coucou", lambda: scrape_generic_html(
-        "coucoumagazin.ch", "https://www.coucoumagazin.ch/de/kalender.html",
-        "coucou", "Winterthur", "kultur"))
+    # Weitere Quellen – maßgeschneiderte bzw. generische Scraper.
+    all_events += run_source("coucou", scrape_coucou)
     all_events += run_source("junge-altstadt", lambda: scrape_generic_html(
         "junge-altstadt.ch", "https://junge-altstadt.ch/events/",
         "jungealtstadt", "Altstadt Winterthur", "festival"))
-    all_events += run_source("stadt-agenda", lambda: scrape_generic_html(
-        "stadt.winterthur Agenda",
-        "https://stadt.winterthur.ch/themen/leben-in-winterthur/kultur/kultur-erleben/agenda",
-        "stadtwinti_agenda", "Winterthur", "kultur"))
-    all_events += run_source("winterthur.com-va", lambda: scrape_generic_html(
-        "winterthur.com Veranstaltungen",
-        "https://www.winterthur.com/de/kunst-kultur/veranstaltungen.html",
-        "winterthurcom_va", "Winterthur", "kultur"))
+    # Die Stadt-Agenda listet selbst keine Events, sondern verlinkt auf den
+    # Veranstaltungskalender von Winterthur Tourismus – das ist die echte Quelle.
+    all_events += run_source("winterthur-tourismus", lambda: scrape_generic_html(
+        "winterthur-tourismus.ch",
+        "https://winterthur-tourismus.ch/de/veranstaltungen/alle-veranstaltungen.htm",
+        "wintourismus", "Winterthur", "kultur"))
 
     # Playwright-Venue-Rendering ist vorbereitet (render_html/scrape_rendered),
     # aber DEAKTIVIERT: Die getesteten Venue-Seiten sind bot-/JS-Challenge-
