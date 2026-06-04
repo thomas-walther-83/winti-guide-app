@@ -13,7 +13,7 @@ import { CategoryFilter } from '../components/CategoryFilter';
 import { SubCategoryFilter } from '../components/SubCategoryFilter';
 import { fetchListingsWithCoords } from '../services/supabaseService';
 import { getErrorMessage } from '../utils/errors';
-import { SUB_CATEGORY_ALIASES } from '../config/subcategories';
+import { matchesSubType } from '../config/subcategories';
 import { useTranslation } from '../hooks/useTranslation';
 import { useLocation } from '../hooks/useLocation';
 import { theme } from '../styles/theme';
@@ -187,8 +187,7 @@ export function MapScreen({ focusListing }: { focusListing?: Listing | null }) {
       : listings.filter((l) => l.category === selectedCategory);
 
     if (selectedSubType !== 'all') {
-      const aliases = SUB_CATEGORY_ALIASES[selectedSubType] ?? [selectedSubType.toLowerCase()];
-      result = result.filter((l) => aliases.includes((l.sub_type ?? '').toLowerCase()));
+      result = result.filter((l) => matchesSubType(l.sub_type, selectedSubType));
     }
     return result;
   })();

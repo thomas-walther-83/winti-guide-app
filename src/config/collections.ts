@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { Listing, ListingCategory } from '../types';
+import { subTypeTokens } from './subcategories';
 
 /**
  * Kuratierte, kategorieübergreifende Themen-Kollektionen für den Entdecken-Screen.
@@ -82,10 +83,11 @@ export function matchesCollection(listing: Listing, collection: Collection): boo
     collection.categories.length === 0 ||
     collection.categories.includes(listing.category);
 
+  const tokens = subTypeTokens(listing.sub_type);
+  const wanted = (collection.subTypes ?? []).map((s) => s.toLowerCase());
   const subTypeOk =
-    !collection.subTypes ||
-    collection.subTypes.length === 0 ||
-    collection.subTypes.includes((listing.sub_type ?? '').toLowerCase());
+    wanted.length === 0 ||
+    tokens.some((tok) => wanted.includes(tok));
 
   return categoryOk && subTypeOk;
 }

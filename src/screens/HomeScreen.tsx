@@ -27,7 +27,7 @@ import { useTranslation } from '../hooks/useTranslation';
 import { useLocation } from '../hooks/useLocation';
 import { distanceKm, formatDistance } from '../utils/distance';
 import { theme } from '../styles/theme';
-import { SUB_CATEGORY_ALIASES } from '../config/subcategories';
+import { matchesSubType } from '../config/subcategories';
 import { getCollection, matchesCollection } from '../config/collections';
 import { INTERESTS_KEY } from './OnboardingScreen';
 import type { Listing, ListingCategory, PartnerAd } from '../types';
@@ -160,8 +160,7 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
       );
     }
     if (subType !== 'all') {
-      const aliases = SUB_CATEGORY_ALIASES[subType] ?? [subType.toLowerCase()];
-      result = result.filter((l) => aliases.includes((l.sub_type ?? '').toLowerCase()));
+      result = result.filter((l) => matchesSubType(l.sub_type, subType));
     }
     const collection = getCollection(activeCollection);
     if (collection) {

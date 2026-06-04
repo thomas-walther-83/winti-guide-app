@@ -89,3 +89,29 @@ export const SUB_CATEGORY_ALIASES: Record<string, string[]> = {
   'Radtour':     ['radtour', 'bike_tour'],
   'Weinland':    ['weinland', 'wine_tour', 'vineyard'],
 };
+
+/**
+ * Zerlegt einen sub_type-String in einzelne Tokens. OSM liefert teils
+ * mehrwertige Felder wie "swimming;volleyball;table_tennis" – diese müssen
+ * für den Filter einzeln betrachtet werden.
+ */
+export function subTypeTokens(raw?: string | null): string[] {
+  return (raw ?? '')
+    .toLowerCase()
+    .split(/[;,/|]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Prüft, ob ein Listing zur gewählten Unterkategorie passt – token-basiert,
+ * damit auch mehrwertige sub_type-Felder ("swimming;volleyball") greifen.
+ * Einheitlich in Entdecken-Liste UND Karte verwenden, damit beide deckungsgleich filtern.
+ */
+export function matchesSubType(rawSubType: string | null | undefined, selected: string): boolean {
+  if (!selected || selected === 'all') return true;
+  const aliases = SUB_CATEGORY_ALIASES[selected] ?? [selected.toLowerCase()];
+  const tokens = subTypeTokens(rawSubType);
+  return tokens.some((tok) => aliases.includes(tok));
+}
+
