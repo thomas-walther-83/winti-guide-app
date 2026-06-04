@@ -15,6 +15,7 @@ import { ToursScreen } from './src/screens/ToursScreen';
 import { SavedScreen } from './src/screens/SavedScreen';
 import { AccountScreen } from './src/screens/AccountScreen';
 import { PartnerPortalScreen } from './src/screens/PartnerPortalScreen';
+import { AdminScreen } from './src/screens/AdminScreen';
 import { NavigationBar } from './src/components/NavigationBar';
 import { OnboardingScreen, ONBOARDING_KEY } from './src/screens/OnboardingScreen';
 import { useFonts, Fraunces_600SemiBold, Fraunces_700Bold } from '@expo-google-fonts/fraunces';
@@ -22,7 +23,7 @@ import { useTranslation } from './src/hooks/useTranslation';
 import { ThemeProvider, useTheme, useThemeMode } from './src/context/ThemeContext';
 import type { Listing } from './src/types';
 
-type TabKey = 'home' | 'calendar' | 'map' | 'touren' | 'saved' | 'account' | 'partner';
+type TabKey = 'home' | 'calendar' | 'map' | 'touren' | 'saved' | 'account' | 'partner' | 'admin';
 
 // Basis-Definition der Tabs; das Label wird zur Laufzeit übersetzt (i18n).
 const TAB_DEFS = [
@@ -107,9 +108,11 @@ function AppContent() {
       case 'saved':
         return <SavedScreen onNavigateToAccount={navigateToAccount} onNavigateToMap={navigateToMap} />;
       case 'account':
-        return <AccountScreen />;
+        return <AccountScreen onNavigateToAdmin={() => setActiveTab('admin')} />;
       case 'partner':
         return <PartnerPortalScreen />;
+      case 'admin':
+        return <AdminScreen onClose={() => setActiveTab('account')} />;
       default:
         return <HomeScreen onNavigateToAccount={navigateToAccount} onNavigateToMap={navigateToMap} />;
     }
