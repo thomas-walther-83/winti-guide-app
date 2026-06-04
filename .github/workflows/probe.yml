@@ -1,0 +1,24 @@
+name: Quell-Probe (Diagnose)
+
+# Manuelles Diagnose-Tool: prüft, ob externe Quellen vom Runner abrufbar sind.
+# Schreibt nichts in die Datenbank.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4
+      - name: Run probe
+        run: python3 probe_sources.py
