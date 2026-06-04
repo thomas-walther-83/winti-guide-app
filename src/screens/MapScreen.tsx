@@ -284,9 +284,11 @@ function buildTourHTML(
       font-size: 14px; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,0.3); white-space: nowrap;
     }
     #hint {
-      position: absolute; left: 50%; transform: translateX(-50%); top: 12px; z-index: 1000;
+      position: absolute; left: 50%; transform: translateX(-50%); bottom: 60px; z-index: 1000;
+      max-width: calc(100% - 24px);
       background: rgba(255,255,255,0.95); color: #333; padding: 6px 12px; border-radius: 16px;
-      font-size: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.2); white-space: nowrap;
+      font-size: 12px; line-height: 1.3; text-align: center;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
     }
   </style>
 </head>
