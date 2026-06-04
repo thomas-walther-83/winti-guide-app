@@ -237,5 +237,9 @@
   "minutes_short": "Min",
   "view_cards": "Karten",
   "view_list": "Liste",
-  "scroll_to_top": "Nach oben"
+  "scroll_to_top": "Nach oben",
+  "ev_weekend": "Wochenende",
+  "ev_this_week": "Diese Woche",
+  "ev_all_dates": "Alle Termine",
+  "ev_no_in_range": "Keine Events im gewählten Zeitraum"
 }

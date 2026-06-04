@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useEvents } from '../hooks/useEvents';
 import { useAppTier } from '../hooks/useAppTier';
 import { EventCard } from '../components/EventCard';
+import { MonthCalendar } from '../components/MonthCalendar';
 import { useTranslation } from '../hooks/useTranslation';
 import { theme } from '../styles/theme';
 import type { EventCategory } from '../types';
@@ -44,6 +45,32 @@ function addDays(dateStr: string, days: number): string {
   return d.toISOString().split('T')[0];
 }
 
+const pad = (n: number) => String(n).padStart(2, '0');
+const fmtDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+function localToday(): string {
+  return fmtDate(new Date());
+}
+function upcomingWeekend(today: string): [string, string] {
+  const n = new Date(today + 'T00:00:00');
+  const toSat = (6 - n.getDay() + 7) % 7;
+  const sat = new Date(n); sat.setDate(n.getDate() + toSat);
+  const sun = new Date(sat); sun.setDate(sat.getDate() + 1);
+  return [fmtDate(sat), fmtDate(sun)];
+}
+function restOfWeek(today: string): [string, string] {
+  const n = new Date(today + 'T00:00:00');
+  const toSun = (7 - n.getDay()) % 7; // So = 0
+  const sun = new Date(n); sun.setDate(n.getDate() + toSun);
+  return [today, fmtDate(sun)];
+}
+function formatShort(dateStr: string): string {
+  try {
+    return new Date(dateStr + 'T00:00:00').toLocaleDateString('de-CH', { day: 'numeric', month: 'short' });
+  } catch {
+    return dateStr;
+  }
+}
+
 export function CalendarScreen({ onNavigateToAccount }: { onNavigateToAccount?: () => void }) {
   const [category, setCategory] = useState<EventCategory | 'all'>('all');
   const { isPremium } = useAppTier();
@@ -54,6 +81,12 @@ export function CalendarScreen({ onNavigateToAccount }: { onNavigateToAccount?: 
     from: getToday(),
   });
 
+  const today = useMemo(() => localToday(), []);
+  const [calY, setCalY] = useState(() => new Date().getFullYear());
+  const [calM, setCalM] = useState(() => new Date().getMonth());
+  const [rangeFrom, setRangeFrom] = useState<string | null>(null);
+  const [rangeTo, setRangeTo] = useState<string | null>(null);
+
   // Free tier: limit to next FREE_TIER_DAYS days
   const visibleEvents = useMemo(() => {
     if (isPremium) return events;
@@ -62,11 +95,19 @@ export function CalendarScreen({ onNavigateToAccount }: { onNavigateToAccount?: 
   }, [events, isPremium]);
 
   const hasHiddenEvents = !isPremium && events.length > visibleEvents.length;
+  const eventDates = useMemo(() => new Set(events.map((e) => e.event_date)), [events]);
+
+  // Auf gewählten Zeitraum (von–bis) einschränken.
+  const rangeEvents = useMemo(() => {
+    if (!rangeFrom) return visibleEvents;
+    const hi = rangeTo ?? rangeFrom;
+    return visibleEvents.filter((e) => e.event_date >= rangeFrom && e.event_date <= hi);
+  }, [visibleEvents, rangeFrom, rangeTo]);
 
   const groupedEvents = useMemo(() => {
-    const groups: { date: string; events: typeof visibleEvents }[] = [];
+    const groups: { date: string; events: typeof rangeEvents }[] = [];
     const seen = new Set<string>();
-    for (const event of visibleEvents) {
+    for (const event of rangeEvents) {
       if (!seen.has(event.event_date)) {
         seen.add(event.event_date);
         groups.push({ date: event.event_date, events: [event] });
@@ -76,15 +117,52 @@ export function CalendarScreen({ onNavigateToAccount }: { onNavigateToAccount?: 
       }
     }
     return groups;
-  }, [visibleEvents]);
+  }, [rangeEvents]);
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{t('calendar')}</Text>
-        <Text style={styles.subtitle}>{t('calendar_subtitle')}</Text>
-      </View>
+  const selectDay = (d: string) => {
+    if (!rangeFrom || (rangeFrom && rangeTo)) { setRangeFrom(d); setRangeTo(null); }
+    else if (d < rangeFrom) { setRangeFrom(d); }
+    else { setRangeTo(d); }
+  };
+  const applyQuick = (from: string, to: string) => {
+    setRangeFrom(from); setRangeTo(to);
+    const dt = new Date(from + 'T00:00:00');
+    setCalY(dt.getFullYear()); setCalM(dt.getMonth());
+  };
+  const clearRange = () => { setRangeFrom(null); setRangeTo(null); };
 
+  const isQuickActive = (from: string, to: string) => rangeFrom === from && rangeTo === to;
+
+  const rangeLabel = !rangeFrom
+    ? t('ev_all_dates')
+    : !rangeTo || rangeTo === rangeFrom
+      ? formatShort(rangeFrom)
+      : `${formatShort(rangeFrom)} – ${formatShort(rangeTo)}`;
+
+  const quickChips = (
+    <View style={styles.quickRow}>
+      {([
+        { label: t('today'), range: [today, today] as [string, string] },
+        { label: t('ev_weekend'), range: upcomingWeekend(today) },
+        { label: t('ev_this_week'), range: restOfWeek(today) },
+      ]).map((q) => {
+        const active = isQuickActive(q.range[0], q.range[1]);
+        return (
+          <TouchableOpacity
+            key={q.label}
+            style={[styles.quickChip, active && styles.quickChipActive]}
+            onPress={() => (active ? clearRange() : applyQuick(q.range[0], q.range[1]))}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.quickChipText, active && styles.quickChipTextActive]}>{q.label}</Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+
+  const listHeader = (
+    <View>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -100,18 +178,46 @@ export function CalendarScreen({ onNavigateToAccount }: { onNavigateToAccount?: 
               onPress={() => setCategory(cat.key)}
               activeOpacity={0.7}
             >
-              <Ionicons
-                name={cat.icon}
-                size={15}
-                color={isActive ? '#FFFFFF' : theme.colors.primary}
-              />
-              <Text style={[styles.chipLabel, isActive && styles.chipLabelActive]}>
-                {t(cat.labelKey)}
-              </Text>
+              <Ionicons name={cat.icon} size={15} color={isActive ? '#FFFFFF' : theme.colors.primary} />
+              <Text style={[styles.chipLabel, isActive && styles.chipLabelActive]}>{t(cat.labelKey)}</Text>
             </TouchableOpacity>
           );
         })}
       </ScrollView>
+
+      {quickChips}
+
+      <MonthCalendar
+        year={calY}
+        month={calM}
+        onPrev={() => (calM === 0 ? (setCalM(11), setCalY(calY - 1)) : setCalM(calM - 1))}
+        onNext={() => (calM === 11 ? (setCalM(0), setCalY(calY + 1)) : setCalM(calM + 1))}
+        eventDates={eventDates}
+        from={rangeFrom}
+        to={rangeTo}
+        today={today}
+        minDate={today}
+        onSelectDay={selectDay}
+      />
+
+      <View style={styles.rangeBar}>
+        <Ionicons name="calendar-outline" size={16} color={theme.colors.primary} />
+        <Text style={styles.rangeText}>{rangeLabel}</Text>
+        {rangeFrom && (
+          <TouchableOpacity onPress={clearRange} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="close-circle" size={18} color={theme.colors.textMuted} />
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>{t('calendar')}</Text>
+        <Text style={styles.subtitle}>{t('calendar_subtitle')}</Text>
+      </View>
 
       {loading && (
         <View style={styles.center}>
@@ -129,23 +235,16 @@ export function CalendarScreen({ onNavigateToAccount }: { onNavigateToAccount?: 
         </View>
       )}
 
-      {!loading && !error && visibleEvents.length === 0 && (
-        <View style={styles.center}>
-          <Text style={styles.emptyEmoji}>🎭</Text>
-          <Text style={styles.emptyText}>{t('no_events')}</Text>
-          <Text style={styles.emptyHint}>{t('check_back_soon')}</Text>
-        </View>
-      )}
-
-      {!loading && !error && visibleEvents.length > 0 && (
+      {!loading && !error && (
         <FlatList
           data={groupedEvents}
           keyExtractor={(item) => item.date}
+          ListHeaderComponent={listHeader}
           renderItem={({ item }) => (
             <View>
               <View style={styles.dateHeader}>
                 <Text style={styles.dateHeaderText}>
-                  {item.date === getToday() ? `🌟 ${t('today')}` : formatSectionDate(item.date)}
+                  {item.date === today ? `🌟 ${t('today')}` : formatSectionDate(item.date)}
                 </Text>
               </View>
               {item.events.map((event) => (
@@ -153,25 +252,26 @@ export function CalendarScreen({ onNavigateToAccount }: { onNavigateToAccount?: 
               ))}
             </View>
           )}
+          ListEmptyComponent={
+            <View style={styles.emptyBlock}>
+              <Text style={styles.emptyEmoji}>🎭</Text>
+              <Text style={styles.emptyText}>{rangeFrom ? t('ev_no_in_range') : t('no_events')}</Text>
+              <Text style={styles.emptyHint}>{t('check_back_soon')}</Text>
+            </View>
+          }
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           onRefresh={refresh}
           refreshing={loading}
           ListFooterComponent={
             hasHiddenEvents ? (
-              <TouchableOpacity
-                style={styles.premiumTeaser}
-                onPress={onNavigateToAccount}
-                activeOpacity={0.8}
-              >
+              <TouchableOpacity style={styles.premiumTeaser} onPress={onNavigateToAccount} activeOpacity={0.8}>
                 <Text style={styles.premiumTeaserIcon}>🔒</Text>
                 <View style={styles.premiumTeaserInfo}>
                   <Text style={styles.premiumTeaserTitle}>
                     {t('more_events_prefix')} {events.length - visibleEvents.length} {t('more_events_suffix')}
                   </Text>
-                  <Text style={styles.premiumTeaserSub}>
-                    {t('upgrade_full_calendar')}
-                  </Text>
+                  <Text style={styles.premiumTeaserSub}>{t('upgrade_full_calendar')}</Text>
                 </View>
                 <Text style={styles.premiumTeaserArrow}>→</Text>
               </TouchableOpacity>
@@ -225,6 +325,49 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
     gap: theme.spacing.sm,
+  },
+  quickRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingBottom: theme.spacing.sm,
+  },
+  quickChip: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 7,
+    borderRadius: theme.borderRadius.full,
+    backgroundColor: theme.colors.surfaceAlt,
+  },
+  quickChipActive: {
+    backgroundColor: theme.colors.primary,
+  },
+  quickChipText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+  },
+  quickChipTextActive: {
+    color: '#FFFFFF',
+  },
+  rangeBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.xs,
+  },
+  rangeText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  emptyBlock: {
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    paddingVertical: theme.spacing.xxl,
+    paddingHorizontal: theme.spacing.xl,
   },
   chip: {
     flexDirection: 'row',
