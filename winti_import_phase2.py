@@ -1688,17 +1688,20 @@ def deduplicate(events: list[dict]) -> list[dict]:
     return unique
 
 
-def enrich_event_images(events: list[dict], cap: int = 60) -> int:
+def enrich_event_images(events: list[dict], cap: int = 40, budget_s: int = 120) -> int:
     """
     Holt für Events OHNE Bild, aber MIT eigener Detailseiten-URL, das og:image
     der Detailseite nach (z. B. Musikkollegium-Konzerte verlinken pro Konzert
-    eine Seite mit eigenem Bild). Begrenzt auf `cap` zusätzliche Requests, damit
-    der Lauf nicht ausufert. Gibt die Anzahl neu gesetzter Bilder zurück.
+    eine Seite mit eigenem Bild). Begrenzt auf `cap` Requests UND ein
+    Zeitbudget `budget_s`, damit der Lauf bei vielen Events nicht ausufert
+    (langsame/abweisende Detailseiten würden sonst je 10 s Timeout kosten).
+    Gibt die Anzahl neu gesetzter Bilder zurück.
     """
     added = 0
     requests_made = 0
+    start = time.time()
     for ev in events:
-        if requests_made >= cap:
+        if requests_made >= cap or (time.time() - start) > budget_s:
             break
         if ev.get("image_url"):
             continue
@@ -1707,7 +1710,7 @@ def enrich_event_images(events: list[dict], cap: int = 60) -> int:
             continue
         requests_made += 1
         try:
-            res = requests.get(url, headers=HEADERS, timeout=10)
+            res = requests.get(url, headers=HEADERS, timeout=6)
             if res.status_code != 200:
                 continue
             soup = BeautifulSoup(res.text, "html.parser")
@@ -1715,7 +1718,7 @@ def enrich_event_images(events: list[dict], cap: int = 60) -> int:
             if img:
                 ev["image_url"] = img[:500]
                 added += 1
-            time.sleep(0.3)
+            time.sleep(0.2)
         except Exception:
             continue
     return added
