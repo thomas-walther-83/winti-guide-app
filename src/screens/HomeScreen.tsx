@@ -231,11 +231,18 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap, scrollTopSign
     return map;
   }, [nearby, coords, filteredListings]);
 
-  // Pick up to 6 featured listings (premium first, then others)
+  // Pick up to 6 featured listings: Admin-kuratierte zuerst (mit aktivem
+  // featured_until), dann Premium, dann der Rest (jeweils nach Interessen).
   const featuredListings = useMemo(() => {
-    const premium = prioritizeByInterest(listings.filter((l) => l.is_premium));
-    const others = prioritizeByInterest(listings.filter((l) => !l.is_premium));
-    return [...premium, ...others].slice(0, 6);
+    const now = Date.now();
+    const isAdminFeatured = (l: Listing) =>
+      l.is_featured === true &&
+      (!l.featured_until || new Date(l.featured_until).getTime() > now);
+    const adminFeatured = prioritizeByInterest(listings.filter(isAdminFeatured));
+    const rest = listings.filter((l) => !isAdminFeatured(l));
+    const premium = prioritizeByInterest(rest.filter((l) => l.is_premium));
+    const others = prioritizeByInterest(rest.filter((l) => !l.is_premium));
+    return [...adminFeatured, ...premium, ...others].slice(0, 6);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listings, interestSet]);
 
