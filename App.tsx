@@ -11,6 +11,7 @@ import { DetailModal } from './src/components/DetailModal';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { CalendarScreen } from './src/screens/CalendarScreen';
 import { MapScreen } from './src/screens/MapScreen';
+import { ToursScreen } from './src/screens/ToursScreen';
 import { SavedScreen } from './src/screens/SavedScreen';
 import { AccountScreen } from './src/screens/AccountScreen';
 import { PartnerPortalScreen } from './src/screens/PartnerPortalScreen';
@@ -20,13 +21,14 @@ import { useTranslation } from './src/hooks/useTranslation';
 import { theme } from './src/styles/theme';
 import type { Listing } from './src/types';
 
-type TabKey = 'home' | 'calendar' | 'map' | 'saved' | 'account' | 'partner';
+type TabKey = 'home' | 'calendar' | 'map' | 'touren' | 'saved' | 'account' | 'partner';
 
 // Basis-Definition der Tabs; das Label wird zur Laufzeit übersetzt (i18n).
 const TAB_DEFS = [
   { key: 'home',     emoji: '🏠', labelKey: 'home' },
   { key: 'calendar', emoji: '📅', labelKey: 'calendar' },
   { key: 'map',      emoji: '🗺️', labelKey: 'map' },
+  { key: 'touren',   emoji: '🧭', labelKey: 'tours_tab' },
   { key: 'saved',    emoji: '❤️', labelKey: 'saved' },
   { key: 'account',  emoji: '👤', labelKey: 'account' },
 ] as const;
@@ -75,6 +77,8 @@ function AppContent() {
         return <CalendarScreen onNavigateToAccount={navigateToAccount} />;
       case 'map':
         return <MapScreen focusListing={mapFocusListing} />;
+      case 'touren':
+        return <ToursScreen onNavigateToAccount={navigateToAccount} onNavigateToMap={navigateToMap} />;
       case 'saved':
         return <SavedScreen onNavigateToAccount={navigateToAccount} onNavigateToMap={navigateToMap} />;
       case 'account':

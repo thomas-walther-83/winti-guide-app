@@ -9,6 +9,7 @@ const TAB_ICONS: Record<string, { active: IoniconName; inactive: IoniconName }> 
   home: { active: 'compass', inactive: 'compass-outline' },
   calendar: { active: 'calendar', inactive: 'calendar-outline' },
   map: { active: 'map', inactive: 'map-outline' },
+  touren: { active: 'trail-sign', inactive: 'trail-sign-outline' },
   saved: { active: 'heart', inactive: 'heart-outline' },
 };
 

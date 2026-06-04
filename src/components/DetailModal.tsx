@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Modal,
   View,
@@ -16,6 +16,7 @@ import { useTranslation } from '../hooks/useTranslation';
 import { shareItem } from '../utils/share';
 import { openDirections, openInGoogleMaps, listingMapsQuery } from '../utils/maps';
 import { getListingVisual, getEventVisual } from '../config/categoryVisuals';
+import { AddToTourSheet } from './AddToTourSheet';
 import type { Listing, Event } from '../types';
 
 function openUrl(raw?: string) {
@@ -54,6 +55,7 @@ function ListingDetail({
 }) {
   const visual = getListingVisual(listing.category);
   const { t } = useTranslation();
+  const [addToTourOpen, setAddToTourOpen] = useState(false);
   return (
     <>
       <View style={[styles.hero, { backgroundColor: visual.bg }]}>
@@ -135,6 +137,16 @@ function ListingDetail({
           )}
         </View>
 
+        <TouchableOpacity
+          style={[styles.actionBtn, styles.actionOutline, styles.addTourBtn]}
+          onPress={() => setAddToTourOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel={t('add_to_tour')}
+        >
+          <Ionicons name="trail-sign-outline" size={16} color={theme.colors.primary} />
+          <Text style={styles.actionOutlineText}>{t('add_to_tour')}</Text>
+        </TouchableOpacity>
+
         {/* Navigation: Route + Google Maps (wenn Koordinaten oder Adresse vorhanden) */}
         {((listing.lat != null && listing.lon != null) || listing.address) && (
           <View style={styles.actions}>
@@ -163,6 +175,11 @@ function ListingDetail({
           </View>
         )}
       </ScrollView>
+      <AddToTourSheet
+        listing={listing}
+        visible={addToTourOpen}
+        onClose={() => setAddToTourOpen(false)}
+      />
     </>
   );
 }
@@ -429,5 +446,9 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
     fontSize: 14,
     fontWeight: '600',
+  },
+  addTourBtn: {
+    flex: 0,
+    marginTop: theme.spacing.sm,
   },
 });

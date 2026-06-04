@@ -139,6 +139,29 @@ export interface Listing {
   updated_at?: string;
 }
 
+// ── Eigene Touren (vom Nutzer erstellt) ──────────────────────────────────────
+
+export interface UserTour {
+  id: string;
+  user_id: string;
+  name: string;
+  description?: string;
+  created_at?: string;
+  updated_at?: string;
+  /** Anzahl Stops (berechnet beim Laden der Übersicht). */
+  stopCount?: number;
+}
+
+export interface TourStop {
+  id: string;
+  tour_id: string;
+  listing_id: string;
+  position: number;
+  note?: string;
+  /** Verknüpfter Ort (per Join geladen). */
+  listing?: Listing | null;
+}
+
 export interface Event {
   id: string;
   source?: string;
