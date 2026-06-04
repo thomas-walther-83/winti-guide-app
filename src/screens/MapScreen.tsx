@@ -76,6 +76,22 @@ function buildLeafletHTML(
     })
     .join('\n');
 
+  // Tourenlinien (GeoJSON) als Polyline zeichnen. Die fokussierte Tour wird
+  // hervorgehoben und ihre Bounds gemerkt, um die Karte darauf einzupassen.
+  const polylines = listings
+    .filter((l) => l.geometry && Array.isArray(l.geometry.coordinates) && l.geometry.coordinates.length > 0)
+    .map((l) => {
+      const color = CATEGORY_COLORS[l.category] ?? '#8B0000';
+      const isFocused = focusListing != null && focusListing.id === l.id;
+      const geomLiteral = JSON.stringify(l.geometry);
+      const popupLiteral = JSON.stringify(`<b>${htmlEscape(l.name)}</b>`);
+      const varDecl = isFocused ? 'var focusLine = ' : '';
+      return `${varDecl}L.geoJSON(${geomLiteral}, {
+        style: { color: '${color}', weight: ${isFocused ? 6 : 4}, opacity: ${isFocused ? 0.9 : 0.6} }
+      }).bindPopup(${popupLiteral}).addTo(map);`;
+    })
+    .join('\n');
+
   const hasUser =
     userCoords != null &&
     Number.isFinite(userCoords.lat) &&
@@ -93,11 +109,20 @@ function buildLeafletHTML(
       }).bindPopup('📍 Dein Standort').addTo(map);`
     : '';
 
-  const focusScript =
-    focusListing?.lat != null &&
-    focusListing?.lon != null &&
-    Number.isFinite(focusListing.lat) &&
-    Number.isFinite(focusListing.lon)
+  const focusHasGeom =
+    focusListing?.geometry != null &&
+    Array.isArray(focusListing.geometry.coordinates) &&
+    focusListing.geometry.coordinates.length > 0;
+
+  const focusScript = focusHasGeom
+    ? `if (typeof focusLine !== 'undefined') {
+        map.fitBounds(focusLine.getBounds(), { padding: [30, 30] });
+        focusLine.openPopup();
+      }`
+    : focusListing?.lat != null &&
+        focusListing?.lon != null &&
+        Number.isFinite(focusListing.lat) &&
+        Number.isFinite(focusListing.lon)
       ? `map.setView([${focusListing.lat}, ${focusListing.lon}], 17);
     if (typeof focusMarker !== 'undefined') { focusMarker.openPopup(); }`
       : hasUser
@@ -138,6 +163,7 @@ function buildLeafletHTML(
       maxZoom: 19
     }).addTo(map);
 
+    ${polylines}
     ${markers}
     ${userMarker}
     ${focusScript}

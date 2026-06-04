@@ -286,15 +286,21 @@ class Supabase:
 
 
 # ── OSM Overpass ─────────────────────────────────────────────────
-def osm_query(amenity_tags: list[str]) -> list:
-    """Holt POIs aus OpenStreetMap für Winterthur."""
+def osm_query(amenity_tags: list[str], want_geom: bool = False) -> list:
+    """Holt POIs aus OpenStreetMap für Winterthur.
+
+    want_geom=True liefert für (Routen-)Relationen die volle Linien-Geometrie
+    (`out geom`) statt nur des Mittelpunkts – nötig, um Touren als Linie zu zeichnen.
+    """
     tag_filters = "\n".join([f'  nwr[{t}]({OSM_BBOX});' for t in amenity_tags])
+    out_stmt = "out geom tags 500;" if want_geom else "out center tags 500;"
+    timeout = 60 if want_geom else 30
     query = f"""
-[out:json][timeout:30];
+[out:json][timeout:{timeout}];
 (
 {tag_filters}
 );
-out center tags 500;
+{out_stmt}
 """.strip()
 
     print(f"  → Overpass API abfragen ({len(amenity_tags)} Tags)…")
@@ -347,6 +353,27 @@ def osm_to_listing(el: dict, category: str) -> dict:
     lat = el.get("lat") or (el.get("center") or {}).get("lat")
     lon = el.get("lon") or (el.get("center") or {}).get("lon")
 
+    # Routen-Geometrie (Touren): aus den Way-Mitgliedern einer Relation eine
+    # GeoJSON-MultiLineString bauen (Koordinaten in [lon, lat]). Der Mittelpunkt
+    # wird aus den Bounds berechnet, falls kein center vorhanden ist.
+    geometry = None
+    members = el.get("members")
+    if members:
+        lines = []
+        for m in members:
+            geom = m.get("geometry")
+            if m.get("type") == "way" and geom:
+                coords = [[p["lon"], p["lat"]] for p in geom
+                          if p.get("lon") is not None and p.get("lat") is not None]
+                if len(coords) >= 2:
+                    lines.append(coords)
+        if lines:
+            geometry = {"type": "MultiLineString", "coordinates": lines}
+    bounds = el.get("bounds")
+    if (lat is None or lon is None) and bounds:
+        lat = (bounds["minlat"] + bounds["maxlat"]) / 2
+        lon = (bounds["minlon"] + bounds["maxlon"]) / 2
+
     # Bild aus OSM-Tags (ohne Extra-Request):
     #  - image: direkte Bild-URL
     #  - wikimedia_commons: "File:Name.jpg" → direkte Bild-URL via Special:FilePath
@@ -375,6 +402,7 @@ def osm_to_listing(el: dict, category: str) -> dict:
         "description": tags.get("description") or tags.get("description:de") or "",
         "lat":        lat,
         "lon":        lon,
+        "geometry":   geometry,
         "image_url":  image_url[:500],
         "is_active":  True,
         "is_premium": False,
@@ -609,7 +637,8 @@ def run():
 
     for category, tags in OSM_QUERIES.items():
         print(f"\n📂 Kategorie: {category}")
-        elements = osm_query(tags)
+        # Touren sind Routen-Relationen → volle Linien-Geometrie holen.
+        elements = osm_query(tags, want_geom=(category == "touren"))
         time.sleep(2)  # Rate limiting
 
         listings = []

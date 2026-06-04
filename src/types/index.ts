@@ -108,6 +108,12 @@ export interface PartnerPlan {
 
 // ── Listing ──────────────────────────────────────────────────────────────────
 
+/** Minimale GeoJSON-Geometrie für Tourenlinien (Koordinaten in [lon, lat]). */
+export interface GeoJsonGeometry {
+  type: 'LineString' | 'MultiLineString';
+  coordinates: number[][] | number[][][];
+}
+
 export interface Listing {
   id: string;
   source?: string;
@@ -124,6 +130,8 @@ export interface Listing {
   description?: string;
   lat?: number | null;
   lon?: number | null;
+  /** Linien-Geometrie einer Tour als GeoJSON (MultiLineString, [lon, lat]). */
+  geometry?: GeoJsonGeometry | null;
   partner_id?: string | null;
   is_premium?: boolean;
   is_active?: boolean;
