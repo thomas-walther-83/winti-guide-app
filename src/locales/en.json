@@ -231,5 +231,8 @@
   "tours_pick": "Which tour?",
   "tours_added": "Added to tour",
   "tours_stop_limit": "Stop limit reached. Upgrade for more.",
-  "tours_create_first": "Create a tour first"
+  "tours_create_first": "Create a tour first",
+  "close": "Close",
+  "tour_drag_hint": "Drag the line to adjust the route",
+  "minutes_short": "min"
 }

@@ -10,7 +10,7 @@ import { LanguageProvider } from './src/context/LanguageContext';
 import { DetailModal } from './src/components/DetailModal';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { CalendarScreen } from './src/screens/CalendarScreen';
-import { MapScreen } from './src/screens/MapScreen';
+import { MapScreen, type MapTour } from './src/screens/MapScreen';
 import { ToursScreen } from './src/screens/ToursScreen';
 import { SavedScreen } from './src/screens/SavedScreen';
 import { AccountScreen } from './src/screens/AccountScreen';
@@ -37,6 +37,7 @@ function AppContent() {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [mapFocusListing, setMapFocusListing] = useState<Listing | null>(null);
+  const [mapTour, setMapTour] = useState<MapTour | null>(null);
   // null = noch nicht geladen; true/false = Onboarding zeigen?
   const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
 
@@ -49,16 +50,24 @@ function AppContent() {
   const navigateToAccount = () => setActiveTab('account');
 
   const navigateToMap = (listing: Listing) => {
+    setMapTour(null);
     setMapFocusListing(listing);
     setActiveTab('map');
   };
 
+  const navigateToMapWithTour = (tour: MapTour) => {
+    setMapFocusListing(null);
+    setMapTour(tour);
+    setActiveTab('map');
+  };
+
   const handleTabPress = (key: string) => {
-    // When the user manually taps the map tab, clear any stale focus from a
-    // previous "jump to map" action. navigateToMap sets the focus immediately
-    // after, so clearing here never removes an intentional focus.
+    // When the user manually taps the map tab, clear any stale focus/tour from a
+    // previous "jump to map" action. navigateToMap* set them immediately after,
+    // so clearing here never removes an intentional focus.
     if (key === 'map') {
       setMapFocusListing(null);
+      setMapTour(null);
     }
     setActiveTab(key as TabKey);
   };
@@ -76,9 +85,15 @@ function AppContent() {
       case 'calendar':
         return <CalendarScreen onNavigateToAccount={navigateToAccount} />;
       case 'map':
-        return <MapScreen focusListing={mapFocusListing} />;
+        return <MapScreen focusListing={mapFocusListing} focusTour={mapTour} />;
       case 'touren':
-        return <ToursScreen onNavigateToAccount={navigateToAccount} onNavigateToMap={navigateToMap} />;
+        return (
+          <ToursScreen
+            onNavigateToAccount={navigateToAccount}
+            onNavigateToMap={navigateToMap}
+            onShowTour={navigateToMapWithTour}
+          />
+        );
       case 'saved':
         return <SavedScreen onNavigateToAccount={navigateToAccount} onNavigateToMap={navigateToMap} />;
       case 'account':

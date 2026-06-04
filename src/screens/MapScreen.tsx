@@ -223,7 +223,118 @@ function buildLeafletHTML(
 </html>`;
 }
 
-export function MapScreen({ focusListing }: { focusListing?: Listing | null }) {
+export interface MapTour {
+  name: string;
+  stops: { lat: number; lon: number; name: string }[];
+}
+
+// Karte im Tour-Modus: Route entlang Straßen (OSRM via Leaflet Routing Machine),
+// per Drag anpassbar, mit Distanz/Gehzeit-Overlay und nummerierten Stops.
+function buildTourHTML(
+  tour: MapTour,
+  userCoords: LatLon | null | undefined,
+  labels: { karte: string; luftbild: string; dragHint: string; min: string },
+): string {
+  const stops = tour.stops.filter(
+    (s) => Number.isFinite(s.lat) && Number.isFinite(s.lon),
+  );
+  const waypoints = stops.map((s) => `L.latLng(${s.lat}, ${s.lon})`).join(', ');
+  const stopNames = JSON.stringify(stops.map((s) => s.name));
+
+  const hasUser =
+    userCoords != null &&
+    Number.isFinite(userCoords.lat) &&
+    Number.isFinite(userCoords.lon);
+  const userMarker = hasUser
+    ? `L.circle([${userCoords!.lat}, ${userCoords!.lon}], { radius: 60, fillColor: '#007AFF', color: '#007AFF', weight: 1, opacity: 0.4, fillOpacity: 0.12 }).addTo(map);
+       L.circleMarker([${userCoords!.lat}, ${userCoords!.lon}], { radius: 7, fillColor: '#007AFF', color: '#FFFFFF', weight: 3, opacity: 1, fillOpacity: 1 }).addTo(map);`
+    : '';
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; width: 100%; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+    #map { height: 100%; width: 100%; }
+    .leaflet-routing-container { display: none; }
+    #info {
+      position: absolute; left: 50%; transform: translateX(-50%); bottom: 16px; z-index: 1000;
+      background: rgba(26,26,26,0.92); color: #fff; padding: 8px 16px; border-radius: 20px;
+      font-size: 14px; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,0.3); white-space: nowrap;
+    }
+    #hint {
+      position: absolute; left: 50%; transform: translateX(-50%); top: 12px; z-index: 1000;
+      background: rgba(255,255,255,0.95); color: #333; padding: 6px 12px; border-radius: 16px;
+      font-size: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.2); white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="hint">${labels.dragHint}</div>
+  <div id="info">…</div>
+  <script>
+    var stopNames = ${stopNames};
+    var minLabel = ${JSON.stringify(labels.min)};
+    var map = L.map('map', { zoomControl: true }).setView([${WINTERTHUR_LAT}, ${WINTERTHUR_LON}], 14);
+
+    var swissKarte = L.tileLayer('https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-farbe/default/current/3857/{z}/{x}/{y}.jpeg', { attribution: '© swisstopo', maxZoom: 19 });
+    var swissLuftbild = L.tileLayer('https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage/default/current/3857/{z}/{x}/{y}.jpeg', { attribution: '© swisstopo', maxZoom: 19 });
+    swissKarte.addTo(map);
+    L.control.layers({ ${JSON.stringify(labels.karte)}: swissKarte, ${JSON.stringify(labels.luftbild)}: swissLuftbild }, null, { position: 'topright', collapsed: true }).addTo(map);
+
+    ${userMarker}
+
+    var control = L.Routing.control({
+      waypoints: [${waypoints}],
+      router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1', profile: 'driving' }),
+      routeWhileDragging: true,
+      addWaypoints: true,
+      draggableWaypoints: true,
+      fitSelectedRoutes: true,
+      show: false,
+      lineOptions: { addWaypoints: true, styles: [ { color: '#FFFFFF', weight: 9, opacity: 0.9 }, { color: '#FF6D00', weight: 6, opacity: 1 } ] },
+      createMarker: function(i, wp, n) {
+        var label = (i + 1);
+        return L.marker(wp.latLng, {
+          draggable: true,
+          icon: L.divIcon({
+            className: '',
+            html: '<div style="background:#FF6D00;color:#fff;border:2px solid #fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;box-shadow:0 1px 4px rgba(0,0,0,0.45)">' + label + '</div>',
+            iconSize: [26, 26], iconAnchor: [13, 13]
+          })
+        }).bindPopup(stopNames[i] ? ('<b>' + label + '. ' + stopNames[i] + '</b>') : ('Wegpunkt ' + label));
+      }
+    }).addTo(map);
+
+    control.on('routesfound', function(e) {
+      var s = e.routes[0].summary;
+      var km = (s.totalDistance / 1000).toFixed(1);
+      var min = Math.round((s.totalDistance / 1000) / 5 * 60); // Gehzeit ~5 km/h
+      document.getElementById('info').innerHTML = km + ' km · ' + min + ' ' + minLabel;
+    });
+    control.on('routingerror', function() {
+      document.getElementById('info').innerHTML = '⚠︎';
+    });
+  </script>
+</body>
+</html>`;
+}
+
+export function MapScreen({
+  focusListing,
+  focusTour,
+}: {
+  focusListing?: Listing | null;
+  focusTour?: MapTour | null;
+}) {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -233,6 +344,13 @@ export function MapScreen({ focusListing }: { focusListing?: Listing | null }) {
   const { coords: userCoords, status: locStatus, request: requestLocation } = useLocation();
   const { open } = useDetail();
   const { savedIds, toggle } = useFavorites();
+
+  // Tour-Modus (aus „Meine Touren" → Auf Karte zeigen). Synchron zum Prop,
+  // lokal schließbar über das X im Tour-Header.
+  const [activeTour, setActiveTour] = useState<MapTour | null>(focusTour ?? null);
+  useEffect(() => {
+    setActiveTour(focusTour ?? null);
+  }, [focusTour]);
 
   // Popup-Tap aus der Karte → nativen Detail-Dialog öffnen (wie in Entdecken).
   const handleSelectFromMap = useCallback(
@@ -282,25 +400,53 @@ export function MapScreen({ focusListing }: { focusListing?: Listing | null }) {
     return result;
   })();
 
-  const html = buildLeafletHTML(filteredListings, focusListing, userCoords, {
-    karte: t('map_layer_map'),
-    luftbild: t('map_layer_aerial'),
-  });
+  const inTourMode = activeTour != null && activeTour.stops.length >= 2;
+
+  const html = inTourMode
+    ? buildTourHTML(activeTour!, userCoords, {
+        karte: t('map_layer_map'),
+        luftbild: t('map_layer_aerial'),
+        dragHint: t('tour_drag_hint'),
+        min: t('minutes_short'),
+      })
+    : buildLeafletHTML(filteredListings, focusListing, userCoords, {
+        karte: t('map_layer_map'),
+        luftbild: t('map_layer_aerial'),
+      });
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{t('map')}</Text>
-        <Text style={styles.subtitle}>
-          {filteredListings.length > 0
-            ? `${filteredListings.length} ${t('places_in_winterthur_suffix')}`
-            : t('winterthur')}
-        </Text>
-      </View>
+      {inTourMode ? (
+        <View style={styles.tourHeader}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.title} numberOfLines={1}>{activeTour!.name}</Text>
+            <Text style={styles.subtitle}>
+              {activeTour!.stops.length} {t('tours_stops_label')}
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => setActiveTour(null)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel={t('close')}
+          >
+            <Ionicons name="close-circle" size={28} color={theme.colors.textMuted} />
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={styles.header}>
+          <Text style={styles.title}>{t('map')}</Text>
+          <Text style={styles.subtitle}>
+            {filteredListings.length > 0
+              ? `${filteredListings.length} ${t('places_in_winterthur_suffix')}`
+              : t('winterthur')}
+          </Text>
+        </View>
+      )}
 
-      <CategoryFilter selected={selectedCategory} onSelect={setSelectedCategory} />
+      {!inTourMode && <CategoryFilter selected={selectedCategory} onSelect={setSelectedCategory} />}
 
-      {selectedCategory !== 'all' && (
+      {!inTourMode && selectedCategory !== 'all' && (
         <SubCategoryFilter
           category={selectedCategory}
           selected={selectedSubType}
@@ -364,6 +510,15 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   header: {
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.sm,
+    backgroundColor: theme.colors.background,
+  },
+  tourHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.md,
     paddingBottom: theme.spacing.sm,

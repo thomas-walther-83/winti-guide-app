@@ -29,13 +29,15 @@ import {
   reorderStops,
 } from '../services/toursService';
 import type { UserTour, TourStop, Listing } from '../types';
+import type { MapTour } from './MapScreen';
 
 interface Props {
   onNavigateToAccount?: () => void;
   onNavigateToMap?: (listing: Listing) => void;
+  onShowTour?: (tour: MapTour) => void;
 }
 
-export function ToursScreen({ onNavigateToAccount }: Props) {
+export function ToursScreen({ onNavigateToAccount, onShowTour }: Props) {
   const { user } = useAuth();
   const { isPremium } = useAppTier();
   const { t } = useTranslation();
@@ -140,6 +142,7 @@ export function ToursScreen({ onNavigateToAccount }: Props) {
         onRename={() => setPrompt({ mode: 'rename', value: openTour.name })}
         onDelete={() => handleDeleteTour(openTour)}
         onOpenListing={(l) => open({ kind: 'listing', listing: l })}
+        onShowTour={onShowTour}
         promptNode={renderPrompt()}
       />
     );
@@ -259,6 +262,7 @@ function TourDetail({
   onRename,
   onDelete,
   onOpenListing,
+  onShowTour,
   promptNode,
 }: {
   tour: UserTour;
@@ -267,6 +271,7 @@ function TourDetail({
   onRename: () => void;
   onDelete: () => void;
   onOpenListing: (l: Listing) => void;
+  onShowTour?: (tour: MapTour) => void;
   promptNode: React.ReactNode;
 }) {
   const { t } = useTranslation();
@@ -300,6 +305,14 @@ function TourDetail({
     await removeStop(stop.id);
   };
 
+  const mapStops = stops
+    .filter((s) => s.listing?.lat != null && s.listing?.lon != null)
+    .map((s) => ({
+      lat: s.listing!.lat as number,
+      lon: s.listing!.lon as number,
+      name: s.listing!.name,
+    }));
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.detailHeader}>
@@ -314,6 +327,17 @@ function TourDetail({
           <Ionicons name="trash-outline" size={20} color={theme.colors.textMuted} />
         </TouchableOpacity>
       </View>
+
+      {mapStops.length >= 2 && onShowTour && (
+        <TouchableOpacity
+          style={styles.createBtn}
+          onPress={() => onShowTour({ name: tour.name, stops: mapStops })}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="map" size={18} color="#FFFFFF" />
+          <Text style={styles.createBtnText}>{t('show_on_map')}</Text>
+        </TouchableOpacity>
+      )}
 
       {loading ? (
         <View style={styles.center}>

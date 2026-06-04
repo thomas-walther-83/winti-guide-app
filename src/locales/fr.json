@@ -231,5 +231,8 @@
   "tours_pick": "Quel tour ?",
   "tours_added": "Ajouté au tour",
   "tours_stop_limit": "Limite d'étapes atteinte.",
-  "tours_create_first": "Créez d'abord un tour"
+  "tours_create_first": "Créez d'abord un tour",
+  "close": "Fermer",
+  "tour_drag_hint": "Faites glisser la ligne pour ajuster l'itinéraire",
+  "minutes_short": "min"
 }
