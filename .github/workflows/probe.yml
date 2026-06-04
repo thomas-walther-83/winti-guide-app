@@ -22,3 +22,8 @@ jobs:
         run: pip install requests beautifulsoup4
       - name: Run probe
         run: python3 probe_sources.py
+      - name: Run DB probe (tour geometry)
+        env:
+          SUPABASE_URL: https://dphhqwisluirihmahyee.supabase.co
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python3 probe_db.py

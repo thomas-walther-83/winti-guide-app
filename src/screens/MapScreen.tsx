@@ -14,7 +14,7 @@ import { SubCategoryFilter } from '../components/SubCategoryFilter';
 import { fetchListingsWithCoords } from '../services/supabaseService';
 import { getErrorMessage } from '../utils/errors';
 import { matchesSubType } from '../config/subcategories';
-import { googleMapsSearchUrl } from '../utils/maps';
+import { googleMapsSearchUrl, listingMapsQuery } from '../utils/maps';
 import { useTranslation } from '../hooks/useTranslation';
 import { useLocation } from '../hooks/useLocation';
 import { theme } from '../styles/theme';
@@ -63,9 +63,9 @@ function buildLeafletHTML(
     )
     .map((l) => {
       const color = CATEGORY_COLORS[l.category] ?? '#8B0000';
-      const gmUrl = googleMapsSearchUrl(l.lat, l.lon, `${l.name} ${l.address ?? ''}`.trim());
+      const gmUrl = googleMapsSearchUrl(null, null, listingMapsQuery(l.name, l.address));
       const gmLink = gmUrl
-        ? `<br><a href="${gmUrl}" target="_blank" rel="noopener" style="color:#1a73e8;font-weight:600;text-decoration:none">↗ Google Maps</a>`
+        ? `<br><a href="${gmUrl}" target="_blank" rel="noopener" onclick="return openExt(this.href)" style="color:#1a73e8;font-weight:600;text-decoration:none">↗ Google Maps</a>`
         : '';
       const popupHtml = `<b>${htmlEscape(l.name)}</b><br>${htmlEscape(l.address ?? '')}${gmLink}`;
       const popupLiteral = JSON.stringify(popupHtml);
@@ -159,6 +159,16 @@ function buildLeafletHTML(
 <body>
   <div id="map"></div>
   <script>
+    // Externe Links (Google Maps) zuverlässig öffnen: in der App via RN-Bridge,
+    // im Web normal über target="_blank".
+    function openExt(u) {
+      if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+        window.ReactNativeWebView.postMessage(u);
+        return false;
+      }
+      return true;
+    }
+
     var map = L.map('map', {
       zoomControl: true,
       attributionControl: true

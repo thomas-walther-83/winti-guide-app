@@ -1,16 +1,27 @@
 import { Linking } from 'react-native';
 
-/** Baut die Google-Maps-Such-URL (Ort öffnen) aus Koordinaten oder Suchbegriff. */
+/**
+ * Baut einen Google-Maps-Suchbegriff für ein Listing. Name + Adresse + Stadt,
+ * damit Google den tatsächlichen Ort (nicht nur Koordinaten) anzeigt.
+ */
+export function listingMapsQuery(name?: string, address?: string): string {
+  return [name, address, 'Winterthur'].map((s) => (s ?? '').trim()).filter(Boolean).join(', ');
+}
+
+/**
+ * Baut die Google-Maps-Such-URL (Ort öffnen). Bevorzugt den Namen/Adresse,
+ * damit der echte Ort angezeigt wird; Koordinaten nur als Rückfall.
+ */
 export function googleMapsSearchUrl(
   lat?: number | null,
   lon?: number | null,
   query?: string,
 ): string | null {
   let q = '';
-  if (lat != null && lon != null && Number.isFinite(lat) && Number.isFinite(lon)) {
+  if (query && query.trim()) {
+    q = encodeURIComponent(query.trim());
+  } else if (lat != null && lon != null && Number.isFinite(lat) && Number.isFinite(lon)) {
     q = `${lat},${lon}`;
-  } else if (query) {
-    q = encodeURIComponent(query);
   }
   return q ? `https://www.google.com/maps/search/?api=1&query=${q}` : null;
 }

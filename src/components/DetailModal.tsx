@@ -14,7 +14,7 @@ import { theme } from '../styles/theme';
 import { useDetail } from '../context/DetailContext';
 import { useTranslation } from '../hooks/useTranslation';
 import { shareItem } from '../utils/share';
-import { openDirections, openInGoogleMaps } from '../utils/maps';
+import { openDirections, openInGoogleMaps, listingMapsQuery } from '../utils/maps';
 import { getListingVisual, getEventVisual } from '../config/categoryVisuals';
 import type { Listing, Event } from '../types';
 
@@ -152,7 +152,7 @@ function ListingDetail({
             <TouchableOpacity
               style={[styles.actionBtn, styles.actionGhost]}
               onPress={() =>
-                openInGoogleMaps(listing.lat, listing.lon, `${listing.name} ${listing.address ?? ''}`.trim())
+                openInGoogleMaps(null, null, listingMapsQuery(listing.name, listing.address))
               }
               accessibilityRole="button"
               accessibilityLabel={`${listing.name} in Google Maps öffnen`}

@@ -12,7 +12,7 @@ import { theme } from '../styles/theme';
 import { useDetail } from '../context/DetailContext';
 import { useTranslation } from '../hooks/useTranslation';
 import { formatDistance } from '../utils/distance';
-import { openInGoogleMaps } from '../utils/maps';
+import { openInGoogleMaps, listingMapsQuery } from '../utils/maps';
 import { getListingVisual } from '../config/categoryVisuals';
 import type { Listing } from '../types';
 
@@ -48,7 +48,7 @@ export function ListingCard({ listing, isSaved, onToggleSave, onShowOnMap, dista
   };
 
   const handleGoogleMaps = () =>
-    openInGoogleMaps(listing.lat, listing.lon, `${listing.name} ${listing.address ?? ''}`.trim());
+    openInGoogleMaps(null, null, listingMapsQuery(listing.name, listing.address));
 
   return (
     <TouchableOpacity

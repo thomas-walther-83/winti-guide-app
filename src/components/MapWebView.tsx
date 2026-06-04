@@ -26,8 +26,13 @@ export function MapWebView({ html, loading, onError }: Props) {
         </View>
       )}
       onError={onError}
-      // Nur Google-Maps-Links (aus einem Popup) extern öffnen; alle anderen
-      // Anfragen (Leaflet-CDN, swisstopo-Kacheln, initiales HTML) normal laden.
+      // Popup-Link schickt die URL per RN-Bridge → hier extern öffnen.
+      onMessage={(e) => {
+        const url = e.nativeEvent.data;
+        if (/^https?:/.test(url)) Linking.openURL(url).catch(() => undefined);
+      }}
+      // Fallback: falls doch eine Navigation zu Google Maps ausgelöst wird,
+      // extern öffnen statt die Karte zu ersetzen. Andere Requests normal laden.
       setSupportMultipleWindows={false}
       onShouldStartLoadWithRequest={(req) => {
         if (/google\.[^/]+\/maps/.test(req.url)) {
