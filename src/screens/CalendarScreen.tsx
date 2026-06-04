@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   FlatList,
@@ -9,10 +9,12 @@ import {
   ScrollView,
   SafeAreaView,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useEvents } from '../hooks/useEvents';
 import { useAppTier } from '../hooks/useAppTier';
 import { EventCard } from '../components/EventCard';
+import { EventRow } from '../components/EventRow';
 import { MonthCalendar } from '../components/MonthCalendar';
 import { ScrollTopButton } from '../components/ScrollTopButton';
 import { useTranslation } from '../hooks/useTranslation';
@@ -93,6 +95,18 @@ export function CalendarScreen({ onNavigateToAccount }: { onNavigateToAccount?: 
 
   const listRef = useRef<FlatList>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+
+  // Event-Ansicht: grosse Karten oder kompakte Liste (persistiert).
+  const [eventView, setEventView] = useState<'cards' | 'compact'>('cards');
+  useEffect(() => {
+    AsyncStorage.getItem('winti_event_view').then((v) => {
+      if (v === 'cards' || v === 'compact') setEventView(v);
+    });
+  }, []);
+  const switchEventView = (v: 'cards' | 'compact') => {
+    setEventView(v);
+    AsyncStorage.setItem('winti_event_view', v).catch(() => undefined);
+  };
 
   // Free tier: limit to next FREE_TIER_DAYS days
   const visibleEvents = useMemo(() => {
@@ -215,6 +229,26 @@ export function CalendarScreen({ onNavigateToAccount }: { onNavigateToAccount?: 
             <Ionicons name="close-circle" size={18} color={theme.colors.textMuted} />
           </TouchableOpacity>
         )}
+        <View style={styles.viewToggle}>
+          <TouchableOpacity
+            style={[styles.viewBtn, eventView === 'cards' && styles.viewBtnActive]}
+            onPress={() => switchEventView('cards')}
+            accessibilityRole="button"
+            accessibilityLabel={t('view_cards')}
+            accessibilityState={{ selected: eventView === 'cards' }}
+          >
+            <Ionicons name="image" size={15} color={eventView === 'cards' ? '#FFFFFF' : theme.colors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.viewBtn, eventView === 'compact' && styles.viewBtnActive]}
+            onPress={() => switchEventView('compact')}
+            accessibilityRole="button"
+            accessibilityLabel={t('view_list')}
+            accessibilityState={{ selected: eventView === 'compact' }}
+          >
+            <Ionicons name="list" size={17} color={eventView === 'compact' ? '#FFFFFF' : theme.colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -248,6 +282,7 @@ export function CalendarScreen({ onNavigateToAccount }: { onNavigateToAccount?: 
           data={groupedEvents}
           keyExtractor={(item) => item.date}
           ListHeaderComponent={listHeader}
+          extraData={eventView}
           scrollEventThrottle={16}
           onScroll={(e) => {
             const y = e.nativeEvent.contentOffset.y;
@@ -260,9 +295,11 @@ export function CalendarScreen({ onNavigateToAccount }: { onNavigateToAccount?: 
                   {item.date === today ? `🌟 ${t('today')}` : formatSectionDate(item.date)}
                 </Text>
               </View>
-              {item.events.map((event) => (
-                <EventCard key={event.id} event={event} />
-              ))}
+              {item.events.map((event) =>
+                eventView === 'compact'
+                  ? <EventRow key={event.id} event={event} />
+                  : <EventCard key={event.id} event={event} />,
+              )}
             </View>
           )}
           ListEmptyComponent={
@@ -380,6 +417,23 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: theme.colors.text,
+  },
+  viewToggle: {
+    flexDirection: 'row',
+    gap: 3,
+    backgroundColor: theme.colors.surfaceAlt,
+    borderRadius: theme.borderRadius.full,
+    padding: 3,
+  },
+  viewBtn: {
+    width: 34,
+    height: 28,
+    borderRadius: theme.borderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  viewBtnActive: {
+    backgroundColor: theme.colors.primary,
   },
   emptyBlock: {
     alignItems: 'center',
