@@ -7,9 +7,11 @@ interface Props {
   html: string;
   loading?: boolean;
   onError?: WebViewProps['onError'];
+  /** Wird mit der Listing-ID aufgerufen, wenn ein Popup angetippt wird. */
+  onSelectListing?: (id: string) => void;
 }
 
-export function MapWebView({ html, loading, onError }: Props) {
+export function MapWebView({ html, loading, onError, onSelectListing }: Props) {
   return (
     <WebView
       style={styles.webview}
@@ -26,20 +28,19 @@ export function MapWebView({ html, loading, onError }: Props) {
         </View>
       )}
       onError={onError}
-      // Popup-Link schickt die URL per RN-Bridge → hier extern öffnen.
+      // Popup-Tap → {type:'detail', id} aus der Karte; öffnet nativ den Detail-Dialog.
       onMessage={(e) => {
-        const url = e.nativeEvent.data;
-        if (/^https?:/.test(url)) Linking.openURL(url).catch(() => undefined);
-      }}
-      // Fallback: falls doch eine Navigation zu Google Maps ausgelöst wird,
-      // extern öffnen statt die Karte zu ersetzen. Andere Requests normal laden.
-      setSupportMultipleWindows={false}
-      onShouldStartLoadWithRequest={(req) => {
-        if (/google\.[^/]+\/maps/.test(req.url)) {
-          Linking.openURL(req.url).catch(() => undefined);
-          return false;
+        const raw = e.nativeEvent.data;
+        try {
+          const msg = JSON.parse(raw);
+          if (msg && msg.type === 'detail' && msg.id) {
+            onSelectListing?.(String(msg.id));
+            return;
+          }
+        } catch {
+          // Kein JSON → evtl. eine URL: extern öffnen.
+          if (/^https?:/.test(raw)) Linking.openURL(raw).catch(() => undefined);
         }
-        return true;
       }}
       allowsInlineMediaPlayback
       mediaPlaybackRequiresUserAction={false}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,8 @@ import { SubCategoryFilter } from '../components/SubCategoryFilter';
 import { fetchListingsWithCoords } from '../services/supabaseService';
 import { getErrorMessage } from '../utils/errors';
 import { matchesSubType } from '../config/subcategories';
-import { googleMapsSearchUrl, listingMapsQuery } from '../utils/maps';
+import { useDetail } from '../context/DetailContext';
+import { useFavorites } from '../hooks/useFavorites';
 import { useTranslation } from '../hooks/useTranslation';
 import { useLocation } from '../hooks/useLocation';
 import { theme } from '../styles/theme';
@@ -47,6 +48,18 @@ function htmlEscape(str: string): string {
     .replace(/'/g, '&#39;');
 }
 
+/** Tappbarer Popup-Inhalt: Name + Adresse + „Details ›". Beim Tippen wird per
+ *  RN-Bridge die Listing-ID gesendet, damit nativ der Detail-Dialog öffnet. */
+function detailPopup(l: Listing): string {
+  const name = htmlEscape(l.name);
+  const addr = htmlEscape(l.address ?? '');
+  return (
+    `<div onclick="sel('${l.id}')" style="cursor:pointer;min-width:150px">` +
+    `<b>${name}</b>${addr ? '<br><span style="color:#555">' + addr + '</span>' : ''}` +
+    `<div style="margin-top:6px;color:#8B0000;font-weight:700">Details ›</div></div>`
+  );
+}
+
 function buildLeafletHTML(
   listings: Listing[],
   focusListing: Listing | null | undefined,
@@ -63,12 +76,7 @@ function buildLeafletHTML(
     )
     .map((l) => {
       const color = CATEGORY_COLORS[l.category] ?? '#8B0000';
-      const gmUrl = googleMapsSearchUrl(null, null, listingMapsQuery(l.name, l.address));
-      const gmLink = gmUrl
-        ? `<br><a href="${gmUrl}" target="_blank" rel="noopener" onclick="return openExt(this.href)" style="color:#1a73e8;font-weight:600;text-decoration:none">↗ Google Maps</a>`
-        : '';
-      const popupHtml = `<b>${htmlEscape(l.name)}</b><br>${htmlEscape(l.address ?? '')}${gmLink}`;
-      const popupLiteral = JSON.stringify(popupHtml);
+      const popupLiteral = JSON.stringify(detailPopup(l));
       const isFocused = focusListing != null && focusListing.id === l.id;
       const varDecl = isFocused ? 'var focusMarker = ' : '';
       return `${varDecl}L.circleMarker([${l.lat}, ${l.lon}], {
@@ -82,18 +90,22 @@ function buildLeafletHTML(
     })
     .join('\n');
 
-  // Tourenlinien (GeoJSON) als Polyline zeichnen. Die fokussierte Tour wird
-  // hervorgehoben und ihre Bounds gemerkt, um die Karte darauf einzupassen.
+  // Tourenlinien (GeoJSON): kräftige Farbe mit weißer Kontur (Casing), damit sie
+  // auf Karte UND Luftbild gut sichtbar sind. Die fokussierte Tour wird dicker,
+  // in Signalfarbe und in den Vordergrund gebracht; ihre Bounds für fitBounds gemerkt.
   const polylines = listings
     .filter((l) => l.geometry && Array.isArray(l.geometry.coordinates) && l.geometry.coordinates.length > 0)
     .map((l) => {
-      const color = CATEGORY_COLORS[l.category] ?? '#8B0000';
       const isFocused = focusListing != null && focusListing.id === l.id;
       const geomLiteral = JSON.stringify(l.geometry);
-      const popupLiteral = JSON.stringify(`<b>${htmlEscape(l.name)}</b>`);
+      const popupLiteral = JSON.stringify(detailPopup(l));
+      const lineColor = isFocused ? '#FF6D00' : '#1565C0';
+      const lineWeight = isFocused ? 7 : 4;
+      const casingWeight = isFocused ? 11 : 7;
       const varDecl = isFocused ? 'var focusLine = ' : '';
-      return `${varDecl}L.geoJSON(${geomLiteral}, {
-        style: { color: '${color}', weight: ${isFocused ? 6 : 4}, opacity: ${isFocused ? 0.9 : 0.6} }
+      return `L.geoJSON(${geomLiteral}, { style: { color: '#FFFFFF', weight: ${casingWeight}, opacity: 0.9 } }).addTo(map);
+      ${varDecl}L.geoJSON(${geomLiteral}, {
+        style: { color: '${lineColor}', weight: ${lineWeight}, opacity: 1 }
       }).bindPopup(${popupLiteral}).addTo(map);`;
     })
     .join('\n');
@@ -122,6 +134,7 @@ function buildLeafletHTML(
 
   const focusScript = focusHasGeom
     ? `if (typeof focusLine !== 'undefined') {
+        focusLine.bringToFront();
         map.fitBounds(focusLine.getBounds(), { padding: [30, 30] });
         focusLine.openPopup();
       }`
@@ -159,14 +172,11 @@ function buildLeafletHTML(
 <body>
   <div id="map"></div>
   <script>
-    // Externe Links (Google Maps) zuverlässig öffnen: in der App via RN-Bridge,
-    // im Web normal über target="_blank".
-    function openExt(u) {
+    // Popup-Tap → Listing-ID an React Native senden (öffnet nativ den Detail-Dialog).
+    function sel(id) {
       if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
-        window.ReactNativeWebView.postMessage(u);
-        return false;
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'detail', id: id }));
       }
-      return true;
     }
 
     var map = L.map('map', {
@@ -208,6 +218,19 @@ export function MapScreen({ focusListing }: { focusListing?: Listing | null }) {
   const [selectedSubType, setSelectedSubType] = useState<string>('all');
   const { t } = useTranslation();
   const { coords: userCoords, status: locStatus, request: requestLocation } = useLocation();
+  const { open } = useDetail();
+  const { savedIds, toggle } = useFavorites();
+
+  // Popup-Tap aus der Karte → nativen Detail-Dialog öffnen (wie in Entdecken).
+  const handleSelectFromMap = useCallback(
+    (id: string) => {
+      const listing = listings.find((l) => l.id === id);
+      if (listing) {
+        open({ kind: 'listing', listing, isSaved: savedIds.includes(id), onToggleSave: toggle });
+      }
+    },
+    [listings, savedIds, toggle, open],
+  );
 
   // Standort einmalig beim Öffnen der Karte anfragen.
   useEffect(() => {
@@ -291,6 +314,7 @@ export function MapScreen({ focusListing }: { focusListing?: Listing | null }) {
             html={html}
             loading={loading}
             onError={(e) => setError(e.nativeEvent.description)}
+            onSelectListing={handleSelectFromMap}
           />
           {locStatus !== 'unavailable' && (
             <TouchableOpacity
