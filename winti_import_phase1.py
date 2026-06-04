@@ -293,7 +293,10 @@ def osm_query(amenity_tags: list[str], want_geom: bool = False) -> list:
     (`out geom`) statt nur des Mittelpunkts – nötig, um Touren als Linie zu zeichnen.
     """
     tag_filters = "\n".join([f'  nwr[{t}]({OSM_BBOX});' for t in amenity_tags])
-    out_stmt = "out geom tags 500;" if want_geom else "out center tags 500;"
+    # WICHTIG: 'out geom' NICHT mit 'tags' kombinieren – das Schlüsselwort 'tags'
+    # unterdrückt members/geometry (Overpass liefert dann nur bounds). 'geom'
+    # enthält die Tags ohnehin.
+    out_stmt = "out geom 500;" if want_geom else "out center tags 500;"
     timeout = 60 if want_geom else 30
     query = f"""
 [out:json][timeout:{timeout}];
