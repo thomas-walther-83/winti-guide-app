@@ -294,7 +294,7 @@ def osm_query(amenity_tags: list[str]) -> list:
 (
 {tag_filters}
 );
-out center tags 200;
+out center tags 500;
 """.strip()
 
     print(f"  → Overpass API abfragen ({len(amenity_tags)} Tags)…")
@@ -364,7 +364,8 @@ def osm_to_listing(el: dict, category: str) -> dict:
         "source":     "osm",
         "source_id":  f"osm_{el['id']}",
         "category":   category,
-        "sub_type":   tags.get("cuisine") or tags.get("tourism") or tags.get("amenity") or "",
+        "sub_type":   (tags.get("cuisine") or tags.get("tourism") or tags.get("amenity")
+                       or tags.get("sport") or tags.get("leisure") or tags.get("shop") or ""),
         "name":       name,
         "address":    address,
         "hours":      tags.get("opening_hours", ""),
@@ -411,6 +412,13 @@ OSM_QUERIES = {
         '"historic"="castle"',
         '"historic"="building"',
         '"tourism"="artwork"',
+        # Familien-/Freizeitziele (z. B. Wildpark Bruderhaus, Parks, Spielorte)
+        '"tourism"="zoo"',
+        '"tourism"="theme_park"',
+        '"tourism"="aquarium"',
+        '"tourism"="picnic_site"',
+        '"leisure"="park"',
+        '"leisure"="nature_reserve"',
     ],
     "kultur": [
         '"tourism"="museum"',
@@ -428,15 +436,19 @@ OSM_QUERIES = {
         '"amenity"="marketplace"',
     ],
     "sport": [
+        # Schwimmbäder / Bäder zuerst (häufige Nutzer-Suche)
         '"leisure"="swimming_pool"',
+        '"leisure"="water_park"',
+        '"sport"="swimming"',
+        '"amenity"="public_bath"',
+        # weitere Sport-/Freizeitanlagen
         '"leisure"="sports_centre"',
         '"leisure"="fitness_centre"',
         '"leisure"="golf_course"',
-        '"leisure"="tennis"',
         '"leisure"="ice_rink"',
         '"leisure"="climbing"',
-        '"leisure"="pitch"',
-        '"amenity"="public_bath"',
+        # Hinweis: "leisure"="pitch" (einzelne Sportplätze) bewusst entfernt –
+        # flutete die Ergebnisse und verdrängte benannte Bäder unter dem Limit.
     ],
     # Touren: benannte Wander-/Velorouten aus OSM (geführte Stadtführungen wären
     # kuratierter Partner-Content und kommen nicht aus OSM).
