@@ -12,6 +12,7 @@ import { theme } from '../styles/theme';
 import { useDetail } from '../context/DetailContext';
 import { useTranslation } from '../hooks/useTranslation';
 import { formatDistance } from '../utils/distance';
+import { openInGoogleMaps } from '../utils/maps';
 import { getListingVisual } from '../config/categoryVisuals';
 import type { Listing } from '../types';
 
@@ -45,6 +46,9 @@ export function ListingCard({ listing, isSaved, onToggleSave, onShowOnMap, dista
       Linking.openURL(`tel:${listing.phone}`).catch(console.error);
     }
   };
+
+  const handleGoogleMaps = () =>
+    openInGoogleMaps(listing.lat, listing.lon, `${listing.name} ${listing.address ?? ''}`.trim());
 
   return (
     <TouchableOpacity
@@ -116,14 +120,21 @@ export function ListingCard({ listing, isSaved, onToggleSave, onShowOnMap, dista
           </View>
         )}
 
-        {onShowOnMap && listing.lat != null && listing.lon != null && (
-          <TouchableOpacity
-            style={styles.mapBtn}
-            onPress={() => onShowOnMap(listing)}
-          >
-            <Ionicons name="map-outline" size={13} color={theme.colors.primary} />
-            <Text style={styles.mapBtnText}>{t('show_on_map')}</Text>
-          </TouchableOpacity>
+        {((onShowOnMap && listing.lat != null && listing.lon != null) ||
+          listing.lat != null ||
+          listing.address) && (
+          <View style={styles.mapRow}>
+            {onShowOnMap && listing.lat != null && listing.lon != null && (
+              <TouchableOpacity style={styles.mapBtn} onPress={() => onShowOnMap(listing)}>
+                <Ionicons name="map-outline" size={13} color={theme.colors.primary} />
+                <Text style={styles.mapBtnText}>{t('show_on_map')}</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.mapBtn} onPress={handleGoogleMaps}>
+              <Ionicons name="navigate-outline" size={13} color={theme.colors.primary} />
+              <Text style={styles.mapBtnText}>{t('open_in_maps')}</Text>
+            </TouchableOpacity>
+          </View>
         )}
       </View>
 
@@ -251,6 +262,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     color: '#FFFFFF',
+  },
+  mapRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
   },
   mapBtn: {
     flexDirection: 'row',

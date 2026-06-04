@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, ActivityIndicator, Platform } from 'react-native';
+import { StyleSheet, View, ActivityIndicator, Platform, Linking } from 'react-native';
 import { WebView, WebViewProps } from 'react-native-webview';
 import { theme } from '../styles/theme';
 
@@ -26,6 +26,16 @@ export function MapWebView({ html, loading, onError }: Props) {
         </View>
       )}
       onError={onError}
+      // Nur Google-Maps-Links (aus einem Popup) extern öffnen; alle anderen
+      // Anfragen (Leaflet-CDN, swisstopo-Kacheln, initiales HTML) normal laden.
+      setSupportMultipleWindows={false}
+      onShouldStartLoadWithRequest={(req) => {
+        if (/google\.[^/]+\/maps/.test(req.url)) {
+          Linking.openURL(req.url).catch(() => undefined);
+          return false;
+        }
+        return true;
+      }}
       allowsInlineMediaPlayback
       mediaPlaybackRequiresUserAction={false}
       scrollEnabled={false}

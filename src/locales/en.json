@@ -37,6 +37,8 @@
   "language": "Language",
   "retry": "Retry",
   "map_loading": "Loading map...",
+  "map_layer_map": "Map",
+  "map_layer_aerial": "Aerial",
   "festival": "Festival",
   "musik": "Music",
   "markt": "Market",

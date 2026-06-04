@@ -14,6 +14,7 @@ import { SubCategoryFilter } from '../components/SubCategoryFilter';
 import { fetchListingsWithCoords } from '../services/supabaseService';
 import { getErrorMessage } from '../utils/errors';
 import { matchesSubType } from '../config/subcategories';
+import { googleMapsSearchUrl } from '../utils/maps';
 import { useTranslation } from '../hooks/useTranslation';
 import { useLocation } from '../hooks/useLocation';
 import { theme } from '../styles/theme';
@@ -48,8 +49,9 @@ function htmlEscape(str: string): string {
 
 function buildLeafletHTML(
   listings: Listing[],
-  focusListing?: Listing | null,
-  userCoords?: LatLon | null,
+  focusListing: Listing | null | undefined,
+  userCoords: LatLon | null | undefined,
+  labels: { karte: string; luftbild: string },
 ): string {
   const markers = listings
     .filter(
@@ -61,7 +63,11 @@ function buildLeafletHTML(
     )
     .map((l) => {
       const color = CATEGORY_COLORS[l.category] ?? '#8B0000';
-      const popupHtml = `<b>${htmlEscape(l.name)}</b><br>${htmlEscape(l.address ?? '')}`;
+      const gmUrl = googleMapsSearchUrl(l.lat, l.lon, `${l.name} ${l.address ?? ''}`.trim());
+      const gmLink = gmUrl
+        ? `<br><a href="${gmUrl}" target="_blank" rel="noopener" style="color:#1a73e8;font-weight:600;text-decoration:none">↗ Google Maps</a>`
+        : '';
+      const popupHtml = `<b>${htmlEscape(l.name)}</b><br>${htmlEscape(l.address ?? '')}${gmLink}`;
       const popupLiteral = JSON.stringify(popupHtml);
       const isFocused = focusListing != null && focusListing.id === l.id;
       const varDecl = isFocused ? 'var focusMarker = ' : '';
@@ -158,10 +164,22 @@ function buildLeafletHTML(
       attributionControl: true
     }).setView([${WINTERTHUR_LAT}, ${WINTERTHUR_LON}], 14);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    // Offizielle Schweizer Landeskarte (swisstopo, gratis) als Basis,
+    // umschaltbar auf das Luftbild (SWISSIMAGE).
+    var swissKarte = L.tileLayer('https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-farbe/default/current/3857/{z}/{x}/{y}.jpeg', {
+      attribution: '© <a href="https://www.swisstopo.admin.ch">swisstopo</a>',
       maxZoom: 19
-    }).addTo(map);
+    });
+    var swissLuftbild = L.tileLayer('https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage/default/current/3857/{z}/{x}/{y}.jpeg', {
+      attribution: '© <a href="https://www.swisstopo.admin.ch">swisstopo</a>',
+      maxZoom: 19
+    });
+    swissKarte.addTo(map);
+    L.control.layers(
+      { ${JSON.stringify(labels.karte)}: swissKarte, ${JSON.stringify(labels.luftbild)}: swissLuftbild },
+      null,
+      { position: 'topright', collapsed: true }
+    ).addTo(map);
 
     ${polylines}
     ${markers}
@@ -218,7 +236,10 @@ export function MapScreen({ focusListing }: { focusListing?: Listing | null }) {
     return result;
   })();
 
-  const html = buildLeafletHTML(filteredListings, focusListing, userCoords);
+  const html = buildLeafletHTML(filteredListings, focusListing, userCoords, {
+    karte: t('map_layer_map'),
+    luftbild: t('map_layer_aerial'),
+  });
 
   return (
     <SafeAreaView style={styles.container}>

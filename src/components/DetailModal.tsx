@@ -14,6 +14,7 @@ import { theme } from '../styles/theme';
 import { useDetail } from '../context/DetailContext';
 import { useTranslation } from '../hooks/useTranslation';
 import { shareItem } from '../utils/share';
+import { openDirections, openInGoogleMaps } from '../utils/maps';
 import { getListingVisual, getEventVisual } from '../config/categoryVisuals';
 import type { Listing, Event } from '../types';
 
@@ -21,34 +22,6 @@ function openUrl(raw?: string) {
   if (!raw) return;
   const url = raw.startsWith('http') ? raw : `https://${raw}`;
   Linking.openURL(url).catch(() => undefined);
-}
-
-/** Öffnet die Google-Maps-Routenführung zum Ziel (App, sonst Browser). */
-function openDirections(lat?: number | null, lon?: number | null, query?: string) {
-  let dest = '';
-  if (lat != null && lon != null && Number.isFinite(lat) && Number.isFinite(lon)) {
-    dest = `${lat},${lon}`;
-  } else if (query) {
-    dest = encodeURIComponent(query);
-  }
-  if (!dest) return;
-  Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${dest}`).catch(
-    () => undefined,
-  );
-}
-
-/** Öffnet den Ort in Google Maps (Suche nach Koordinaten oder Name/Adresse). */
-function openInGoogleMaps(lat?: number | null, lon?: number | null, query?: string) {
-  let q = '';
-  if (lat != null && lon != null && Number.isFinite(lat) && Number.isFinite(lon)) {
-    q = `${lat},${lon}`;
-  } else if (query) {
-    q = encodeURIComponent(query);
-  }
-  if (!q) return;
-  Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${q}`).catch(
-    () => undefined,
-  );
 }
 
 function formatDate(dateStr: string): string {
