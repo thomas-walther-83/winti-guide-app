@@ -6,7 +6,6 @@ Reines Diagnose-Tool – schreibt nichts in die Datenbank.
 
 Aufruf:  python3 probe_sources.py
 """
-import sys
 import requests
 from bs4 import BeautifulSoup
 
@@ -43,16 +42,15 @@ def probe(url: str) -> None:
     n_jsonld = len(soup.find_all("script", type="application/ld+json"))
     n_links = len(soup.find_all("a", href=True))
     n_head = len(soup.select("h1,h2,h3"))
-    n_event_cls = len(soup.select("[class*='event'],[class*='veranstaltung'],[class*='teaser'],[class*='card'],[class*='item']"))
+    n_cards = len(soup.select("[class*='event'],[class*='veranstaltung'],[class*='teaser'],[class*='card'],[class*='item']"))
     print(f"  title='{title}'")
-    print(f"  jsonld={n_jsonld} links={n_links} headings={n_head} card-like={n_event_cls}")
-    # Sample headings (oft Veranstaltungs-/Ortsnamen)
+    print(f"  jsonld={n_jsonld} links={n_links} headings={n_head} card-like={n_cards}")
     samples = [h.get_text(strip=True) for h in soup.select("h1,h2,h3") if h.get_text(strip=True)]
     for s in samples[:12]:
         print(f"    H: {s[:80]}")
-    # Hinweis auf JS-Challenge
     low = res.text.lower()
-    for marker in ("nur einen moment", "einen moment bitte", "just a moment", "cf-browser-verification", "enable javascript"):
+    for marker in ("nur einen moment", "einen moment bitte", "just a moment",
+                   "cf-browser-verification", "enable javascript", "captcha"):
         if marker in low:
             print(f"  ⚠️  mögliche JS-/Bot-Challenge erkannt: '{marker}'")
             break
