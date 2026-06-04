@@ -290,7 +290,7 @@ export function DetailModal() {
             accessibilityRole="button"
             accessibilityLabel={t('share')}
           >
-            <Ionicons name="share-outline" size={20} color={theme.colors.text} />
+            <Ionicons name="share-outline" size={20} color="#1C1A17" />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.closeButton}
@@ -299,7 +299,7 @@ export function DetailModal() {
             accessibilityRole="button"
             accessibilityLabel={t('close_detail')}
           >
-            <Ionicons name="close" size={22} color={theme.colors.text} />
+            <Ionicons name="close" size={22} color="#1C1A17" />
           </TouchableOpacity>
 
           {payload?.kind === 'listing' && (

@@ -86,11 +86,11 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
   title: {
     fontSize: 14,
     fontWeight: '700',
-    color: theme.colors.text,
+    color: '#1C1A17',
   },
   subtitle: {
     fontSize: 12,
-    color: theme.colors.textSecondary,
+    color: '#5F594F',
     lineHeight: 16,
   },
   cta: {

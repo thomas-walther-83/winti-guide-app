@@ -157,9 +157,10 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
     borderRadius: theme.borderRadius.full,
   },
   chipText: {
+    // Chip-Hintergrund ist immer weiss → Text fix dunkel (auch im Dark Mode lesbar).
     fontSize: 11,
     fontWeight: '700',
-    color: theme.colors.text,
+    color: '#1C1A17',
     letterSpacing: 0.2,
   },
   chipPremium: {

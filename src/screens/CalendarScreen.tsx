@@ -543,11 +543,11 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
   premiumTeaserTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: theme.colors.text,
+    color: '#1C1A17',
   },
   premiumTeaserSub: {
     fontSize: 12,
-    color: theme.colors.textSecondary,
+    color: '#5F594F',
   },
   premiumTeaserArrow: {
     fontSize: 18,

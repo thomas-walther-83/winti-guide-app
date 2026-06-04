@@ -547,11 +547,11 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
   premiumActiveTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: theme.colors.text,
+    color: '#1C1A17',
   },
   premiumActiveSub: {
     fontSize: 13,
-    color: theme.colors.textSecondary,
+    color: '#5F594F',
     textAlign: 'center',
     lineHeight: 18,
   },
