@@ -34,10 +34,13 @@ concurrency:
 jobs:
   import:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       SUPABASE_URL: https://dphhqwisluirihmahyee.supabase.co
       SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       EVENTBRITE_TOKEN: ${{ secrets.EVENTBRITE_TOKEN }}
+      EVENTFROG_API_KEY: ${{ secrets.EVENTFROG_API_KEY }}
+      PYTHONUNBUFFERED: '1'   # Live-Logs (sonst erst am Ende → keine Per-Quelle-Diagnose)
     steps:
       - name: Checkout
         uses: actions/checkout@v4

@@ -21,6 +21,7 @@ Automatisierung (wöchentlich, z.B. via cron):
 """
 
 import os
+import socket
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta, date as date_type
@@ -30,6 +31,10 @@ import re
 import sys
 import json
 from urllib.parse import urljoin
+
+# Sicherheitsnetz: kein Netzwerk-Aufruf darf den ganzen Lauf blockieren
+# (manche Quellen liefern langsame/streamende Antworten ohne sauberen Abschluss).
+socket.setdefaulttimeout(25)
 try:
     from icalendar import Calendar as ICalendar
     ICAL_AVAILABLE = True
