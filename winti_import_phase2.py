@@ -22,6 +22,7 @@ Automatisierung (wöchentlich, z.B. via cron):
 
 import os
 import socket
+import signal
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta, date as date_type
@@ -1781,6 +1782,37 @@ def enrich_event_images(events: list[dict], cap: int = 40, budget_s: int = 120) 
     return added
 
 
+class _SourceTimeout(Exception):
+    pass
+
+
+def _on_alarm(signum, frame):
+    raise _SourceTimeout()
+
+
+def run_source(label: str, fn, limit_s: int = 60) -> list[dict]:
+    """Ruft einen Scraper mit hartem Zeitlimit (SIGALRM, Unix/Hauptthread) auf und
+    misst die Dauer. Eine hängende Quelle wird abgebrochen, der Rest läuft weiter,
+    damit der Lauf garantiert zum Speichern kommt."""
+    t0 = time.time()
+    evs: list[dict] = []
+    has_alarm = hasattr(signal, "SIGALRM")
+    if has_alarm:
+        signal.signal(signal.SIGALRM, _on_alarm)
+        signal.alarm(limit_s)
+    try:
+        evs = fn() or []
+    except _SourceTimeout:
+        print(f"  ⏱  {label}: Zeitlimit {limit_s}s überschritten – abgebrochen")
+    except Exception as e:
+        print(f"  ⚠️  {label}: {e}")
+    finally:
+        if has_alarm:
+            signal.alarm(0)
+    print(f"    ⏱  {label}: {len(evs)} Events in {time.time() - t0:.1f}s")
+    return evs
+
+
 # ── Hauptprogramm ────────────────────────────────────────────────
 def run():
     print("═" * 60)
@@ -1798,36 +1830,39 @@ def run():
     print("\n📅 Events scrapen…")
     print("-" * 40)
 
-    # Alle Quellen scrapen
-    all_events += scrape_winterthur_com()
-    all_events += scrape_myswitzerland()
-    all_events += scrape_alte_kaserne()
-    all_events += scrape_stadttheater()
-    all_events += scrape_casinotheater()
-    all_events += scrape_musikkollegium()
-    all_events += scrape_fotomuseum()
-    all_events += scrape_technorama()
-    all_events += scrape_kunsthalle()
-    all_events += scrape_stadt_winterthur()
-    all_events += scrape_eventbrite()
-    all_events += scrape_eventfrog()
-    all_events += scrape_opendata_swiss()
+    # Jede Quelle mit hartem Pro-Quelle-Zeitlimit (SIGALRM). Verhindert, dass eine
+    # einzelne langsame/„tröpfelnde“ Quelle den ganzen Lauf blockiert (requests-
+    # Timeout greift bei langsam trickelnden Antworten nicht) – so kommt der Lauf
+    # garantiert zum Speichern-Schritt.
+    all_events += run_source("winterthur.com", scrape_winterthur_com)
+    all_events += run_source("myswitzerland", scrape_myswitzerland)
+    all_events += run_source("altekaserne", scrape_alte_kaserne)
+    all_events += run_source("stadttheater", scrape_stadttheater)
+    all_events += run_source("casinotheater", scrape_casinotheater)
+    all_events += run_source("musikkollegium", scrape_musikkollegium)
+    all_events += run_source("fotomuseum", scrape_fotomuseum)
+    all_events += run_source("technorama", scrape_technorama)
+    all_events += run_source("kunsthalle", scrape_kunsthalle)
+    all_events += run_source("stadt.winterthur", scrape_stadt_winterthur)
+    all_events += run_source("eventbrite", scrape_eventbrite)
+    all_events += run_source("eventfrog", scrape_eventfrog)
+    all_events += run_source("opendata.swiss", scrape_opendata_swiss)
 
     # Weitere Quellen (vom Nutzer vorgeschlagen) – generischer JSON-LD/HTML-Scraper.
-    all_events += scrape_generic_html(
+    all_events += run_source("coucou", lambda: scrape_generic_html(
         "coucoumagazin.ch", "https://www.coucoumagazin.ch/de/kalender.html",
-        "coucou", "Winterthur", "kultur")
-    all_events += scrape_generic_html(
+        "coucou", "Winterthur", "kultur"))
+    all_events += run_source("junge-altstadt", lambda: scrape_generic_html(
         "junge-altstadt.ch", "https://junge-altstadt.ch/events/",
-        "jungealtstadt", "Altstadt Winterthur", "festival")
-    all_events += scrape_generic_html(
+        "jungealtstadt", "Altstadt Winterthur", "festival"))
+    all_events += run_source("stadt-agenda", lambda: scrape_generic_html(
         "stadt.winterthur Agenda",
         "https://stadt.winterthur.ch/themen/leben-in-winterthur/kultur/kultur-erleben/agenda",
-        "stadtwinti_agenda", "Winterthur", "kultur")
-    all_events += scrape_generic_html(
+        "stadtwinti_agenda", "Winterthur", "kultur"))
+    all_events += run_source("winterthur.com-va", lambda: scrape_generic_html(
         "winterthur.com Veranstaltungen",
         "https://www.winterthur.com/de/kunst-kultur/veranstaltungen.html",
-        "winterthurcom_va", "Winterthur", "kultur")
+        "winterthurcom_va", "Winterthur", "kultur"))
 
     # Playwright-Venue-Rendering ist vorbereitet (render_html/scrape_rendered),
     # aber DEAKTIVIERT: Die getesteten Venue-Seiten sind bot-/JS-Challenge-
