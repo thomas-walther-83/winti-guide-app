@@ -62,7 +62,7 @@ type HeaderSection =
 
 type ListItem = HeaderSection | { type: 'listing'; data: Listing } | { type: 'ad'; data: PartnerAd };
 
-export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigateToAccount?: () => void; onNavigateToMap?: (listing: Listing) => void }) {
+export function HomeScreen({ onNavigateToAccount, onNavigateToMap, scrollTopSignal }: { onNavigateToAccount?: () => void; onNavigateToMap?: (listing: Listing) => void; scrollTopSignal?: number }) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [category, setCategory] = useState<ListingCategory | 'all'>('all');
@@ -91,6 +91,12 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
   // Scroll-to-top: Liste-Ref + Sichtbarkeit des schwebenden Buttons.
   const listRef = useRef<FlatList>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+
+  // Re-Tap auf aktiven Tab springt nach oben (signal-counter aus App.tsx).
+  useEffect(() => {
+    if (scrollTopSignal == null || scrollTopSignal === 0) return;
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+  }, [scrollTopSignal]);
 
   const { isPremium } = useAppTier();
   const { t } = useTranslation();

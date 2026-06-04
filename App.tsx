@@ -41,6 +41,9 @@ function AppContent() {
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [mapFocusListing, setMapFocusListing] = useState<Listing | null>(null);
   const [mapTour, setMapTour] = useState<MapTour | null>(null);
+  // Re-Tap auf den bereits aktiven Tab → Screen scrollt nach oben.
+  // Pro Tab ein Counter; die Screens hören per useEffect auf Änderungen.
+  const [scrollTopSignals, setScrollTopSignals] = useState<{ home: number; calendar: number }>({ home: 0, calendar: 0 });
   // null = noch nicht geladen; true/false = Onboarding zeigen?
   const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
 
@@ -72,6 +75,10 @@ function AppContent() {
       setMapFocusListing(null);
       setMapTour(null);
     }
+    if (key === activeTab && (key === 'home' || key === 'calendar')) {
+      setScrollTopSignals((s) => ({ ...s, [key]: s[key] + 1 }));
+      return;
+    }
     setActiveTab(key as TabKey);
   };
 
@@ -84,9 +91,9 @@ function AppContent() {
   const renderScreen = () => {
     switch (activeTab) {
       case 'home':
-        return <HomeScreen onNavigateToAccount={navigateToAccount} onNavigateToMap={navigateToMap} />;
+        return <HomeScreen onNavigateToAccount={navigateToAccount} onNavigateToMap={navigateToMap} scrollTopSignal={scrollTopSignals.home} />;
       case 'calendar':
-        return <CalendarScreen onNavigateToAccount={navigateToAccount} />;
+        return <CalendarScreen onNavigateToAccount={navigateToAccount} scrollTopSignal={scrollTopSignals.calendar} />;
       case 'map':
         return <MapScreen focusListing={mapFocusListing} focusTour={mapTour} />;
       case 'touren':
