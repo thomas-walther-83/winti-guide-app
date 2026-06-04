@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { useTranslation } from '../hooks/useTranslation';
 import { useLocation } from '../hooks/useLocation';
-import { theme } from '../styles/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../styles/theme';
 import type { ListingCategory } from '../types';
 
 export const ONBOARDING_KEY = 'winti_onboarding_done';
@@ -31,6 +32,8 @@ const CATEGORIES: { key: ListingCategory; emoji: string }[] = [
 ];
 
 export function OnboardingScreen({ onDone }: { onDone: () => void }) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const { t } = useTranslation();
   const { request: requestLocation } = useLocation();
   const [step, setStep] = useState(0);
@@ -142,7 +145,7 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AppTheme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   topBar: {
     flexDirection: 'row',

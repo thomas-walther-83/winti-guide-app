@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Linking } from 'react-native';
-import { theme } from '../styles/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../styles/theme';
 import type { PartnerAd } from '../types';
 import { trackAdImpression } from '../services/supabaseService';
 import { useTranslation } from '../hooks/useTranslation';
@@ -10,6 +11,8 @@ interface PartnerAdBannerProps {
 }
 
 export function PartnerAdBanner({ ad }: PartnerAdBannerProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const { t } = useTranslation();
   useEffect(() => {
     // Fire-and-forget impression tracking
@@ -47,7 +50,7 @@ export function PartnerAdBanner({ ad }: PartnerAdBannerProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AppTheme) => StyleSheet.create({
   wrapper: {
     marginHorizontal: theme.spacing.md,
     marginVertical: theme.spacing.xs,

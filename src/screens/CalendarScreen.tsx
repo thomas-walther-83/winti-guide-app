@@ -16,7 +16,8 @@ import { EventCard } from '../components/EventCard';
 import { MonthCalendar } from '../components/MonthCalendar';
 import { ScrollTopButton } from '../components/ScrollTopButton';
 import { useTranslation } from '../hooks/useTranslation';
-import { theme } from '../styles/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../styles/theme';
 import type { EventCategory, Event } from '../types';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -73,6 +74,8 @@ function formatShort(dateStr: string): string {
 }
 
 export function CalendarScreen({ onNavigateToAccount }: { onNavigateToAccount?: () => void }) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [category, setCategory] = useState<EventCategory | 'all'>('all');
   const { isPremium } = useAppTier();
   const { t } = useTranslation();
@@ -311,7 +314,7 @@ function formatSectionDate(dateStr: string): string {
   }
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AppTheme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

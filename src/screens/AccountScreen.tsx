@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,11 +11,13 @@ import {
   Alert,
   Linking,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useAppTier } from '../hooks/useAppTier';
 import { useTranslation } from '../hooks/useTranslation';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
-import { theme } from '../styles/theme';
+import { useTheme, useThemeMode, type ThemeMode } from '../context/ThemeContext';
+import type { AppTheme } from '../styles/theme';
 
 // ── Stripe Checkout URLs ─────────────────────────────────────────────────────
 // Replace with your actual Stripe Payment Links or Checkout Session URLs.
@@ -29,6 +31,9 @@ const STRIPE_PREMIUM_YEARLY =
 type AuthMode = 'login' | 'register';
 
 export function AccountScreen() {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
+  const { mode: themeMode, setMode: setThemeMode } = useThemeMode();
   const { user, signIn, signUp, signOut, loading: authLoading } = useAuth();
   const { tier, isPremium, loading: tierLoading, refresh: refreshTier } = useAppTier();
   const { t } = useTranslation();
@@ -76,6 +81,32 @@ export function AccountScreen() {
     ]);
   };
 
+  const appearanceSwitcher = (
+    <View style={styles.appearanceCard}>
+      <Text style={styles.appearanceLabel}>{t('appearance')}</Text>
+      <View style={styles.segRow}>
+        {(['system', 'light', 'dark'] as ThemeMode[]).map((m) => {
+          const active = themeMode === m;
+          const label = m === 'system' ? t('theme_system') : m === 'light' ? t('theme_light') : t('theme_dark');
+          const icon = m === 'system' ? 'phone-portrait-outline' : m === 'light' ? 'sunny-outline' : 'moon-outline';
+          return (
+            <TouchableOpacity
+              key={m}
+              style={[styles.segBtn, active && styles.segBtnActive]}
+              onPress={() => setThemeMode(m)}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+            >
+              <Ionicons name={icon} size={15} color={active ? '#FFFFFF' : theme.colors.textSecondary} />
+              <Text style={[styles.segText, active && styles.segTextActive]}>{label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+
   if (authLoading || tierLoading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -96,6 +127,7 @@ export function AccountScreen() {
           </View>
 
           <LanguageSwitcher />
+          {appearanceSwitcher}
 
           {/* Profile card */}
           <View style={styles.profileCard}>
@@ -206,6 +238,7 @@ export function AccountScreen() {
         </View>
 
         <LanguageSwitcher />
+        {appearanceSwitcher}
 
         <View style={styles.authCard}>
           {/* Mode toggle */}
@@ -285,13 +318,54 @@ function translateAuthError(msg: string, t: (key: any) => string): string {
   return msg;
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AppTheme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
   },
   scroll: {
     paddingBottom: theme.spacing.xxl,
+  },
+  appearanceCard: {
+    backgroundColor: theme.colors.surface,
+    marginHorizontal: theme.spacing.md,
+    marginTop: theme.spacing.sm,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    gap: theme.spacing.sm,
+    ...theme.shadow.small,
+  },
+  appearanceLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+  },
+  segRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.xs,
+    backgroundColor: theme.colors.surfaceAlt,
+    borderRadius: theme.borderRadius.full,
+    padding: 3,
+  },
+  segBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 8,
+    borderRadius: theme.borderRadius.full,
+  },
+  segBtnActive: {
+    backgroundColor: theme.colors.primary,
+  },
+  segText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+  },
+  segTextActive: {
+    color: '#FFFFFF',
   },
   center: {
     flex: 1,

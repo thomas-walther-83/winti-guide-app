@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,11 +11,14 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../styles/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../styles/theme';
 import { askAiGuide, ChatMessage } from '../services/aiGuideService';
 import { useTranslation } from '../hooks/useTranslation';
 
 export function AiGuideCard() {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const { t } = useTranslation();
   const QUICK_SUGGESTIONS = [
     t('ai_suggestion_1'),
@@ -158,7 +161,7 @@ export function AiGuideCard() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AppTheme) => StyleSheet.create({
   card: {
     marginHorizontal: theme.spacing.md,
     marginVertical: theme.spacing.sm,

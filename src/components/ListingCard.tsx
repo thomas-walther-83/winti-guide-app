@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { theme } from '../styles/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../styles/theme';
 import { useDetail } from '../context/DetailContext';
 import { useTranslation } from '../hooks/useTranslation';
 import { formatDistance } from '../utils/distance';
@@ -18,6 +19,8 @@ interface ListingCardProps {
 }
 
 export function ListingCard({ listing, isSaved, onToggleSave, onShowOnMap, distanceKm }: ListingCardProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const visual = getListingVisual(listing.category);
   const { open } = useDetail();
   const { t } = useTranslation();
@@ -110,7 +113,7 @@ export function ListingCard({ listing, isSaved, onToggleSave, onShowOnMap, dista
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AppTheme) => StyleSheet.create({
   card: {
     backgroundColor: theme.colors.surface,
     marginHorizontal: theme.spacing.md,

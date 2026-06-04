@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,7 +21,8 @@ import { useDetail } from '../context/DetailContext';
 import { useFavorites } from '../hooks/useFavorites';
 import { useTranslation } from '../hooks/useTranslation';
 import { useLocation } from '../hooks/useLocation';
-import { theme } from '../styles/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../styles/theme';
 import type { LatLon } from '../utils/distance';
 import type { Listing, ListingCategory, TourRouteWaypoint } from '../types';
 
@@ -400,6 +401,8 @@ export function MapScreen({
   focusListing?: Listing | null;
   focusTour?: MapTour | null;
 }) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -623,7 +626,7 @@ export function MapScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AppTheme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

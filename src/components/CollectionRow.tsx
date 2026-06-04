@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Text,
   ScrollView,
@@ -6,7 +6,8 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../styles/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../styles/theme';
 import { useTranslation } from '../hooks/useTranslation';
 import { COLLECTIONS } from '../config/collections';
 
@@ -18,6 +19,8 @@ interface CollectionRowProps {
 }
 
 export function CollectionRow({ selected, onSelect }: CollectionRowProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const { t } = useTranslation();
   return (
     <ScrollView
@@ -52,7 +55,7 @@ export function CollectionRow({ selected, onSelect }: CollectionRowProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AppTheme) => StyleSheet.create({
   scroll: {
     flexGrow: 0,
   },

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../styles/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../styles/theme';
 import { useDetail } from '../context/DetailContext';
 import { useTranslation } from '../hooks/useTranslation';
 import { formatDistance } from '../utils/distance';
@@ -18,6 +19,8 @@ interface Props {
 
 /** Kompakte Listenzeile (Alternative zur grossen Foto-Karte). */
 export function ListingRow({ listing, isSaved, onToggleSave, onShowOnMap, distanceKm }: Props) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const visual = getListingVisual(listing.category);
   const { open } = useDetail();
   const { t } = useTranslation();
@@ -70,7 +73,7 @@ export function ListingRow({ listing, isSaved, onToggleSave, onShowOnMap, distan
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AppTheme) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',

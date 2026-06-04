@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { theme } from '../styles/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../styles/theme';
 import { useAppTier } from '../hooks/useAppTier';
 import { useTranslation } from '../hooks/useTranslation';
 
@@ -17,6 +18,8 @@ interface PremiumGateProps {
  * For free-tier users it renders a locked-feature placeholder instead.
  */
 export function PremiumGate({ children, reason, onUpgrade }: PremiumGateProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const { isPremium, loading } = useAppTier();
   const { t } = useTranslation();
 
@@ -39,7 +42,7 @@ export function PremiumGate({ children, reason, onUpgrade }: PremiumGateProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AppTheme) => StyleSheet.create({
   container: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.lg,

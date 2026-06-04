@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,8 @@ import {
   ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../styles/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../styles/theme';
 import type { Listing } from '../types';
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -53,6 +54,8 @@ export function HeroCard({
   height = 180,
   style,
 }: HeroCardProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const bgColor = CATEGORY_BG[listing.category] ?? '#CC0000';
   const categoryLabel = CATEGORY_LABEL[listing.category] ?? listing.category;
 
@@ -113,7 +116,7 @@ export function HeroCard({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AppTheme) => StyleSheet.create({
   card: {
     borderRadius: theme.borderRadius.lg,
     overflow: 'hidden',

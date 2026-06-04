@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../styles/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../styles/theme';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -26,6 +27,8 @@ interface NavigationBarProps {
 }
 
 export function NavigationBar({ tabs, activeTab, onTabPress }: NavigationBarProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   return (
     <View style={styles.container}>
       {tabs.map((tab) => {
@@ -59,7 +62,7 @@ export function NavigationBar({ tabs, activeTab, onTabPress }: NavigationBarProp
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AppTheme) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     backgroundColor: theme.colors.tabBar,

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../styles/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../styles/theme';
 
 interface SearchBarProps {
   value: string;
@@ -10,6 +11,8 @@ interface SearchBarProps {
 }
 
 export function SearchBar({ value, onChangeText, placeholder }: SearchBarProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   return (
     <View style={styles.container}>
       <Ionicons
@@ -38,7 +41,7 @@ export function SearchBar({ value, onChangeText, placeholder }: SearchBarProps) 
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AppTheme) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, View, ActivityIndicator, Platform, Linking } from 'react-native';
 import { WebView, WebViewProps } from 'react-native-webview';
-import { theme } from '../styles/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../styles/theme';
 
 interface Props {
   html: string;
@@ -14,6 +15,8 @@ interface Props {
 }
 
 export function MapWebView({ html, loading, onError, onSelectListing, onTourRouteChange }: Props) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   return (
     <WebView
       style={styles.webview}
@@ -56,7 +59,7 @@ export function MapWebView({ html, loading, onError, onSelectListing, onTourRout
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AppTheme) => StyleSheet.create({
   webview: {
     flex: 1,
     backgroundColor: theme.colors.background,

@@ -241,5 +241,9 @@
   "ev_weekend": "Weekend",
   "ev_this_week": "This week",
   "ev_all_dates": "All dates",
-  "ev_no_in_range": "No events in the selected period"
+  "ev_no_in_range": "No events in the selected period",
+  "appearance": "Appearance",
+  "theme_system": "System",
+  "theme_light": "Light",
+  "theme_dark": "Dark"
 }

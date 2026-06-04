@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,8 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
-import { theme } from '../styles/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../styles/theme';
 import { SUB_CATEGORIES } from '../config/subcategories';
 import { useTranslation } from '../hooks/useTranslation';
 import type { ListingCategory } from '../types';
@@ -18,6 +19,8 @@ interface SubCategoryFilterProps {
 }
 
 export function SubCategoryFilter({ category, selected, onSelect }: SubCategoryFilterProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const { t } = useTranslation();
   const subCategories = SUB_CATEGORIES[category] ?? [];
 
@@ -59,7 +62,7 @@ export function SubCategoryFilter({ category, selected, onSelect }: SubCategoryF
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AppTheme) => StyleSheet.create({
   scroll: {
     flexGrow: 0,
   },

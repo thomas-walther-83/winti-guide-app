@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,8 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../styles/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../styles/theme';
 import { useTranslation } from '../hooks/useTranslation';
 import type { ListingCategory } from '../types';
 
@@ -39,6 +40,8 @@ interface CategoryFilterProps {
 }
 
 export function CategoryFilter({ selected, onSelect }: CategoryFilterProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const { t } = useTranslation();
   return (
     <ScrollView
@@ -71,7 +74,7 @@ export function CategoryFilter({ selected, onSelect }: CategoryFilterProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AppTheme) => StyleSheet.create({
   scroll: {
     flexGrow: 0,
   },

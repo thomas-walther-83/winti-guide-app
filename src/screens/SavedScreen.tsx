@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   FlatList,
@@ -12,12 +12,15 @@ import { useAppTier } from '../hooks/useAppTier';
 import { useFavorites } from '../hooks/useFavorites';
 import { ListingCard } from '../components/ListingCard';
 import { useTranslation } from '../hooks/useTranslation';
-import { theme } from '../styles/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../styles/theme';
 import type { Listing } from '../types';
 
 const FREE_SAVE_LIMIT = 5;
 
 export function SavedScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigateToAccount?: () => void; onNavigateToMap?: (listing: Listing) => void }) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const { savedIds, toggle: handleToggleSave } = useFavorites();
   const [savedListings, setSavedListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
@@ -143,7 +146,7 @@ export function SavedScreen({ onNavigateToAccount, onNavigateToMap }: { onNaviga
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AppTheme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,7 +21,8 @@ import {
 } from '../services/supabaseService';
 import { getErrorMessage } from '../utils/errors';
 import { useTranslation } from '../hooks/useTranslation';
-import { theme } from '../styles/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../styles/theme';
 import type {
   Partner,
   PartnerSubscription,
@@ -73,6 +74,8 @@ const STRIPE_PARTNER_URLS: Record<string, string> = {
 type PortalView = 'dashboard' | 'register' | 'plans' | 'new_ad';
 
 export function PartnerPortalScreen() {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const { user } = useAuth();
   const { t } = useTranslation();
   const [view, setView] = useState<PortalView>('dashboard');
@@ -282,6 +285,8 @@ export function PartnerPortalScreen() {
 
 // ── Register sub-view ─────────────────────────────────────────────────────────
 function RegisterView({ onRegistered }: { onRegistered: () => void }) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const { t } = useTranslation();
   const [companyName, setCompanyName] = useState('');
   const [email, setEmail] = useState('');
@@ -403,6 +408,8 @@ function PlanSelectionView({
   onBack: () => void;
   onPlanSelected: () => void;
 }) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const { t } = useTranslation();
   const handleSelect = (plan: PartnerPlan) => {
     const url = STRIPE_PARTNER_URLS[plan.tier];
@@ -486,6 +493,8 @@ function NewAdView({
   onBack: () => void;
   onCreated: () => void;
 }) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const { t } = useTranslation();
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
@@ -615,6 +624,8 @@ function FormField({
   placeholder?: string;
   keyboardType?: 'default' | 'email-address' | 'phone-pad' | 'url';
 }) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   return (
     <View style={styles.formField}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -652,7 +663,7 @@ const POSITIONS: { key: AdPosition; label: string }[] = [
   { key: 'featured', label: 'Featured' },
 ];
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AppTheme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

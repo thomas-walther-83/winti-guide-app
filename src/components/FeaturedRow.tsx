@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { HeroCard } from './HeroCard';
-import { theme } from '../styles/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../styles/theme';
 import type { Listing } from '../types';
 
 interface FeaturedRowProps {
@@ -14,6 +15,8 @@ const CARD_WIDTH = 240;
 const CARD_HEIGHT = 160;
 
 export function FeaturedRow({ listings, savedIds, onToggleSave }: FeaturedRowProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   return (
     <ScrollView
       horizontal
@@ -38,7 +41,7 @@ export function FeaturedRow({ listings, savedIds, onToggleSave }: FeaturedRowPro
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AppTheme) => StyleSheet.create({
   scroll: {
     flexGrow: 0,
   },

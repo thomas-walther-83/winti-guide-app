@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../styles/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../styles/theme';
 
 interface Props {
   /** Anzuzeigender Monat. */
@@ -31,6 +32,8 @@ function fmt(y: number, m: number, d: number): string {
 export function MonthCalendar({
   year, month, onPrev, onNext, eventDates, from, to, today, minDate, onSelectDay,
 }: Props) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const monthLabel = new Date(year, month, 1).toLocaleDateString('de-CH', {
     month: 'long',
     year: 'numeric',
@@ -117,7 +120,7 @@ export function MonthCalendar({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AppTheme) => StyleSheet.create({
   wrap: {
     backgroundColor: theme.colors.surface,
     marginHorizontal: theme.spacing.md,

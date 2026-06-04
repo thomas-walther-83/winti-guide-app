@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,8 @@ import {
   Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../styles/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../styles/theme';
 import { useDetail } from '../context/DetailContext';
 import { useTranslation } from '../hooks/useTranslation';
 import { getEventVisual } from '../config/categoryVisuals';
@@ -46,6 +47,8 @@ function formatMonth(dateStr: string): string {
 }
 
 export function EventCard({ event }: EventCardProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const visual = getEventVisual(event.cat);
   const { open } = useDetail();
   const { t } = useTranslation();
@@ -140,7 +143,7 @@ export function EventCard({ event }: EventCardProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AppTheme) => StyleSheet.create({
   card: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.lg,

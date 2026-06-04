@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useAppTier } from '../hooks/useAppTier';
 import { useTranslation } from '../hooks/useTranslation';
-import { theme } from '../styles/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../styles/theme';
 import { FREE_MAX_TOURS, FREE_MAX_STOPS } from '../config/tourLimits';
 import { fetchUserTours, createTour, addStop } from '../services/toursService';
 import type { Listing, UserTour } from '../types';
@@ -24,6 +25,8 @@ interface Props {
 }
 
 export function AddToTourSheet({ listing, visible, onClose }: Props) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const { user } = useAuth();
   const { isPremium } = useAppTier();
   const { t } = useTranslation();
@@ -132,7 +135,7 @@ export function AddToTourSheet({ listing, visible, onClose }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AppTheme) => StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: theme.colors.surface,

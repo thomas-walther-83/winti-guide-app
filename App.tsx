@@ -19,7 +19,7 @@ import { NavigationBar } from './src/components/NavigationBar';
 import { OnboardingScreen, ONBOARDING_KEY } from './src/screens/OnboardingScreen';
 import { useFonts, Fraunces_600SemiBold, Fraunces_700Bold } from '@expo-google-fonts/fraunces';
 import { useTranslation } from './src/hooks/useTranslation';
-import { theme } from './src/styles/theme';
+import { ThemeProvider, useTheme, useThemeMode } from './src/context/ThemeContext';
 import type { Listing } from './src/types';
 
 type TabKey = 'home' | 'calendar' | 'map' | 'touren' | 'saved' | 'account' | 'partner';
@@ -36,6 +36,8 @@ const TAB_DEFS = [
 
 function AppContent() {
   const { t } = useTranslation();
+  const theme = useTheme();
+  const { scheme } = useThemeMode();
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [mapFocusListing, setMapFocusListing] = useState<Listing | null>(null);
   const [mapTour, setMapTour] = useState<MapTour | null>(null);
@@ -108,15 +110,15 @@ function AppContent() {
 
   // Onboarding-Status wird noch geladen → nichts rendern (kurzer Moment)
   if (showOnboarding === null) {
-    return <View style={styles.container} />;
+    return <View style={[styles.container, { backgroundColor: theme.colors.background }]} />;
   }
   if (showOnboarding) {
     return <OnboardingScreen onDone={() => setShowOnboarding(false)} />;
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="dark" />
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
       <View style={styles.screen}>{renderScreen()}</View>
       <NavigationBar tabs={tabs} activeTab={activeTab} onTabPress={handleTabPress} />
     </View>
@@ -130,23 +132,24 @@ export default function App() {
     return <View style={styles.container} />;
   }
   return (
-    <LanguageProvider>
-      <AuthProvider>
-        <DetailProvider>
-          <SafeAreaProvider>
-            <AppContent />
-            <DetailModal />
-          </SafeAreaProvider>
-        </DetailProvider>
-      </AuthProvider>
-    </LanguageProvider>
+    <ThemeProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <DetailProvider>
+            <SafeAreaProvider>
+              <AppContent />
+              <DetailModal />
+            </SafeAreaProvider>
+          </DetailProvider>
+        </AuthProvider>
+      </LanguageProvider>
+    </ThemeProvider>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   screen: {
     flex: 1,

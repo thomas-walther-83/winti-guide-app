@@ -28,7 +28,8 @@ import { AiGuideCard } from '../components/AiGuideCard';
 import { useTranslation } from '../hooks/useTranslation';
 import { useLocation } from '../hooks/useLocation';
 import { distanceKm, formatDistance } from '../utils/distance';
-import { theme } from '../styles/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../styles/theme';
 import { matchesSubType } from '../config/subcategories';
 import { getCollection, matchesCollection } from '../config/collections';
 import { INTERESTS_KEY } from './OnboardingScreen';
@@ -61,6 +62,8 @@ type HeaderSection =
 type ListItem = HeaderSection | { type: 'listing'; data: Listing } | { type: 'ad'; data: PartnerAd };
 
 export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigateToAccount?: () => void; onNavigateToMap?: (listing: Listing) => void }) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [category, setCategory] = useState<ListingCategory | 'all'>('all');
   const [subType, setSubType] = useState<string>('all');
   const [activeCollection, setActiveCollection] = useState<string | null>(null);
@@ -500,7 +503,7 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AppTheme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

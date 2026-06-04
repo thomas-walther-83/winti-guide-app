@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { theme } from '../styles/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../styles/theme';
 import { useDetail } from '../context/DetailContext';
 import { useTranslation } from '../hooks/useTranslation';
 import { shareItem } from '../utils/share';
@@ -37,6 +38,8 @@ function formatDate(dateStr: string): string {
 }
 
 function InfoRow({ icon, children }: { icon: keyof typeof Ionicons.glyphMap; children: React.ReactNode }) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   return (
     <View style={styles.infoRow}>
       <Ionicons name={icon} size={18} color={theme.colors.textSecondary} style={styles.infoIcon} />
@@ -54,6 +57,8 @@ function ListingDetail({
   onShowOnMap?: (l: Listing) => void;
   onClose: () => void;
 }) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const visual = getListingVisual(listing.category);
   const { t } = useTranslation();
   const [addToTourOpen, setAddToTourOpen] = useState(false);
@@ -193,6 +198,8 @@ function ListingDetail({
 }
 
 function EventDetail({ event }: { event: Event }) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const visual = getEventVisual(event.cat);
   const isFree = event.price && ['kostenlos', 'free', '0'].includes(event.price.toLowerCase());
   const { t } = useTranslation();
@@ -257,6 +264,8 @@ function EventDetail({ event }: { event: Event }) {
 }
 
 export function DetailModal() {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const { payload, close } = useDetail();
   const { t } = useTranslation();
   const visible = payload !== null;
@@ -309,7 +318,7 @@ export function DetailModal() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AppTheme) => StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',

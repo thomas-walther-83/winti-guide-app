@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { theme } from '../styles/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../styles/theme';
 import { useTranslation } from '../hooks/useTranslation';
 import type { Language } from '../types';
 
@@ -12,6 +13,8 @@ const LABELS: Record<Language, string> = {
 };
 
 export function LanguageSwitcher() {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const { language, setLanguage, availableLanguages, t } = useTranslation();
 
   return (
@@ -40,7 +43,7 @@ export function LanguageSwitcher() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AppTheme) => StyleSheet.create({
   wrapper: {
     flexDirection: 'row',
     alignItems: 'center',

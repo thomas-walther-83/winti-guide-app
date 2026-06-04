@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../styles/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../styles/theme';
 import { useTranslation } from '../hooks/useTranslation';
 
 interface Props {
@@ -12,6 +13,8 @@ interface Props {
 /** Schwebender „Nach oben“-Button (erscheint nach dem Scrollen). */
 export function ScrollTopButton({ visible, onPress }: Props) {
   const { t } = useTranslation();
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   if (!visible) return null;
   return (
     <TouchableOpacity
@@ -26,7 +29,7 @@ export function ScrollTopButton({ visible, onPress }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AppTheme) => StyleSheet.create({
   btn: {
     position: 'absolute',
     right: theme.spacing.md,

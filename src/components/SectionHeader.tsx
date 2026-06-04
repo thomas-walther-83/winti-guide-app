@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { theme } from '../styles/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../styles/theme';
 import { useTranslation } from '../hooks/useTranslation';
 
 interface SectionHeaderProps {
@@ -14,6 +15,8 @@ export function SectionHeader({
   onShowAll,
   showAllLabel,
 }: SectionHeaderProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const { t } = useTranslation();
   const resolvedShowAllLabel = showAllLabel ?? t('show_all');
   return (
@@ -28,7 +31,7 @@ export function SectionHeader({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AppTheme) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'baseline',

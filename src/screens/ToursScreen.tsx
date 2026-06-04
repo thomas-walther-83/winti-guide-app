@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,8 @@ import { useAuth } from '../context/AuthContext';
 import { useAppTier } from '../hooks/useAppTier';
 import { useTranslation } from '../hooks/useTranslation';
 import { useDetail } from '../context/DetailContext';
-import { theme } from '../styles/theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../styles/theme';
 import { getErrorMessage } from '../utils/errors';
 import { FREE_MAX_TOURS } from '../config/tourLimits';
 import {
@@ -38,6 +39,8 @@ interface Props {
 }
 
 export function ToursScreen({ onNavigateToAccount, onShowTour }: Props) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const { user } = useAuth();
   const { isPremium } = useAppTier();
   const { t } = useTranslation();
@@ -274,6 +277,8 @@ function TourDetail({
   onShowTour?: (tour: MapTour) => void;
   promptNode: React.ReactNode;
 }) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const { t } = useTranslation();
   const [stops, setStops] = useState<TourStop[]>([]);
   const [loading, setLoading] = useState(true);
@@ -395,7 +400,7 @@ function TourDetail({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AppTheme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   header: {
     paddingHorizontal: theme.spacing.md,

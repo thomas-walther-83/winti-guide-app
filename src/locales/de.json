@@ -241,5 +241,9 @@
   "ev_weekend": "Wochenende",
   "ev_this_week": "Diese Woche",
   "ev_all_dates": "Alle Termine",
-  "ev_no_in_range": "Keine Events im gewählten Zeitraum"
+  "ev_no_in_range": "Keine Events im gewählten Zeitraum",
+  "appearance": "Darstellung",
+  "theme_system": "System",
+  "theme_light": "Hell",
+  "theme_dark": "Dunkel"
 }
