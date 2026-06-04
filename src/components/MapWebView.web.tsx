@@ -7,24 +7,27 @@ interface Props {
   onError?: (e: { nativeEvent: { description: string } }) => void;
   /** Wird mit der Listing-ID aufgerufen, wenn ein Popup angetippt wird. */
   onSelectListing?: (id: string) => void;
+  /** Wird mit den aktuellen Tour-Wegpunkten aufgerufen, wenn die Route geändert wird. */
+  onTourRouteChange?: (waypoints: { lat: number; lon: number; stop: boolean }[]) => void;
 }
 
-export function MapWebView({ html, onSelectListing }: Props) {
+export function MapWebView({ html, onSelectListing, onTourRouteChange }: Props) {
   const { t } = useTranslation();
 
-  // Das Leaflet-iframe sendet Popup-Taps via window.parent.postMessage hierher.
+  // Das Leaflet-iframe sendet Popup-Taps / Route-Änderungen via postMessage hierher.
   useEffect(() => {
     function onMsg(e: MessageEvent) {
       try {
         const m = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
         if (m && m.type === 'detail' && m.id) onSelectListing?.(String(m.id));
+        else if (m && m.type === 'route' && Array.isArray(m.waypoints)) onTourRouteChange?.(m.waypoints);
       } catch {
         // andere Nachrichten ignorieren
       }
     }
     window.addEventListener('message', onMsg);
     return () => window.removeEventListener('message', onMsg);
-  }, [onSelectListing]);
+  }, [onSelectListing, onTourRouteChange]);
 
   return (
     <iframe

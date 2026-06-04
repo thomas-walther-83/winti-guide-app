@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import { MapWebView } from '../components/MapWebView';
 import { CategoryFilter } from '../components/CategoryFilter';
 import { SubCategoryFilter } from '../components/SubCategoryFilter';
 import { fetchListingsWithCoords } from '../services/supabaseService';
+import { updateTourRoute } from '../services/toursService';
 import { getErrorMessage } from '../utils/errors';
 import { matchesSubType } from '../config/subcategories';
 import { useDetail } from '../context/DetailContext';
@@ -20,7 +21,7 @@ import { useTranslation } from '../hooks/useTranslation';
 import { useLocation } from '../hooks/useLocation';
 import { theme } from '../styles/theme';
 import type { LatLon } from '../utils/distance';
-import type { Listing, ListingCategory } from '../types';
+import type { Listing, ListingCategory, TourRouteWaypoint } from '../types';
 
 // Winterthur city center coordinates
 const WINTERTHUR_LAT = 47.4994;
@@ -224,12 +225,16 @@ function buildLeafletHTML(
 }
 
 export interface MapTour {
+  id: string;
   name: string;
   stops: { lat: number; lon: number; name: string }[];
+  /** Gespeicherte, manuell angepasste Route (Stops + Zwischenpunkte). */
+  savedWaypoints?: TourRouteWaypoint[] | null;
 }
 
-// Karte im Tour-Modus: Route entlang Straßen (OSRM via Leaflet Routing Machine),
-// per Drag anpassbar, mit Distanz/Gehzeit-Overlay und nummerierten Stops.
+// Karte im Tour-Modus: Fußgänger-Route (FOSSGIS-OSRM, foot) via Leaflet Routing
+// Machine. Stops sind fix; Ziehen an der Linie fügt Zwischenpunkte ein. Mit
+// Distanz/Gehzeit-Overlay; Änderungen werden zum Speichern an React gemeldet.
 function buildTourHTML(
   tour: MapTour,
   userCoords: LatLon | null | undefined,
@@ -238,7 +243,13 @@ function buildTourHTML(
   const stops = tour.stops.filter(
     (s) => Number.isFinite(s.lat) && Number.isFinite(s.lon),
   );
-  const waypoints = stops.map((s) => `L.latLng(${s.lat}, ${s.lon})`).join(', ');
+  // Wegpunkt-Daten: gespeicherte Route (Stops + Zwischenpunkte) bevorzugen,
+  // sonst die reinen Stops. Stops werden fortlaufend nummeriert.
+  const saved = tour.savedWaypoints && tour.savedWaypoints.length >= 2 ? tour.savedWaypoints : null;
+  const wpData = saved
+    ? saved.map((w) => ({ lat: w.lat, lon: w.lon, stop: !!w.stop }))
+    : stops.map((s) => ({ lat: s.lat, lon: s.lon, stop: true }));
+  const wpJson = JSON.stringify(wpData);
   const stopNames = JSON.stringify(stops.map((s) => s.name));
 
   const hasUser =
@@ -283,6 +294,16 @@ function buildTourHTML(
   <script>
     var stopNames = ${stopNames};
     var minLabel = ${JSON.stringify(labels.min)};
+    var wpData = ${wpJson};
+    // Stops fortlaufend nummerieren.
+    var sc = 0; wpData.forEach(function(w){ if (w.stop) { sc++; w.label = sc; } });
+
+    function send(obj) {
+      var m = JSON.stringify(obj);
+      if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) window.ReactNativeWebView.postMessage(m);
+      else if (window.parent && window.parent !== window) window.parent.postMessage(m, '*');
+    }
+
     var map = L.map('map', { zoomControl: true }).setView([${WINTERTHUR_LAT}, ${WINTERTHUR_LON}], 14);
 
     var swissKarte = L.tileLayer('https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-farbe/default/current/3857/{z}/{x}/{y}.jpeg', { attribution: '© swisstopo', maxZoom: 19 });
@@ -292,33 +313,59 @@ function buildTourHTML(
 
     ${userMarker}
 
+    var waypoints = wpData.map(function(w) {
+      return L.Routing.waypoint(L.latLng(w.lat, w.lon), null, { _stop: !!w.stop, _label: w.label });
+    });
+
     var control = L.Routing.control({
-      waypoints: [${waypoints}],
-      router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1', profile: 'driving' }),
+      waypoints: waypoints,
+      // Fußgänger-Routing über den FOSSGIS-OSRM-Foot-Server (gratis, ohne Key).
+      router: L.Routing.osrmv1({ serviceUrl: 'https://routing.openstreetmap.de/routed-foot/route/v1' }),
       routeWhileDragging: true,
-      addWaypoints: true,
-      draggableWaypoints: true,
+      addWaypoints: true,          // Linie ziehen fügt Zwischenpunkte ein
+      draggableWaypoints: false,   // Stops bleiben fix (Ziele)
       fitSelectedRoutes: true,
       show: false,
-      lineOptions: { addWaypoints: true, styles: [ { color: '#FFFFFF', weight: 9, opacity: 0.9 }, { color: '#FF6D00', weight: 6, opacity: 1 } ] },
+      lineOptions: { styles: [ { color: '#FFFFFF', weight: 9, opacity: 0.9 }, { color: '#FF6D00', weight: 6, opacity: 1 } ] },
       createMarker: function(i, wp, n) {
-        var label = (i + 1);
+        if (wp.options && wp.options._stop) {
+          var label = wp.options._label || '';
+          return L.marker(wp.latLng, {
+            draggable: false,
+            icon: L.divIcon({
+              className: '',
+              html: '<div style="background:#FF6D00;color:#fff;border:2px solid #fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;box-shadow:0 1px 4px rgba(0,0,0,0.45)">' + label + '</div>',
+              iconSize: [26, 26], iconAnchor: [13, 13]
+            })
+          }).bindPopup('<b>' + label + (stopNames[label - 1] ? ('. ' + stopNames[label - 1]) : '') + '</b>');
+        }
+        // Zwischenpunkt (gezogen): kleiner, ziehbarer grauer Punkt zum Feinjustieren.
         return L.marker(wp.latLng, {
           draggable: true,
           icon: L.divIcon({
             className: '',
-            html: '<div style="background:#FF6D00;color:#fff;border:2px solid #fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;box-shadow:0 1px 4px rgba(0,0,0,0.45)">' + label + '</div>',
-            iconSize: [26, 26], iconAnchor: [13, 13]
+            html: '<div style="background:#fff;border:3px solid #FF6D00;border-radius:50%;width:14px;height:14px;box-shadow:0 1px 3px rgba(0,0,0,0.4)"></div>',
+            iconSize: [14, 14], iconAnchor: [7, 7]
           })
-        }).bindPopup(stopNames[i] ? ('<b>' + label + '. ' + stopNames[i] + '</b>') : ('Wegpunkt ' + label));
+        });
       }
     }).addTo(map);
+
+    function postRoute() {
+      var wps = control.getWaypoints()
+        .filter(function(w) { return w.latLng; })
+        .map(function(w) {
+          return { lat: w.latLng.lat, lon: w.latLng.lng, stop: !!(w.options && w.options._stop) };
+        });
+      if (wps.length >= 2) send({ type: 'route', waypoints: wps });
+    }
 
     control.on('routesfound', function(e) {
       var s = e.routes[0].summary;
       var km = (s.totalDistance / 1000).toFixed(1);
-      var min = Math.round((s.totalDistance / 1000) / 5 * 60); // Gehzeit ~5 km/h
+      var min = Math.round(s.totalTime / 60); // echte Gehzeit vom Foot-Profil
       document.getElementById('info').innerHTML = km + ' km · ' + min + ' ' + minLabel;
+      postRoute();
     });
     control.on('routingerror', function() {
       document.getElementById('info').innerHTML = '⚠︎';
@@ -361,6 +408,20 @@ export function MapScreen({
       }
     },
     [listings, savedIds, toggle, open],
+  );
+
+  // Geänderte (gezogene) Tour-Route entprellt speichern.
+  const routeSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleTourRouteChange = useCallback(
+    (waypoints: TourRouteWaypoint[]) => {
+      const tourId = activeTour?.id;
+      if (!tourId) return;
+      if (routeSaveTimer.current) clearTimeout(routeSaveTimer.current);
+      routeSaveTimer.current = setTimeout(() => {
+        updateTourRoute(tourId, waypoints).catch(() => undefined);
+      }, 1200);
+    },
+    [activeTour],
   );
 
   // Standort einmalig beim Öffnen der Karte anfragen.
@@ -474,6 +535,7 @@ export function MapScreen({
             loading={loading}
             onError={(e) => setError(e.nativeEvent.description)}
             onSelectListing={handleSelectFromMap}
+            onTourRouteChange={handleTourRouteChange}
           />
           {locStatus !== 'unavailable' && (
             <TouchableOpacity

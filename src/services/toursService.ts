@@ -1,5 +1,5 @@
 import { supabase } from '../config/supabase';
-import type { UserTour, TourStop } from '../types';
+import type { UserTour, TourStop, TourRouteWaypoint } from '../types';
 
 /**
  * Eigene Touren (Tabellen public.user_tours + public.tour_stops mit RLS).
@@ -10,7 +10,7 @@ import type { UserTour, TourStop } from '../types';
 export async function fetchUserTours(): Promise<UserTour[]> {
   const { data, error } = await supabase
     .from('user_tours')
-    .select('id, user_id, name, description, created_at, updated_at, tour_stops(count)')
+    .select('id, user_id, name, description, created_at, updated_at, route_waypoints, tour_stops(count)')
     .order('created_at', { ascending: false });
   if (error) throw error;
   return (data ?? []).map((t: Record<string, unknown>) => ({
@@ -20,6 +20,7 @@ export async function fetchUserTours(): Promise<UserTour[]> {
     description: (t.description as string) ?? '',
     created_at: t.created_at as string,
     updated_at: t.updated_at as string,
+    route_waypoints: (t.route_waypoints as TourRouteWaypoint[] | null) ?? null,
     stopCount: Array.isArray(t.tour_stops) ? (t.tour_stops[0]?.count ?? 0) : 0,
   }));
 }
@@ -62,6 +63,19 @@ export async function fetchTourStops(tourId: string): Promise<TourStop[]> {
   return (data ?? []) as unknown as TourStop[];
 }
 
+/** Speichert die manuell angepasste Route (Stops + Zwischenpunkte). */
+export async function updateTourRoute(
+  tourId: string,
+  waypoints: TourRouteWaypoint[],
+): Promise<void> {
+  await supabase.from('user_tours').update({ route_waypoints: waypoints }).eq('id', tourId);
+}
+
+/** Verwirft eine gespeicherte Route (z. B. wenn sich die Stops ändern). */
+async function clearTourRoute(tourId: string): Promise<void> {
+  await supabase.from('user_tours').update({ route_waypoints: null }).eq('id', tourId);
+}
+
 /** Hängt einen Ort als nächsten Stop an die Tour an. */
 export async function addStop(tourId: string, listingId: string): Promise<void> {
   // Nächste Position bestimmen (max + 1).
@@ -76,11 +90,18 @@ export async function addStop(tourId: string, listingId: string): Promise<void> 
     .from('tour_stops')
     .insert({ tour_id: tourId, listing_id: listingId, position: nextPos });
   if (error) throw error;
+  await clearTourRoute(tourId);
 }
 
 export async function removeStop(stopId: string): Promise<void> {
-  const { error } = await supabase.from('tour_stops').delete().eq('id', stopId);
+  const { data, error } = await supabase
+    .from('tour_stops')
+    .delete()
+    .eq('id', stopId)
+    .select('tour_id')
+    .single();
   if (error) throw error;
+  if (data?.tour_id) await clearTourRoute(data.tour_id as string);
 }
 
 export async function updateStopNote(stopId: string, note: string): Promise<void> {
@@ -89,12 +110,13 @@ export async function updateStopNote(stopId: string, note: string): Promise<void
 }
 
 /** Schreibt die neue Reihenfolge (Stop-IDs in Zielreihenfolge) zurück. */
-export async function reorderStops(orderedStopIds: string[]): Promise<void> {
+export async function reorderStops(tourId: string, orderedStopIds: string[]): Promise<void> {
   await Promise.all(
     orderedStopIds.map((id, idx) =>
       supabase.from('tour_stops').update({ position: idx }).eq('id', id),
     ),
   );
+  await clearTourRoute(tourId);
 }
 
 /** Anzahl Stops einer Tour (für Limit-Prüfung). */

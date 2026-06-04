@@ -141,6 +141,13 @@ export interface Listing {
 
 // ── Eigene Touren (vom Nutzer erstellt) ──────────────────────────────────────
 
+/** Ein Wegpunkt der gespeicherten Route: Ziel-Stop oder gezogener Zwischenpunkt. */
+export interface TourRouteWaypoint {
+  lat: number;
+  lon: number;
+  stop: boolean;
+}
+
 export interface UserTour {
   id: string;
   user_id: string;
@@ -150,6 +157,8 @@ export interface UserTour {
   updated_at?: string;
   /** Anzahl Stops (berechnet beim Laden der Übersicht). */
   stopCount?: number;
+  /** Manuell angepasste Route (Stops + Zwischenpunkte), falls vorhanden. */
+  route_waypoints?: TourRouteWaypoint[] | null;
 }
 
 export interface TourStop {

@@ -9,9 +9,11 @@ interface Props {
   onError?: WebViewProps['onError'];
   /** Wird mit der Listing-ID aufgerufen, wenn ein Popup angetippt wird. */
   onSelectListing?: (id: string) => void;
+  /** Wird mit den aktuellen Tour-Wegpunkten aufgerufen, wenn die Route geändert wird. */
+  onTourRouteChange?: (waypoints: { lat: number; lon: number; stop: boolean }[]) => void;
 }
 
-export function MapWebView({ html, loading, onError, onSelectListing }: Props) {
+export function MapWebView({ html, loading, onError, onSelectListing, onTourRouteChange }: Props) {
   return (
     <WebView
       style={styles.webview}
@@ -35,6 +37,10 @@ export function MapWebView({ html, loading, onError, onSelectListing }: Props) {
           const msg = JSON.parse(raw);
           if (msg && msg.type === 'detail' && msg.id) {
             onSelectListing?.(String(msg.id));
+            return;
+          }
+          if (msg && msg.type === 'route' && Array.isArray(msg.waypoints)) {
+            onTourRouteChange?.(msg.waypoints);
             return;
           }
         } catch {

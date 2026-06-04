@@ -277,6 +277,8 @@ function TourDetail({
   const { t } = useTranslation();
   const [stops, setStops] = useState<TourStop[]>([]);
   const [loading, setLoading] = useState(true);
+  // Gespeicherte (gezogene) Route; wird verworfen, sobald sich die Stops ändern.
+  const [savedWaypoints, setSavedWaypoints] = useState(tour.route_waypoints ?? null);
 
   const load = useCallback(async () => {
     try {
@@ -297,11 +299,13 @@ function TourDetail({
     const reordered = [...stops];
     [reordered[index], reordered[next]] = [reordered[next], reordered[index]];
     setStops(reordered);
-    await reorderStops(reordered.map((s) => s.id));
+    setSavedWaypoints(null);
+    await reorderStops(tour.id, reordered.map((s) => s.id));
   };
 
   const remove = async (stop: TourStop) => {
     setStops((prev) => prev.filter((s) => s.id !== stop.id));
+    setSavedWaypoints(null);
     await removeStop(stop.id);
   };
 
@@ -331,7 +335,7 @@ function TourDetail({
       {mapStops.length >= 2 && onShowTour && (
         <TouchableOpacity
           style={styles.createBtn}
-          onPress={() => onShowTour({ name: tour.name, stops: mapStops })}
+          onPress={() => onShowTour({ id: tour.id, name: tour.name, stops: mapStops, savedWaypoints })}
           activeOpacity={0.85}
         >
           <Ionicons name="map" size={18} color="#FFFFFF" />
