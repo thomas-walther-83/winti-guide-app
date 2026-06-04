@@ -1586,11 +1586,55 @@ def import_ical(url: str, source_name: str, default_location: str = "Winterthur"
     return events
 
 
+# Deutsche Monatsnamen (voll + Abkürzungen) – dateutil/dateparser versteht diese
+# nicht, deshalb ein eigener Parser für Formate wie „05. Juni 2026“ oder „5. Juni“.
+GERMAN_MONTHS = {
+    "januar": 1, "jan": 1, "februar": 2, "feb": 2, "märz": 3, "maerz": 3, "mär": 3, "mrz": 3,
+    "april": 4, "apr": 4, "mai": 5, "juni": 6, "jun": 6, "juli": 7, "jul": 7,
+    "august": 8, "aug": 8, "september": 9, "sept": 9, "sep": 9, "oktober": 10, "okt": 10,
+    "november": 11, "nov": 11, "dezember": 12, "dez": 12,
+}
+
+
+def parse_german_date(s: str) -> str | None:
+    """Parst „<Tag>. <Monatsname> [<Jahr>]“ (deutsch). Ohne Jahr wird das nächste
+    Vorkommen angenommen (heuristisch laufendes/nächstes Jahr)."""
+    if not s:
+        return None
+    # Mit Jahr: „05. Juni 2026“, „5 Juni 2026“
+    m = re.search(r"(\d{1,2})\.?\s+([A-Za-zäöüÄÖÜ]+)\.?\s+(\d{4})", s)
+    if m:
+        mon = GERMAN_MONTHS.get(m.group(2).lower())
+        if mon:
+            try:
+                return datetime(int(m.group(3)), mon, int(m.group(1))).strftime("%Y-%m-%d")
+            except ValueError:
+                return None
+    # Ohne Jahr: „5. Juni“ → laufendes Jahr, sonst nächstes
+    m = re.search(r"(\d{1,2})\.?\s+([A-Za-zäöüÄÖÜ]+)", s)
+    if m:
+        mon = GERMAN_MONTHS.get(m.group(2).lower())
+        if mon:
+            now = datetime.now()
+            for year in (now.year, now.year + 1):
+                try:
+                    dt = datetime(year, mon, int(m.group(1)))
+                except ValueError:
+                    return None
+                if dt >= now - timedelta(days=2):
+                    return dt.strftime("%Y-%m-%d")
+    return None
+
+
 def parse_date(date_str: str) -> str | None:
     """Parst verschiedene Datumsformate in YYYY-MM-DD."""
     if not date_str:
         return None
     s = str(date_str).strip()
+    # Zuerst deutsche Monatsnamen (z. B. „05. Juni 2026“) – die kennt dateutil nicht.
+    g = parse_german_date(s)
+    if g:
+        return g
     try:
         # ISO-8601 (YYYY-MM-DD…) ist eindeutig → NICHT dayfirst (sonst werden
         # Tag/Monat vertauscht, z. B. 2026-07-01 → fälschlich 07. Januar).
