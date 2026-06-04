@@ -14,6 +14,8 @@ import { SubCategoryFilter } from '../components/SubCategoryFilter';
 import { fetchListingsWithCoords } from '../services/supabaseService';
 import { updateTourRoute } from '../services/toursService';
 import { getErrorMessage } from '../utils/errors';
+import { openTourInGoogleMaps, googleMapsTourUrl } from '../utils/maps';
+import { shareItem } from '../utils/share';
 import { matchesSubType } from '../config/subcategories';
 import { useDetail } from '../context/DetailContext';
 import { useFavorites } from '../hooks/useFavorites';
@@ -323,7 +325,7 @@ function buildTourHTML(
       router: L.Routing.osrmv1({ serviceUrl: 'https://routing.openstreetmap.de/routed-foot/route/v1' }),
       routeWhileDragging: true,
       addWaypoints: true,          // Linie ziehen fügt Zwischenpunkte ein
-      draggableWaypoints: false,   // Stops bleiben fix (Ziele)
+      draggableWaypoints: true,    // LRM-Drag aktiv; Stops werden per Marker (draggable:false) fixiert
       fitSelectedRoutes: true,
       show: false,
       lineOptions: { styles: [ { color: '#FFFFFF', weight: 9, opacity: 0.9 }, { color: '#FF6D00', weight: 6, opacity: 1 } ] },
@@ -339,8 +341,8 @@ function buildTourHTML(
             })
           }).bindPopup('<b>' + label + (stopNames[label - 1] ? ('. ' + stopNames[label - 1]) : '') + '</b>');
         }
-        // Zwischenpunkt (gezogen): kleiner, ziehbarer grauer Punkt zum Feinjustieren.
-        return L.marker(wp.latLng, {
+        // Zwischenpunkt (gezogen): kleiner, ziehbarer grauer Punkt. Antippen = löschen.
+        var via = L.marker(wp.latLng, {
           draggable: true,
           icon: L.divIcon({
             className: '',
@@ -348,6 +350,22 @@ function buildTourHTML(
             iconSize: [14, 14], iconAnchor: [7, 7]
           })
         });
+        var dragged = false;
+        via.on('dragstart', function() { dragged = true; });
+        via.on('click', function() {
+          if (dragged) { dragged = false; return; } // ein echtes Ziehen nicht als Tap werten
+          // Den nächstgelegenen Zwischenpunkt (kein Stop) entfernen.
+          var wps = control.getWaypoints();
+          var best = -1, bestD = Infinity, here = via.getLatLng();
+          for (var k = 0; k < wps.length; k++) {
+            var w = wps[k];
+            if (!w.latLng || (w.options && w.options._stop)) continue;
+            var d = map.distance(w.latLng, here);
+            if (d < bestD) { bestD = d; best = k; }
+          }
+          if (best >= 0) control.spliceWaypoints(best, 1);
+        });
+        return via;
       }
     }).addTo(map);
 
@@ -424,6 +442,16 @@ export function MapScreen({
     [activeTour],
   );
 
+  const shareTour = useCallback(() => {
+    if (!activeTour) return;
+    const lines = activeTour.stops.map((s, i) => `${i + 1}. ${s.name}`).join('\n');
+    shareItem(`${activeTour.name}\n${lines}`, googleMapsTourUrl(activeTour.stops) ?? undefined);
+  }, [activeTour]);
+
+  const openTourMaps = useCallback(() => {
+    if (activeTour) openTourInGoogleMaps(activeTour.stops);
+  }, [activeTour]);
+
   // Standort einmalig beim Öffnen der Karte anfragen.
   useEffect(() => {
     requestLocation();
@@ -486,8 +514,24 @@ export function MapScreen({
             </Text>
           </View>
           <TouchableOpacity
+            onPress={shareTour}
+            hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={t('share')}
+          >
+            <Ionicons name="share-outline" size={24} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={openTourMaps}
+            hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={t('open_in_maps')}
+          >
+            <Ionicons name="navigate-outline" size={24} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity
             onPress={() => setActiveTour(null)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
             accessibilityRole="button"
             accessibilityLabel={t('close')}
           >

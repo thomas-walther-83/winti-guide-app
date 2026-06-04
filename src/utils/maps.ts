@@ -52,3 +52,24 @@ export function openInGoogleMaps(lat?: number | null, lon?: number | null, query
   const url = googleMapsSearchUrl(lat, lon, query);
   if (url) Linking.openURL(url).catch(() => undefined);
 }
+
+/**
+ * Baut eine Google-Maps-Routen-URL für eine ganze Tour (zu Fuß): erster Stop =
+ * Start, letzter = Ziel, dazwischen als Wegpunkte. Gibt null bei < 2 Stops.
+ */
+export function googleMapsTourUrl(stops: { lat: number; lon: number }[]): string | null {
+  const pts = stops.filter((s) => Number.isFinite(s.lat) && Number.isFinite(s.lon));
+  if (pts.length < 2) return null;
+  const origin = `${pts[0].lat},${pts[0].lon}`;
+  const destination = `${pts[pts.length - 1].lat},${pts[pts.length - 1].lon}`;
+  const mids = pts.slice(1, -1).map((p) => `${p.lat},${p.lon}`).join('|');
+  let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=walking`;
+  if (mids) url += `&waypoints=${encodeURIComponent(mids)}`;
+  return url;
+}
+
+/** Öffnet die ganze Tour als Fuß-Route in Google Maps. */
+export function openTourInGoogleMaps(stops: { lat: number; lon: number }[]): void {
+  const url = googleMapsTourUrl(stops);
+  if (url) Linking.openURL(url).catch(() => undefined);
+}

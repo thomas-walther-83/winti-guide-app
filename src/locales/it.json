@@ -233,6 +233,6 @@
   "tours_stop_limit": "Limite tappe raggiunto.",
   "tours_create_first": "Crea prima un tour",
   "close": "Chiudi",
-  "tour_drag_hint": "Trascina la linea per modificare il percorso",
+  "tour_drag_hint": "Trascina la linea · tocca un punto grigio per rimuoverlo",
   "minutes_short": "min"
 }

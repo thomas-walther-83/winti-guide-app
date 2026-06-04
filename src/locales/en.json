@@ -233,6 +233,6 @@
   "tours_stop_limit": "Stop limit reached. Upgrade for more.",
   "tours_create_first": "Create a tour first",
   "close": "Close",
-  "tour_drag_hint": "Drag the line to adjust the route",
+  "tour_drag_hint": "Drag the line to shape the route · tap a grey point to remove it",
   "minutes_short": "min"
 }

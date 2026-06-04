@@ -233,6 +233,6 @@
   "tours_stop_limit": "Limite d'étapes atteinte.",
   "tours_create_first": "Créez d'abord un tour",
   "close": "Fermer",
-  "tour_drag_hint": "Faites glisser la ligne pour ajuster l'itinéraire",
+  "tour_drag_hint": "Faites glisser la ligne · touchez un point gris pour le supprimer",
   "minutes_short": "min"
 }

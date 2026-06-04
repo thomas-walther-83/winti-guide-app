@@ -233,6 +233,6 @@
   "tours_stop_limit": "Stop-Limit erreicht. Upgrade für mehr.",
   "tours_create_first": "Erst eine Tour erstellen",
   "close": "Schließen",
-  "tour_drag_hint": "Linie ziehen, um die Route anzupassen",
+  "tour_drag_hint": "Linie ziehen = Weg anpassen · grauen Punkt antippen = entfernen",
   "minutes_short": "Min"
 }
