@@ -185,6 +185,12 @@ class Supabase:
     def upsert_events(self, events: list[dict]) -> int:
         if not events:
             return 0
+        # PostgREST verlangt im Bulk-Upsert identische Keys pro Row
+        # (PGRST102 „All object keys must match"). Da einzelne Scraper
+        # unterschiedliche Felder setzen (z. B. mal mit, mal ohne
+        # `image_url`), normalisieren wir hier auf die Union aller Keys.
+        all_keys = {k for ev in events for k in ev.keys()}
+        events = [{k: ev.get(k) for k in all_keys} for ev in events]
         total = 0
         for i in range(0, len(events), 50):
             batch = events[i:i+50]
@@ -1453,9 +1459,19 @@ def scrape_eventfrog() -> list[dict]:
         return events
     try:
         url = f"{EVENTFROG_BASE}/events"
-        params = {"key": EVENTFROG_API_KEY, "perPage": 100, "text": "Winterthur"}
-        res = requests.get(url, params=params,
-                           headers={"Accept": "application/json", **HEADERS}, timeout=25)
+        # Eventfrog erwartet den Public-API-Key als Bearer-Token im
+        # Authorization-Header, nicht als Query-Param.
+        params = {"perPage": 100, "text": "Winterthur"}
+        res = requests.get(
+            url,
+            params=params,
+            headers={
+                "Accept": "application/json",
+                "Authorization": f"Bearer {EVENTFROG_API_KEY}",
+                **HEADERS,
+            },
+            timeout=25,
+        )
         print(f"    HTTP {res.status_code} @ {EVENTFROG_BASE}/events")
         if res.status_code != 200:
             print(f"    Antwort: {res.text[:200]}")
