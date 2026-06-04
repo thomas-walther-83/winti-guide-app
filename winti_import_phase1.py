@@ -358,7 +358,9 @@ def osm_to_listing(el: dict, category: str) -> dict:
     # wird aus den Bounds berechnet, falls kein center vorhanden ist.
     geometry = None
     members = el.get("members")
+    own_geom = el.get("geometry")
     if members:
+        # Relation: Linien aus den Way-Mitgliedern zusammensetzen.
         lines = []
         for m in members:
             geom = m.get("geometry")
@@ -369,10 +371,24 @@ def osm_to_listing(el: dict, category: str) -> dict:
                     lines.append(coords)
         if lines:
             geometry = {"type": "MultiLineString", "coordinates": lines}
+    elif own_geom:
+        # Way: Geometrie steckt direkt im Element.
+        coords = [[p["lon"], p["lat"]] for p in own_geom
+                  if p.get("lon") is not None and p.get("lat") is not None]
+        if len(coords) >= 2:
+            geometry = {"type": "LineString", "coordinates": coords}
     bounds = el.get("bounds")
     if (lat is None or lon is None) and bounds:
         lat = (bounds["minlat"] + bounds["maxlat"]) / 2
         lon = (bounds["minlon"] + bounds["maxlon"]) / 2
+    # Letzter Rückfall: Mittelpunkt aus der Geometrie (Mitte der ersten Linie).
+    if (lat is None or lon is None) and geometry:
+        first_line = (geometry["coordinates"][0]
+                      if geometry["type"] == "MultiLineString"
+                      else geometry["coordinates"])
+        if first_line:
+            mid = first_line[len(first_line) // 2]
+            lon, lat = mid[0], mid[1]
 
     # Bild aus OSM-Tags (ohne Extra-Request):
     #  - image: direkte Bild-URL
