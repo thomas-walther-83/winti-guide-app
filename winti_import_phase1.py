@@ -406,19 +406,45 @@ def osm_to_listing(el: dict, category: str) -> dict:
         if commons:
             image_url = commons_file_to_url(commons)
 
+    sub_type = (tags.get("cuisine") or tags.get("tourism") or tags.get("amenity")
+                or tags.get("sport") or tags.get("leisure") or tags.get("shop") or "")
+    description = tags.get("description") or tags.get("description:de") or ""
+
+    # Touren-Anreicherung: Routentyp als sub_type, Eckdaten (von→nach, Distanz,
+    # Netz) in die Beschreibung – damit der Detail-Dialog sinnvolle Infos zeigt.
+    if category == "touren":
+        route_type = (tags.get("route") or "").lower()
+        sub_type = {
+            "hiking": "Wanderung", "foot": "Wanderweg", "bicycle": "Veloroute",
+            "mtb": "Mountainbike", "running": "Laufstrecke",
+            "inline_skates": "Inline-Route", "ski": "Skiroute",
+        }.get(route_type, "Route")
+        bits = []
+        frm, to = tags.get("from"), tags.get("to")
+        if frm and to:
+            bits.append(f"{frm} → {to}")
+        dist = tags.get("distance")
+        if dist:
+            dist = str(dist).strip()
+            bits.append(dist if "km" in dist.lower() else f"{dist} km")
+        net = tags.get("network")
+        if net:
+            bits.append(f"Netz {net}")
+        composed = " · ".join(bits)
+        description = f"{description} · {composed}".strip(" ·") if (description and composed) else (description or composed)
+
     return {
         "source":     "osm",
         "source_id":  f"osm_{el['id']}",
         "category":   category,
-        "sub_type":   (tags.get("cuisine") or tags.get("tourism") or tags.get("amenity")
-                       or tags.get("sport") or tags.get("leisure") or tags.get("shop") or ""),
+        "sub_type":   sub_type,
         "name":       name,
         "address":    address,
         "hours":      tags.get("opening_hours", ""),
         "phone":      tags.get("phone") or tags.get("contact:phone") or "",
         "website":    tags.get("website") or tags.get("contact:website") or "",
         "stars":      tags.get("stars", ""),
-        "description": tags.get("description") or tags.get("description:de") or "",
+        "description": description,
         "lat":        lat,
         "lon":        lon,
         "geometry":   geometry,

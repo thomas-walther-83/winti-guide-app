@@ -17,7 +17,7 @@ headers = {"apikey": KEY, "Authorization": f"Bearer {KEY}"}
 res = requests.get(
     f"{URL}/rest/v1/listings",
     headers=headers,
-    params={"category": "eq.touren", "select": "name,lat,lon,geometry"},
+    params={"category": "eq.touren", "select": "name,sub_type,description,lat,lon,geometry"},
     timeout=30,
 )
 print(f"HTTP {res.status_code}")
@@ -31,7 +31,7 @@ for r in rows[:5]:
         coords = g.get("coordinates") or []
         n_lines = len(coords)
         n_pts = sum(len(c) for c in coords) if coords and isinstance(coords[0], list) else 0
-        print(f"  ✓ {r['name'][:40]} · type={g.get('type')} lines={n_lines} pts={n_pts}")
+        print(f"  ✓ {r['name'][:34]} [{r.get('sub_type')}] lines={n_lines} pts={n_pts} · {(r.get('description') or '')[:50]}")
     else:
         print(f"  ✗ {r['name'][:40]} · geometry=NULL lat={r.get('lat')} lon={r.get('lon')}")
 
