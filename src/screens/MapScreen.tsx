@@ -78,15 +78,15 @@ function buildLeafletHTML(
       const color = CATEGORY_COLORS[l.category] ?? '#8B0000';
       const popupLiteral = JSON.stringify(detailPopup(l));
       const isFocused = focusListing != null && focusListing.id === l.id;
-      const varDecl = isFocused ? 'var focusMarker = ' : '';
-      return `${varDecl}L.circleMarker([${l.lat}, ${l.lon}], {
-        radius: ${isFocused ? 11 : 8},
-        fillColor: '${color}',
-        color: ${isFocused ? "'#FFD700'" : "'#fff'"},
-        weight: ${isFocused ? 3 : 2},
-        opacity: 1,
-        fillOpacity: 0.85
-      }).bindPopup(${popupLiteral}).addTo(map);`;
+      return `(function(){
+        var lyr = L.circleMarker([${l.lat}, ${l.lon}], {
+          radius: 8, fillColor: '${color}', color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.85
+        }).bindPopup(${popupLiteral}).addTo(map);
+        lyr._def = { radius: 8, color: '#fff', weight: 2 };
+        lyr._sel = { radius: 11, color: '#FFD700', weight: 3 };
+        lyr.on('click', function(){ selectLayer(lyr, false); });
+        ${isFocused && !l.geometry ? 'initialSel = lyr;' : ''}
+      })();`;
     })
     .join('\n');
 
@@ -99,14 +99,15 @@ function buildLeafletHTML(
       const isFocused = focusListing != null && focusListing.id === l.id;
       const geomLiteral = JSON.stringify(l.geometry);
       const popupLiteral = JSON.stringify(detailPopup(l));
-      const lineColor = isFocused ? '#FF6D00' : '#1565C0';
-      const lineWeight = isFocused ? 7 : 4;
-      const casingWeight = isFocused ? 11 : 7;
-      const varDecl = isFocused ? 'var focusLine = ' : '';
-      return `L.geoJSON(${geomLiteral}, { style: { color: '#FFFFFF', weight: ${casingWeight}, opacity: 0.9 } }).addTo(map);
-      ${varDecl}L.geoJSON(${geomLiteral}, {
-        style: { color: '${lineColor}', weight: ${lineWeight}, opacity: 1 }
-      }).bindPopup(${popupLiteral}).addTo(map);`;
+      return `(function(){
+        L.geoJSON(${geomLiteral}, { style: { color: '#FFFFFF', weight: 7, opacity: 0.9 } }).addTo(map);
+        var lyr = L.geoJSON(${geomLiteral}, { style: { color: '#1565C0', weight: 4, opacity: 1 } }).bindPopup(${popupLiteral}).addTo(map);
+        lyr._def = { color: '#1565C0', weight: 4 };
+        lyr._sel = { color: '#FF6D00', weight: 7 };
+        lyr._line = true;
+        lyr.on('click', function(){ selectLayer(lyr, true); });
+        ${isFocused ? 'initialSel = lyr;' : ''}
+      })();`;
     })
     .join('\n');
 
@@ -127,26 +128,19 @@ function buildLeafletHTML(
       }).bindPopup('📍 Dein Standort').addTo(map);`
     : '';
 
-  const focusHasGeom =
-    focusListing?.geometry != null &&
-    Array.isArray(focusListing.geometry.coordinates) &&
-    focusListing.geometry.coordinates.length > 0;
-
-  const focusScript = focusHasGeom
-    ? `if (typeof focusLine !== 'undefined') {
-        focusLine.bringToFront();
-        map.fitBounds(focusLine.getBounds(), { padding: [30, 30] });
-        focusLine.openPopup();
-      }`
-    : focusListing?.lat != null &&
-        focusListing?.lon != null &&
-        Number.isFinite(focusListing.lat) &&
-        Number.isFinite(focusListing.lon)
-      ? `map.setView([${focusListing.lat}, ${focusListing.lon}], 17);
-    if (typeof focusMarker !== 'undefined') { focusMarker.openPopup(); }`
-      : hasUser
-        ? `map.setView([${userCoords!.lat}, ${userCoords!.lon}], 15);`
-        : '';
+  // Aus Entdecken fokussierte Tour/Ort: hervorheben + einpassen.
+  const focusScript = `
+    if (initialSel) {
+      selectLayer(initialSel, !!initialSel._line);
+      if (initialSel._line) {
+        map.fitBounds(initialSel.getBounds(), { padding: [30, 30] });
+      } else {
+        map.setView(initialSel.getLatLng(), 17);
+      }
+      initialSel.openPopup();
+    }${hasUser ? ` else {
+      map.setView([${userCoords!.lat}, ${userCoords!.lon}], 15);
+    }` : ''}`;
 
   return `<!DOCTYPE html>
 <html>
@@ -181,6 +175,21 @@ function buildLeafletHTML(
       } else if (window.parent && window.parent !== window) {
         window.parent.postMessage(msg, '*');
       }
+    }
+
+    // Auswahl-Hervorhebung in der Karte (ohne Neuladen): angetippte Linie/Punkt
+    // wird hervorgehoben, die vorher gewählte zurückgesetzt.
+    var currentSel = null;
+    var initialSel = null;
+    function applyStyle(lyr, s) {
+      if (s.radius != null && lyr.setRadius) lyr.setRadius(s.radius);
+      lyr.setStyle({ color: s.color, weight: s.weight });
+    }
+    function selectLayer(lyr, isLine) {
+      if (currentSel && currentSel !== lyr) applyStyle(currentSel, currentSel._def);
+      applyStyle(lyr, lyr._sel);
+      if (isLine || lyr._line) lyr.bringToFront();
+      currentSel = lyr;
     }
 
     var map = L.map('map', {
