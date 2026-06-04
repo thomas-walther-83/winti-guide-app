@@ -234,5 +234,8 @@
   "tours_create_first": "Create a tour first",
   "close": "Close",
   "tour_drag_hint": "Drag the line to shape the route · tap a grey point to remove it",
-  "minutes_short": "min"
+  "minutes_short": "min",
+  "view_cards": "Cards",
+  "view_list": "List",
+  "scroll_to_top": "Back to top"
 }

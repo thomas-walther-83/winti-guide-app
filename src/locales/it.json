@@ -234,5 +234,8 @@
   "tours_create_first": "Crea prima un tour",
   "close": "Chiudi",
   "tour_drag_hint": "Trascina la linea · tocca un punto grigio per rimuoverlo",
-  "minutes_short": "min"
+  "minutes_short": "min",
+  "view_cards": "Schede",
+  "view_list": "Elenco",
+  "scroll_to_top": "Torna su"
 }

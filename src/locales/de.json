@@ -234,5 +234,8 @@
   "tours_create_first": "Erst eine Tour erstellen",
   "close": "Schließen",
   "tour_drag_hint": "Linie ziehen = Weg anpassen · grauen Punkt antippen = entfernen",
-  "minutes_short": "Min"
+  "minutes_short": "Min",
+  "view_cards": "Karten",
+  "view_list": "Liste",
+  "scroll_to_top": "Nach oben"
 }

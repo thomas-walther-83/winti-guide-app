@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   FlatList,
@@ -15,6 +15,7 @@ import { useAppTier } from '../hooks/useAppTier';
 import { useFavorites } from '../hooks/useFavorites';
 import { fetchPartnerAds } from '../services/supabaseService';
 import { ListingCard } from '../components/ListingCard';
+import { ListingRow } from '../components/ListingRow';
 import { PartnerAdBanner } from '../components/PartnerAdBanner';
 import { CategoryFilter } from '../components/CategoryFilter';
 import { SubCategoryFilter } from '../components/SubCategoryFilter';
@@ -33,6 +34,8 @@ import { INTERESTS_KEY } from './OnboardingScreen';
 import type { Listing, ListingCategory, PartnerAd } from '../types';
 
 const AD_FREQUENCY = 5; // Show an ad every N listings
+const VIEW_MODE_KEY = 'winti_view_mode';
+type ViewMode = 'cards' | 'compact';
 
 function getFormattedDate(): string {
   return new Date().toLocaleDateString('de-CH', {
@@ -51,6 +54,7 @@ type HeaderSection =
   | { type: 'collections' }
   | { type: 'subcategories' }
   | { type: 'nearby' }
+  | { type: 'view-toggle' }
   | { type: 'section-title'; title: string };
 
 type ListItem = HeaderSection | { type: 'listing'; data: Listing } | { type: 'ad'; data: PartnerAd };
@@ -65,6 +69,22 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
 
   const [nearby, setNearby] = useState(false);
   const [interests, setInterests] = useState<ListingCategory[]>([]);
+
+  // Ansicht: grosse Foto-Karten oder kompakte Liste (persistiert).
+  const [viewMode, setViewMode] = useState<ViewMode>('cards');
+  useEffect(() => {
+    AsyncStorage.getItem(VIEW_MODE_KEY).then((v) => {
+      if (v === 'cards' || v === 'compact') setViewMode(v);
+    });
+  }, []);
+  const toggleViewMode = (mode: ViewMode) => {
+    setViewMode(mode);
+    AsyncStorage.setItem(VIEW_MODE_KEY, mode).catch(() => undefined);
+  };
+
+  // Scroll-to-top: Liste-Ref + Sichtbarkeit des schwebenden Buttons.
+  const listRef = useRef<FlatList>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   const { isPremium } = useAppTier();
   const { t } = useTranslation();
@@ -255,6 +275,7 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
 
     if (!loading && !error) {
       items.push({ type: 'section-title', title: categoryLabel });
+      if (filteredListings.length > 0) items.push({ type: 'view-toggle' });
       let adIndex = 0;
       filteredListings.forEach((l, idx) => {
         items.push({ type: 'listing', data: l });
@@ -368,19 +389,52 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
           />
         );
 
+      case 'view-toggle':
+        return (
+          <View style={styles.viewToggle}>
+            <TouchableOpacity
+              style={[styles.viewBtn, viewMode === 'cards' && styles.viewBtnActive]}
+              onPress={() => toggleViewMode('cards')}
+              accessibilityRole="button"
+              accessibilityLabel={t('view_cards')}
+              accessibilityState={{ selected: viewMode === 'cards' }}
+            >
+              <Ionicons
+                name="image"
+                size={16}
+                color={viewMode === 'cards' ? '#FFFFFF' : theme.colors.textSecondary}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.viewBtn, viewMode === 'compact' && styles.viewBtnActive]}
+              onPress={() => toggleViewMode('compact')}
+              accessibilityRole="button"
+              accessibilityLabel={t('view_list')}
+              accessibilityState={{ selected: viewMode === 'compact' }}
+            >
+              <Ionicons
+                name="list"
+                size={18}
+                color={viewMode === 'compact' ? '#FFFFFF' : theme.colors.textSecondary}
+              />
+            </TouchableOpacity>
+          </View>
+        );
+
       case 'ad':
         return <PartnerAdBanner ad={(item as { type: 'ad'; data: PartnerAd }).data} />;
 
-      case 'listing':
-        return (
-          <ListingCard
-            listing={(item as { type: 'listing'; data: Listing }).data}
-            isSaved={savedIds.includes((item as { type: 'listing'; data: Listing }).data.id)}
-            onToggleSave={handleToggleSave}
-            onShowOnMap={onNavigateToMap}
-            distanceKm={distances.get((item as { type: 'listing'; data: Listing }).data.id)}
-          />
-        );
+      case 'listing': {
+        const l = (item as { type: 'listing'; data: Listing }).data;
+        const cardProps = {
+          listing: l,
+          isSaved: savedIds.includes(l.id),
+          onToggleSave: handleToggleSave,
+          onShowOnMap: onNavigateToMap,
+          distanceKm: distances.get(l.id),
+        };
+        return viewMode === 'compact' ? <ListingRow {...cardProps} /> : <ListingCard {...cardProps} />;
+      }
 
       default:
         return null;
@@ -407,6 +461,7 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
 
       {!error && (
         <FlatList
+          ref={listRef}
           data={listData}
           keyExtractor={(item, index) => {
             if (item.type === 'listing') return (item as { type: 'listing'; data: Listing }).data.id;
@@ -414,9 +469,14 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
             return `${item.type}-${index}`;
           }}
           renderItem={renderItem}
-          extraData={{ category, subType, savedIds, activeCollection }}
+          extraData={{ category, subType, savedIds, activeCollection, viewMode }}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onScroll={(e) => {
+            const y = e.nativeEvent.contentOffset.y;
+            setShowScrollTop((prev) => (prev !== y > 700 ? y > 700 : prev));
+          }}
           onRefresh={refresh}
           refreshing={loading}
           ListFooterComponent={
@@ -429,6 +489,18 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
             ) : null
           }
         />
+      )}
+
+      {showScrollTop && (
+        <TouchableOpacity
+          style={styles.scrollTopBtn}
+          onPress={() => listRef.current?.scrollToOffset({ offset: 0, animated: true })}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={t('scroll_to_top')}
+        >
+          <Ionicons name="arrow-up" size={22} color="#FFFFFF" />
+        </TouchableOpacity>
       )}
     </SafeAreaView>
   );
@@ -446,6 +518,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.md,
     paddingBottom: theme.spacing.xs,
+  },
+  viewToggle: {
+    flexDirection: 'row',
+    alignSelf: 'flex-end',
+    gap: 4,
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.xs,
+    backgroundColor: theme.colors.surfaceAlt,
+    borderRadius: theme.borderRadius.full,
+    padding: 3,
+  },
+  viewBtn: {
+    width: 36,
+    height: 30,
+    borderRadius: theme.borderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  viewBtnActive: {
+    backgroundColor: theme.colors.primary,
+  },
+  scrollTopBtn: {
+    position: 'absolute',
+    right: theme.spacing.md,
+    bottom: theme.spacing.lg,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: theme.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...theme.shadow.medium,
   },
   headerLeft: {
     flexDirection: 'row',
