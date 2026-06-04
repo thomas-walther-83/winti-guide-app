@@ -32,8 +32,22 @@ import {
 } from '../services/toursService';
 import { distanceKm } from '../utils/distance';
 import { CURATED_TOURS } from '../config/curatedTours';
-import type { UserTour, TourStop, Listing } from '../types';
+import { fetchPublicTours } from '../services/publicToursService';
+import type { UserTour, TourStop, Listing, PublicTour } from '../types';
 import type { MapTour } from './MapScreen';
+
+// Statische Touren in das DB-Schema mappen, damit der Fallback dieselben
+// Felder hat wie die Live-Daten (Konsumenten merken keinen Unterschied).
+const STATIC_FALLBACK: PublicTour[] = CURATED_TOURS.map((ct, idx) => ({
+  id: `static_${ct.id}`,
+  slug: ct.id,
+  name: ct.name,
+  description: ct.description,
+  emoji: ct.emoji,
+  sort_order: (idx + 1) * 10,
+  published: true,
+  stops: ct.stops.map((s, i) => ({ position: i + 1, lat: s.lat, lon: s.lon, name: s.name })),
+}));
 
 interface Props {
   onNavigateToAccount?: () => void;
@@ -53,6 +67,19 @@ export function ToursScreen({ onNavigateToAccount, onShowTour }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openTour, setOpenTour] = useState<UserTour | null>(null);
+  const [publicTours, setPublicTours] = useState<PublicTour[]>(STATIC_FALLBACK);
+
+  // Öffentliche (redaktionelle) Touren aus der DB laden; bei Fehler
+  // bleibt die statische Fallback-Liste (z. B. offline, vor Migration).
+  useEffect(() => {
+    fetchPublicTours()
+      .then((rows) => {
+        if (rows.length > 0) setPublicTours(rows);
+      })
+      .catch(() => {
+        // still STATIC_FALLBACK
+      });
+  }, []);
 
   // Namens-Eingabe (neu/umbenennen)
   const [prompt, setPrompt] = useState<{ mode: 'create' | 'rename'; value: string } | null>(null);
@@ -119,13 +146,13 @@ export function ToursScreen({ onNavigateToAccount, onShowTour }: Props) {
   const renderCurated = () => (
     <View>
       <Text style={styles.sectionTitle}>{t('tours_curated')}</Text>
-      {CURATED_TOURS.map((ct) => (
+      {publicTours.map((ct) => (
         <TouchableOpacity
           key={ct.id}
           style={styles.curatedCard}
           activeOpacity={0.85}
           onPress={() =>
-            onShowTour?.({ id: `curated_${ct.id}`, name: ct.name, stops: ct.stops, savedWaypoints: null })
+            onShowTour?.({ id: `curated_${ct.slug}`, name: ct.name, stops: ct.stops.map((s) => ({ lat: s.lat, lon: s.lon, name: s.name })), savedWaypoints: null })
           }
         >
           <Text style={styles.curatedEmoji}>{ct.emoji}</Text>

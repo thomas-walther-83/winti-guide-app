@@ -75,7 +75,7 @@ function formatShort(dateStr: string): string {
   }
 }
 
-export function CalendarScreen({ onNavigateToAccount }: { onNavigateToAccount?: () => void }) {
+export function CalendarScreen({ onNavigateToAccount, scrollTopSignal }: { onNavigateToAccount?: () => void; scrollTopSignal?: number }) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [category, setCategory] = useState<EventCategory | 'all'>('all');
@@ -95,6 +95,12 @@ export function CalendarScreen({ onNavigateToAccount }: { onNavigateToAccount?: 
 
   const listRef = useRef<FlatList>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+
+  // Re-Tap auf aktiven Tab springt nach oben (signal-counter aus App.tsx).
+  useEffect(() => {
+    if (scrollTopSignal == null || scrollTopSignal === 0) return;
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+  }, [scrollTopSignal]);
 
   // Event-Ansicht: grosse Karten oder kompakte Liste (persistiert).
   const [eventView, setEventView] = useState<'cards' | 'compact'>('cards');

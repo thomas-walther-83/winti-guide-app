@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useIsAdmin } from '../hooks/useIsAdmin';
 import { useAppTier } from '../hooks/useAppTier';
 import { useTranslation } from '../hooks/useTranslation';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
@@ -30,13 +31,14 @@ const STRIPE_PREMIUM_YEARLY =
 
 type AuthMode = 'login' | 'register';
 
-export function AccountScreen() {
+export function AccountScreen({ onNavigateToAdmin }: { onNavigateToAdmin?: () => void } = {}) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { mode: themeMode, setMode: setThemeMode } = useThemeMode();
   const { user, signIn, signUp, signOut, loading: authLoading } = useAuth();
   const { tier, isPremium, loading: tierLoading, refresh: refreshTier } = useAppTier();
   const { t } = useTranslation();
+  const isAdmin = useIsAdmin();
 
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
@@ -143,6 +145,23 @@ export function AccountScreen() {
               </View>
             </View>
           </View>
+
+          {isAdmin && onNavigateToAdmin && (
+            <TouchableOpacity
+              style={styles.adminBtn}
+              onPress={onNavigateToAdmin}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Admin-Bereich öffnen"
+            >
+              <Ionicons name="construct-outline" size={20} color="#fff" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.adminBtnTitle}>Admin-Bereich</Text>
+                <Text style={styles.adminBtnSubtitle}>Öffentliche Touren & Empfohlen pflegen</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#fff" />
+            </TouchableOpacity>
+          )}
 
           {/* Premium upgrade card (only for free users) */}
           {!isPremium && (
@@ -431,6 +450,21 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.textSecondary,
   },
+  // ── Admin-Eintritt ─────────────────────────────────────────────────────────
+  adminBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.secondary,
+  },
+  adminBtnTitle: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  adminBtnSubtitle: { color: 'rgba(255,255,255,0.78)', fontSize: 12, marginTop: 2 },
+
   // ── Upgrade ────────────────────────────────────────────────────────────────
   upgradeCard: {
     backgroundColor: theme.colors.surface,

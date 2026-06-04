@@ -135,6 +135,33 @@ export interface Listing {
   partner_id?: string | null;
   is_premium?: boolean;
   is_active?: boolean;
+  is_featured?: boolean;
+  featured_until?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// ── Öffentliche (redaktionelle) Touren ───────────────────────────────────────
+
+export interface PublicTourStop {
+  id?: string;
+  tour_id?: string;
+  position: number;
+  lat: number;
+  lon: number;
+  name: string;
+  listing_id?: string | null;
+}
+
+export interface PublicTour {
+  id: string;
+  slug: string;
+  name: string;
+  description?: string;
+  emoji?: string;
+  sort_order?: number;
+  published?: boolean;
+  stops: PublicTourStop[];
   created_at?: string;
   updated_at?: string;
 }

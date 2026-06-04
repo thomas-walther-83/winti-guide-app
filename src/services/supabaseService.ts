@@ -49,6 +49,31 @@ export async function fetchListingsWithCoords(): Promise<Listing[]> {
   return (data ?? []) as Listing[];
 }
 
+/** Admin-Update: setzt is_featured + optional ein Ablaufdatum. */
+export async function setListingFeatured(
+  id: string,
+  isFeatured: boolean,
+  featuredUntil: string | null = null,
+): Promise<void> {
+  const { error } = await supabase
+    .from('listings')
+    .update({ is_featured: isFeatured, featured_until: featuredUntil })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+/** Holt alle (aktiven) Featured-Listings — nützlich für Admin-Übersicht. */
+export async function fetchFeaturedListings(): Promise<Listing[]> {
+  const { data, error } = await supabase
+    .from('listings')
+    .select('*')
+    .eq('is_active', true)
+    .eq('is_featured', true)
+    .order('name');
+  if (error) throw error;
+  return (data ?? []) as Listing[];
+}
+
 // ── Events ───────────────────────────────────────────────────────────────────
 
 export async function fetchEvents(options?: {
