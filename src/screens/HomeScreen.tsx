@@ -18,6 +18,7 @@ import { ListingCard } from '../components/ListingCard';
 import { PartnerAdBanner } from '../components/PartnerAdBanner';
 import { CategoryFilter } from '../components/CategoryFilter';
 import { SubCategoryFilter } from '../components/SubCategoryFilter';
+import { CollectionRow } from '../components/CollectionRow';
 import { SearchBar } from '../components/SearchBar';
 import { FeaturedRow } from '../components/FeaturedRow';
 import { SectionHeader } from '../components/SectionHeader';
@@ -27,6 +28,7 @@ import { useLocation } from '../hooks/useLocation';
 import { distanceKm, formatDistance } from '../utils/distance';
 import { theme } from '../styles/theme';
 import { SUB_CATEGORY_ALIASES } from '../config/subcategories';
+import { getCollection, matchesCollection } from '../config/collections';
 import { INTERESTS_KEY } from './OnboardingScreen';
 import type { Listing, ListingCategory, PartnerAd } from '../types';
 
@@ -46,6 +48,7 @@ type HeaderSection =
   | { type: 'featured' }
   | { type: 'ai-guide' }
   | { type: 'categories' }
+  | { type: 'collections' }
   | { type: 'subcategories' }
   | { type: 'nearby' }
   | { type: 'section-title'; title: string };
@@ -55,6 +58,7 @@ type ListItem = HeaderSection | { type: 'listing'; data: Listing } | { type: 'ad
 export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigateToAccount?: () => void; onNavigateToMap?: (listing: Listing) => void }) {
   const [category, setCategory] = useState<ListingCategory | 'all'>('all');
   const [subType, setSubType] = useState<string>('all');
+  const [activeCollection, setActiveCollection] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const { savedIds, toggle: handleToggleSave } = useFavorites();
   const [partnerAds, setPartnerAds] = useState<PartnerAd[]>([]);
@@ -69,6 +73,21 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
   const toggleNearby = () => {
     if (!nearby && !coords) requestLocation();
     setNearby((v) => !v);
+  };
+
+  // Kategorie wählen → Kollektion zurücksetzen (Filter dürfen sich nicht widersprechen).
+  const handleSelectCategory = (cat: ListingCategory | 'all') => {
+    setActiveCollection(null);
+    setCategory(cat);
+  };
+
+  // Kollektion wählen → normale Kategorie-/Sub-Filter zurücksetzen.
+  const handleSelectCollection = (id: string | null) => {
+    if (id) {
+      setCategory('all');
+      setSubType('all');
+    }
+    setActiveCollection(id);
   };
 
   // Im Onboarding gewählte Interessen laden (für Personalisierung der Reihenfolge)
@@ -144,6 +163,10 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
       const aliases = SUB_CATEGORY_ALIASES[subType] ?? [subType.toLowerCase()];
       result = result.filter((l) => aliases.includes((l.sub_type ?? '').toLowerCase()));
     }
+    const collection = getCollection(activeCollection);
+    if (collection) {
+      result = result.filter((l) => matchesCollection(l, collection));
+    }
     if (nearby && coords) {
       // Einträge mit Koordinaten nach Distanz sortieren; ohne Koordinaten ans Ende.
       result = [...result].sort((a, b) => {
@@ -159,7 +182,7 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
     }
     return result;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listings, search, subType, nearby, coords, category, interestSet]);
+  }, [listings, search, subType, nearby, coords, category, interestSet, activeCollection]);
 
   // Distanz pro Eintrag (nur wenn "In der Nähe" aktiv und Standort vorhanden)
   const distances = useMemo(() => {
@@ -199,7 +222,12 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
     return result;
   }, [filteredListings, partnerAds, isPremium]);
 
-  const categoryLabel = category === 'all' ? t('all_places') : t(category as 'restaurants');
+  const activeCollectionDef = getCollection(activeCollection);
+  const categoryLabel = activeCollectionDef
+    ? t(activeCollectionDef.labelKey as 'restaurants')
+    : category === 'all'
+      ? t('all_places')
+      : t(category as 'restaurants');
 
   // Build FlatList data with header sections injected
   const listData = useMemo<ListItem[]>(() => {
@@ -208,6 +236,7 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
       { type: 'search' },
       { type: 'nearby' },
       { type: 'categories' },
+      { type: 'collections' },
     ];
 
     // Show subcategory chips when a specific category is selected
@@ -238,7 +267,7 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
     }
 
     return items;
-  }, [search, loading, error, featuredListings, filteredListings, categoryLabel, category, isPremium, partnerAds]);
+  }, [search, loading, error, featuredListings, filteredListings, categoryLabel, category, isPremium, partnerAds, activeCollection]);
 
   const renderItem = ({ item }: { item: ListItem }) => {
     switch (item.type) {
@@ -299,7 +328,15 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
         );
 
       case 'categories':
-        return <CategoryFilter selected={category} onSelect={setCategory} />;
+        return <CategoryFilter selected={category} onSelect={handleSelectCategory} />;
+
+      case 'collections':
+        return (
+          <CollectionRow
+            selected={activeCollection}
+            onSelect={handleSelectCollection}
+          />
+        );
 
       case 'subcategories':
         return category !== 'all' ? (
@@ -378,7 +415,7 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap }: { onNavigat
             return `${item.type}-${index}`;
           }}
           renderItem={renderItem}
-          extraData={{ category, subType, savedIds }}
+          extraData={{ category, subType, savedIds, activeCollection }}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           onRefresh={refresh}
