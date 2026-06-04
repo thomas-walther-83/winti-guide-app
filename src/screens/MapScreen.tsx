@@ -172,10 +172,14 @@ function buildLeafletHTML(
 <body>
   <div id="map"></div>
   <script>
-    // Popup-Tap → Listing-ID an React Native senden (öffnet nativ den Detail-Dialog).
+    // Popup-Tap → Listing-ID an die App senden (öffnet den Detail-Dialog).
+    // Nativ über die RN-Bridge, im Web über postMessage an das Eltern-Fenster (iframe).
     function sel(id) {
+      var msg = JSON.stringify({ type: 'detail', id: id });
       if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
-        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'detail', id: id }));
+        window.ReactNativeWebView.postMessage(msg);
+      } else if (window.parent && window.parent !== window) {
+        window.parent.postMessage(msg, '*');
       }
     }
 
