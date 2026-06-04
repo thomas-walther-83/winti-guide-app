@@ -75,7 +75,7 @@ export const SUB_CATEGORY_ALIASES: Record<string, string[]> = {
   'Elektronik':  ['elektronik', 'electronics'],
   'Souvenirs':   ['souvenirs', 'gift', 'souvenir'],
   // sport
-  'Schwimmbad':['schwimmbad', 'swimming_pool', 'public_bath'],
+  'Schwimmbad':['schwimmbad', 'swimming_pool', 'public_bath', 'water_park', 'swimming'],
   'Tennis':    ['tennis'],
   'Fitness':   ['fitness', 'fitness_centre', 'sports_centre', 'gym'],
   'Fussball':  ['fussball', 'soccer', 'football', 'pitch'],
