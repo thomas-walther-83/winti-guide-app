@@ -170,25 +170,11 @@ update public.listings set tags = array(select distinct unnest(tags || array['Ge
   where category = 'touren';
 
 -- ═══════════════════════════════════════════════════════════════════
--- Bilder: deterministische picsum.photos-Placeholder
--- (Demo-Material — Admin überschreibt mit echten URLs)
+-- Bilder: (ENTFERNT)
 --
--- Strategie:
---  * Wenn `image_url` vorhanden: das wird image_urls[0], dazu 1 Picsum-Bild
---    → Carousel zeigt das echte Bild plus 1 Slot zum Wechseln
---  * Wenn `image_url` leer: 2 Picsum-Bilder
---  * Nur schreiben, wenn `image_urls` noch leer ist – Admin-Edits bleiben.
+-- Dieser Block hat ursprünglich picsum.photos-Platzhalter gesetzt. Die
+-- zufälligen Stockfotos wirkten irreführend (Naturbilder, die nichts mit
+-- der Location zu tun haben). Picsum wird daher nicht mehr gesät; die
+-- Migration 20260609 entfernt vorhandene Picsum-URLs wieder. Listings
+-- ohne echtes Bild zeigen im Frontend den farbigen Kategorie-Block.
 -- ═══════════════════════════════════════════════════════════════════
-
-update public.listings
-   set image_urls = case
-     when image_url is not null and image_url <> '' then array[
-       image_url,
-       'https://picsum.photos/seed/' || coalesce(source_id, id::text) || '/1200/800'
-     ]
-     else array[
-       'https://picsum.photos/seed/' || coalesce(source_id, id::text) || '/1200/800',
-       'https://picsum.photos/seed/' || coalesce(source_id, id::text) || '-b/1200/800'
-     ]
-   end
- where image_urls is null or array_length(image_urls, 1) is null or array_length(image_urls, 1) = 0;
