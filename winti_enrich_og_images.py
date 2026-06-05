@@ -158,6 +158,38 @@ TRUSTED_EXTERNAL_HOSTS = (
     "imagekit.io",
 )
 
+# CMS-/Site-Builder-CDNs: dort liegen Bilder oft tatsächlich zur Site
+# gehörend (Wix, Shopify, Squarespace, …). Werden als „self-hosted-ähnlich"
+# gewertet und sind daher für ein Re-Enrichment offen, falls aktuell nur
+# eine solche URL drin ist.
+CMS_CDN_HOSTS = (
+    "wixstatic.com",
+    "shopify.com",
+    "shopifycdn.com",
+    "squarespace-cdn.com",
+    "squarespace.com",
+    "webflow.com",
+    "website-files.com",
+    "wpengine.com",
+    "wp.com",
+    "jimdo.com",
+    "duda.co",
+    "jimdo-storage.global.ssl.fastly.net",
+)
+
+# Hosts, die fast immer Müll für unsere Listings liefern (Avatare,
+# Profilbilder, Tracking). Werden beim Scrapen als low-quality verworfen.
+LOW_QUALITY_HOSTS = (
+    "gravatar.com",
+    "secure.gravatar.com",
+    "0.gravatar.com",
+    "1.gravatar.com",
+    "2.gravatar.com",
+    "facebook.com/tr",
+    "googletagmanager.com",
+    "doubleclick.net",
+)
+
 
 def needs_enrichment(l: dict) -> bool:
     """True, wenn das Listing sich für Re-Scrape lohnt.
@@ -179,22 +211,28 @@ def needs_enrichment(l: dict) -> bool:
     # Externe vertrauenswürdige Quelle vorhanden → schützen
     for u in urls:
         h = site_host(u)
-        if any(h.endswith(t) for t in TRUSTED_EXTERNAL_HOSTS):
+        if _host_matches(h, TRUSTED_EXTERNAL_HOSTS):
             SKIP_REASON[name] = f"externe Quelle {h}"
             return False
     own = site_host(ensure_https(l["website"]))
     if not own:
         SKIP_REASON[name] = "website hat keinen host"
         return False
-    # Alle URLs auf eigener (Sub-)Domain → von uns gesetzt, re-scrape
-    if all(_same_or_subdomain(site_host(u), own) for u in urls if u):
+    # „Self-hosted-ähnlich": eigene (Sub-)Domain ODER bekannte CMS-CDN
+    # ODER Müll-Host (Gravatar etc., den wir loswerden wollen).
+    def looks_self_hosted(u: str) -> bool:
+        h = site_host(u)
+        if _same_or_subdomain(h, own):
+            return True
+        if _host_matches(h, CMS_CDN_HOSTS):
+            return True
+        if _host_matches(h, LOW_QUALITY_HOSTS):
+            return True
+        return False
+
+    if all(looks_self_hosted(u) for u in urls if u):
         return True
-    # Mindestens eine URL auf fremder Domain (kein trusted host) → vermutlich
-    # bewusst gesetzt, nicht überschreiben
-    foreign = next(
-        (u for u in urls if not _same_or_subdomain(site_host(u), own)),
-        "",
-    )
+    foreign = next((u for u in urls if not looks_self_hosted(u)), "")
     SKIP_REASON[name] = f"fremde URL ohne trusted host: {foreign[:80]}"
     return False
 
@@ -210,11 +248,19 @@ def absify(url: str, base_url: str) -> str:
     return urljoin(base_url, url)
 
 
+def _host_matches(host: str, host_list: tuple[str, ...]) -> bool:
+    return any(host == h or host.endswith("." + h) for h in host_list)
+
+
 def is_low_quality(url: str) -> bool:
-    """True nur für echten Müll (Favicons, UI-Icons, Tracking-Pixel).
-    Logos und Brand-Bilder gelten als brauchbar und bleiben erhalten.
+    """True nur für echten Müll (Favicons, UI-Icons, Tracking-Pixel,
+    Gravatare). Logos und Brand-Bilder gelten als brauchbar.
     """
-    path = urlparse(url).path.lower()
+    p = urlparse(url)
+    path = p.path.lower()
+    host = p.netloc.lower()
+    if _host_matches(host, LOW_QUALITY_HOSTS):
+        return True
     if JUNK_RE.search(path):
         return True
     if TINY_DIMS_RE.search(path):
