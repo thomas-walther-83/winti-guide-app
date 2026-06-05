@@ -28,7 +28,7 @@ import requests
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://dphhqwisluirihmahyee.supabase.co").rstrip("/")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
 DEBUG = os.environ.get("DEBUG", "0") == "1"
-CAP = int(os.environ.get("CAP", "500"))
+CAP = int(os.environ.get("CAP") or "500")
 MAX_IMAGES = 5
 
 UA = "Mozilla/5.0 (compatible; WintiGuideBot/1.0; +https://winti-guide.app)"
