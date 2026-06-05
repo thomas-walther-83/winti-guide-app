@@ -12,9 +12,11 @@ interface Props {
   onSelectListing?: (id: string) => void;
   /** Wird mit den aktuellen Tour-Wegpunkten aufgerufen, wenn die Route geändert wird. */
   onTourRouteChange?: (waypoints: { lat: number; lon: number; stop: boolean }[]) => void;
+  /** Generischer Empfänger für beliebige postMessage-Strings aus dem WebView/iframe. */
+  onAnyMessage?: (raw: string) => void;
 }
 
-export function MapWebView({ html, loading, onError, onSelectListing, onTourRouteChange }: Props) {
+export function MapWebView({ html, loading, onError, onSelectListing, onTourRouteChange, onAnyMessage }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   return (
@@ -36,6 +38,7 @@ export function MapWebView({ html, loading, onError, onSelectListing, onTourRout
       // Popup-Tap → {type:'detail', id} aus der Karte; öffnet nativ den Detail-Dialog.
       onMessage={(e) => {
         const raw = e.nativeEvent.data;
+        onAnyMessage?.(raw);
         try {
           const msg = JSON.parse(raw);
           if (msg && msg.type === 'detail' && msg.id) {

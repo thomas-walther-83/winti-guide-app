@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -9,8 +9,8 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { WebView } from 'react-native-webview';
 
+import { MapWebView } from '../components/MapWebView';
 import { useTheme } from '../context/ThemeContext';
 import type { AppTheme } from '../styles/theme';
 import { fetchListingsWithCoords } from '../services/supabaseService';
@@ -155,7 +155,9 @@ function buildPlannerHTML(listings: Listing[], stops: PublicTourStop[]): string 
         });
       });
 
-      send({ type: 'stops_changed', count: currentStops.length });
+      // Bei jeder Änderung die volle Stops-Liste an RN durchreichen; React
+      // hält damit den Wahrheitswert und kann ohne JS-Injection speichern.
+      send({ type: 'stops_changed', count: currentStops.length, stops: currentStops });
     }
 
     function addStop(l) {
@@ -174,13 +176,9 @@ function buildPlannerHTML(listings: Listing[], stops: PublicTourStop[]): string 
       map.closePopup();
       redrawStops();
     }
-    function emitForSave() {
-      send({ type: 'stops_save', stops: currentStops });
-    }
     window.addStop = addStop;
     window.removeByListing = removeByListing;
     window.removeAt = removeAt;
-    window.emitForSave = emitForSave;
 
     // Auf vorhandene Stops zentrieren, wenn welche da sind.
     if (currentStops.length > 0) {
@@ -210,9 +208,9 @@ export function AdminTourPlanner({ tour, onClose, onSaved }: Props) {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [stopCount, setStopCount] = useState(tour.stops.length);
+  // Stops sind im WebView die Wahrheit; React mirrort sie für Header + Save.
+  const [stops, setStops] = useState<PublicTourStop[]>(tour.stops);
   const [saving, setSaving] = useState(false);
-  const webviewRef = useRef<WebView>(null);
 
   useEffect(() => {
     fetchListingsWithCoords()
@@ -221,6 +219,9 @@ export function AdminTourPlanner({ tour, onClose, onSaved }: Props) {
       .finally(() => setLoading(false));
   }, []);
 
+  // HTML wird einmalig gebaut, sobald Listings da sind. Stops werden danach
+  // ausschließlich im WebView verwaltet (sonst würde jeder Stop-Change die
+  // Karte neu laden und Zoom/Pan verlieren).
   const html = useMemo(
     () => (listings.length ? buildPlannerHTML(listings, tour.stops) : ''),
     [listings, tour.stops],
@@ -233,15 +234,13 @@ export function AdminTourPlanner({ tour, onClose, onSaved }: Props) {
     } catch {
       return;
     }
-    if (!msg) return;
-    if (msg.type === 'stops_changed' && typeof msg.count === 'number') {
-      setStopCount(msg.count);
-    } else if (msg.type === 'stops_save' && Array.isArray(msg.stops)) {
-      persist(msg.stops);
+    if (msg && msg.type === 'stops_changed' && Array.isArray(msg.stops)) {
+      setStops(msg.stops);
     }
   };
 
-  const persist = async (stops: PublicTourStop[]) => {
+  const handleSave = async () => {
+    if (saving) return;
     try {
       setSaving(true);
       const normalized = stops.map((s, idx) => ({
@@ -260,11 +259,6 @@ export function AdminTourPlanner({ tour, onClose, onSaved }: Props) {
     }
   };
 
-  const handleSave = () => {
-    if (saving) return;
-    webviewRef.current?.injectJavaScript('try { emitForSave(); } catch(e){}; true;');
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -273,7 +267,7 @@ export function AdminTourPlanner({ tour, onClose, onSaved }: Props) {
         </TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'center' }}>
           <Text style={styles.title} numberOfLines={1}>{tour.name}</Text>
-          <Text style={styles.subtitle}>{stopCount} {stopCount === 1 ? 'Stop' : 'Stops'}</Text>
+          <Text style={styles.subtitle}>{stops.length} {stops.length === 1 ? 'Stop' : 'Stops'}</Text>
         </View>
         <TouchableOpacity onPress={handleSave} disabled={saving} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Text style={[styles.linkText, { fontWeight: '700' }]}>{saving ? '…' : 'Speichern'}</Text>
@@ -292,15 +286,7 @@ export function AdminTourPlanner({ tour, onClose, onSaved }: Props) {
       )}
       {!loading && !error && (
         <View style={{ flex: 1 }}>
-          <WebView
-            ref={webviewRef}
-            source={{ html }}
-            originWhitelist={['*']}
-            javaScriptEnabled
-            domStorageEnabled
-            scrollEnabled={false}
-            onMessage={(e) => handleMessage(e.nativeEvent.data)}
-          />
+          <MapWebView html={html} onAnyMessage={handleMessage} />
           <View style={styles.hint} pointerEvents="none">
             <Ionicons name="information-circle-outline" size={14} color="#fff" />
             <Text style={styles.hintText}>
