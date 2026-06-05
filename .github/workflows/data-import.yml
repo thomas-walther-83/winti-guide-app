@@ -23,8 +23,13 @@ on:
           - both
           - events
           - listings
+          - og_images
       debug:
         description: 'Quellen-Struktur ausgeben (coucou + Agenda)? 1 = ja'
+        type: string
+        default: ''
+      cap:
+        description: 'og_images: max. Listings pro Lauf (Default 500)'
         type: string
         default: ''
 
@@ -91,3 +96,10 @@ jobs:
       - name: Import Listings (phase1)
         if: steps.targets.outputs.run == 'listings' || steps.targets.outputs.run == 'both'
         run: python3 winti_import_phase1.py
+
+      - name: Backfill og:image URLs
+        if: steps.targets.outputs.run == 'og_images'
+        env:
+          DEBUG: ${{ github.event.inputs.debug }}
+          CAP: ${{ github.event.inputs.cap }}
+        run: python3 winti_enrich_og_images.py
