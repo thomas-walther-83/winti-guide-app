@@ -8,6 +8,7 @@ import { AuthProvider } from './src/context/AuthContext';
 import { DetailProvider } from './src/context/DetailContext';
 import { LanguageProvider } from './src/context/LanguageContext';
 import { DetailModal } from './src/components/DetailModal';
+import { GlobalAlertHost } from './src/components/GlobalAlertHost';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { CalendarScreen } from './src/screens/CalendarScreen';
 import { MapScreen, type MapTour } from './src/screens/MapScreen';
@@ -149,6 +150,7 @@ export default function App() {
             <SafeAreaProvider>
               <AppContent />
               <DetailModal />
+              <GlobalAlertHost />
             </SafeAreaProvider>
           </DetailProvider>
         </AuthProvider>

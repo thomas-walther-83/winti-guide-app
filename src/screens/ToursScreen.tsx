@@ -271,7 +271,13 @@ export function ToursScreen({ onNavigateToAccount, onShowTour }: Props) {
                 </Text>
               </View>
               <TouchableOpacity
-                onPress={() => handleDeleteTour(item)}
+                onPress={(e) => {
+                  // Verhindert, dass der äußere Row-TouchableOpacity (öffnet
+                  // die Tour-Detailansicht) gleichzeitig feuert – auf Web
+                  // bubbeln Klicks sonst nach oben.
+                  (e as unknown as { stopPropagation?: () => void })?.stopPropagation?.();
+                  handleDeleteTour(item);
+                }}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <Ionicons name="trash-outline" size={20} color={theme.colors.textMuted} />
