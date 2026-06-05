@@ -52,19 +52,21 @@ GALLERY_SUBPAGES = [
 # Wie viele Subseiten pro Listing maximal angefragt werden.
 MAX_SUBPAGES = 2
 
-# Pfad-Pattern, das auf Logos/Icons/Favicons hinweist.
-LOGO_RE = re.compile(
+# Pfad-Pattern, das auf echten Müll hinweist (Favicons, UI-Icons, Tracking).
+# WICHTIG: Logos sind ERWÜNSCHT (oft das og:image und das erste, beste Bild
+# einer Location) und werden daher NICHT gefiltert.
+JUNK_RE = re.compile(
     r"""(?:^|/)(?:
-        logo[-_.] | brand[-_.] | favicon | apple-touch-icon |
-        icon[-_]?\d* | sprite | spinner | loader | placeholder |
+        favicon | apple-touch-icon | mstile | android-chrome |
+        sprite | spinner | loader | placeholder | pixel |
         share[-_]?(?:button|icon)? | social[-_]?(?:button|icon)? |
-        btn[-_] | menu[-_]?icon
+        btn[-_] | menu[-_]?icon | arrow[-_] | chevron[-_]
     )""",
     re.IGNORECASE | re.VERBOSE,
 )
-# Kleine Bild-Dimensionen im Filename → meistens Thumbnails / Icons.
-SMALL_DIMS_RE = re.compile(
-    r"-\d{1,3}x\d{1,3}\.(?:jpe?g|png|webp|gif)",
+# Sehr kleine Bild-Dimensionen im Filename (<= 64px) → Icons/Pixel.
+TINY_DIMS_RE = re.compile(
+    r"-(?:[0-9]|[1-5][0-9]|6[0-4])x(?:[0-9]|[1-5][0-9]|6[0-4])\.(?:jpe?g|png|webp|gif)",
     re.IGNORECASE,
 )
 
@@ -153,12 +155,15 @@ def absify(url: str, base_url: str) -> str:
 
 
 def is_low_quality(url: str) -> bool:
+    """True nur für echten Müll (Favicons, UI-Icons, Tracking-Pixel).
+    Logos und Brand-Bilder gelten als brauchbar und bleiben erhalten.
+    """
     path = urlparse(url).path.lower()
-    if LOGO_RE.search(path):
+    if JUNK_RE.search(path):
         return True
-    if SMALL_DIMS_RE.search(path):
+    if TINY_DIMS_RE.search(path):
         return True
-    if path.endswith((".gif", ".svg", ".ico")):
+    if path.endswith((".ico",)):
         return True
     if "spritesheet" in path or path.endswith("/icons.png"):
         return True
@@ -291,14 +296,6 @@ def gather_from_site(site_url: str, debug_label: str = "") -> list[str]:
     return images[:MAX_IMAGES]
 
 
-def picsum_for(listing: dict) -> list[str]:
-    seed = listing.get("source_id") or listing.get("id") or "x"
-    return [
-        f"https://picsum.photos/seed/{seed}/1200/800",
-        f"https://picsum.photos/seed/{seed}-b/1200/800",
-    ]
-
-
 def patch_listing(listing_id: str, body: dict) -> bool:
     r = requests.patch(
         f"{SUPABASE_URL}/rest/v1/listings",
@@ -316,7 +313,7 @@ def patch_listing(listing_id: str, body: dict) -> bool:
 
 def main() -> int:
     print("═" * 60)
-    print(f"  og:image-Backfill V2 (CAP={CAP}, DEBUG={DEBUG})")
+    print(f"  og:image-Backfill V3 (CAP={CAP}, DEBUG={DEBUG})")
     print("═" * 60)
 
     listings = fetch_listings()
@@ -329,7 +326,7 @@ def main() -> int:
 
     target = candidates[:CAP]
     n_good = 0
-    n_picsum = 0
+    n_cleared = 0
     n_failed = 0
     n_imgs = 0
 
@@ -350,33 +347,35 @@ def main() -> int:
             continue
 
         if imgs:
+            # og:image (oft das Logo) ist imgs[0] → wird als erstes gezeigt,
+            # weitere echte Bilder von Subseiten folgen.
             ok = patch_listing(l["id"], {"image_urls": imgs, "image_url": imgs[0]})
             if ok:
                 n_good += 1
                 n_imgs += len(imgs)
                 if DEBUG:
-                    print(f"    ✓ {len(imgs)} Bilder behalten")
+                    print(f"    ✓ {len(imgs)} Bilder (1. = {imgs[0][:60]})")
             else:
                 n_failed += 1
         else:
-            # Keine qualitativen Bilder → Picsum-Platzhalter (sauberer Zustand)
-            picsum = picsum_for(l)
-            ok = patch_listing(l["id"], {"image_urls": picsum, "image_url": ""})
+            # Keine Bilder → leeren statt Fake-Stockfoto. Die App zeigt dann
+            # den farbigen Kategorie-Block (sauberer Fallback im Frontend).
+            ok = patch_listing(l["id"], {"image_urls": [], "image_url": ""})
             if ok:
-                n_picsum += 1
+                n_cleared += 1
                 if DEBUG:
-                    print(f"    ∅ nichts gefunden → zurück auf Picsum")
+                    print(f"    ∅ kein Bild → geleert (Kategorie-Block)")
             else:
                 n_failed += 1
 
         time.sleep(0.15)
         if (i + 1) % 30 == 0:
-            print(f"  ⏱  Fortschritt: {i + 1}/{len(target)} · gut={n_good} · picsum={n_picsum} · fail={n_failed}")
+            print(f"  ⏱  Fortschritt: {i + 1}/{len(target)} · gut={n_good} · leer={n_cleared} · fail={n_failed}")
 
     print()
     print("═" * 60)
-    print(f"  ✅ {n_good} Listings mit echten Bildern ({n_imgs} URLs gesamt)")
-    print(f"  ↩  {n_picsum} Listings auf Picsum zurückgesetzt (keine guten Bilder)")
+    print(f"  ✅ {n_good} Listings mit echten Bildern/Logos ({n_imgs} URLs gesamt)")
+    print(f"  ⬜ {n_cleared} Listings geleert → Kategorie-Block (kein Bild verfügbar)")
     print(f"  ⚠️  {n_failed} Fehlversuche (HTTP/Timeout/PATCH-Fehler)")
     print("═" * 60)
     return 0
