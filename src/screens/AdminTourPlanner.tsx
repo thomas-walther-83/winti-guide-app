@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,12 +11,16 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 import { MapWebView } from '../components/MapWebView';
+import { CategoryFilter } from '../components/CategoryFilter';
+import { SubCategoryFilter } from '../components/SubCategoryFilter';
+import { SearchBar } from '../components/SearchBar';
 import { useTheme } from '../context/ThemeContext';
 import type { AppTheme } from '../styles/theme';
 import { fetchListingsWithCoords } from '../services/supabaseService';
 import { replacePublicTourStops } from '../services/publicToursService';
 import { getErrorMessage } from '../utils/errors';
-import type { Listing, PublicTour, PublicTourStop } from '../types';
+import { matchesSubType } from '../config/subcategories';
+import type { Listing, ListingCategory, PublicTour, PublicTourStop } from '../types';
 
 const WINTERTHUR_LAT = 47.4994;
 const WINTERTHUR_LON = 8.7274;
@@ -32,11 +36,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   sport: '#2C7A7B',
   touren: '#2D3748',
 };
-
-/** HTML/JS-string sicher in einer JS-Literalumgebung einbetten. */
-function jsString(value: unknown): string {
-  return JSON.stringify(value);
-}
 
 function buildPlannerHTML(listings: Listing[], stops: PublicTourStop[]): string {
   const lite = listings
@@ -67,7 +66,7 @@ function buildPlannerHTML(listings: Listing[], stops: PublicTourStop[]): string 
       box-shadow: 0 1px 4px rgba(0,0,0,0.4);
     }
     .leaflet-popup-content { margin: 8px 12px; font-size: 13px; line-height: 1.35; }
-    .leaflet-popup-content a, .leaflet-popup-content button {
+    .leaflet-popup-content button {
       display: inline-block; margin-top: 4px; color: #CC0000;
       font-weight: 700; cursor: pointer; text-decoration: none;
       background: none; border: none; padding: 0; font-size: 13px;
@@ -77,8 +76,13 @@ function buildPlannerHTML(listings: Listing[], stops: PublicTourStop[]): string 
 <body>
   <div id="map"></div>
   <script>
-    var listings = ${jsString(lite)};
-    var currentStops = ${jsString(
+    // Listings als ID-Lookup; Popup-HTML referenziert nur die ID, damit keine
+    // JSON.stringify-Werte in HTML-Attribute eingebettet werden müssen (das
+    // brach mit Apostrophen / Anführungszeichen).
+    var listingsArr = ${JSON.stringify(lite)};
+    var listingsById = {};
+    listingsArr.forEach(function(l){ listingsById[l.id] = l; });
+    var currentStops = ${JSON.stringify(
       stops.map((s) => ({
         listing_id: s.listing_id ?? null,
         lat: s.lat,
@@ -90,31 +94,40 @@ function buildPlannerHTML(listings: Listing[], stops: PublicTourStop[]): string 
     function send(o) {
       var m = JSON.stringify(o);
       if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) window.ReactNativeWebView.postMessage(m);
+      else if (window.parent && window.parent !== window) window.parent.postMessage(m, '*');
+    }
+
+    function esc(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
     var map = L.map('map', { zoomControl: true }).setView([${WINTERTHUR_LAT}, ${WINTERTHUR_LON}], 14);
     L.tileLayer('https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-farbe/default/current/3857/{z}/{x}/{y}.jpeg',
       { attribution: '© swisstopo', maxZoom: 19 }).addTo(map);
 
-    // Listings: kleine Kreismarker. Bereits als Stop markierte werden visuell
-    // mit dickerem Rand hervorgehoben.
     var listingLayers = {};
-    listings.forEach(function(l) {
+    listingsArr.forEach(function(l) {
       var lyr = L.circleMarker([l.lat, l.lon], {
         radius: 6, fillColor: l.color, color: '#fff', weight: 1.5, opacity: 1, fillOpacity: 0.85
       }).addTo(map);
-      lyr.on('click', function() { openListingPopup(l); });
+      lyr.on('click', function() { openListingPopup(l.id); });
       listingLayers[l.id] = lyr;
     });
 
-    function openListingPopup(l) {
-      var isStop = currentStops.some(function(s){ return s.listing_id === l.id; });
-      var action = isStop
-        ? '<a href="#" onclick="removeByListing(' + JSON.stringify(l.id) + '); return false;">Stop entfernen</a>'
-        : '<a href="#" onclick="addStop(' + JSON.stringify(l) + '); return false;">Als Stop hinzufügen</a>';
+    function openListingPopup(id) {
+      var l = listingsById[id];
+      if (!l) return;
+      var isStop = currentStops.some(function(s){ return s.listing_id === id; });
+      // UUIDs enthalten nur [0-9a-f-], damit ist die Inline-Verwendung
+      // in HTML-Attribut sicher.
+      var btn = isStop
+        ? '<button onclick="removeByListingId(\\'' + id + '\\')">Stop entfernen</button>'
+        : '<button onclick="addStopById(\\'' + id + '\\')">Als Stop hinzufügen</button>';
       L.popup({ closeButton: true })
         .setLatLng([l.lat, l.lon])
-        .setContent('<b>' + l.name + '</b><br/>' + action)
+        .setContent('<b>' + esc(l.name) + '</b><br/>' + btn)
         .openOn(map);
     }
 
@@ -129,14 +142,16 @@ function buildPlannerHTML(listings: Listing[], stops: PublicTourStop[]): string 
         var html = '<div class="stop-badge">' + (idx + 1) + '</div>';
         var icon = L.divIcon({ html: html, className: '', iconSize: [28, 28], iconAnchor: [14, 14] });
         var mk = L.marker([s.lat, s.lon], { icon: icon }).addTo(map);
-        mk.on('click', function() {
-          var label = s.name || '(Freier Punkt)';
-          L.popup({ closeButton: true })
-            .setLatLng([s.lat, s.lon])
-            .setContent('<b>' + (idx + 1) + '. ' + label + '</b><br/>' +
-              '<a href="#" onclick="removeAt(' + idx + '); return false;">Stop entfernen</a>')
-            .openOn(map);
-        });
+        (function(localIdx, localStop){
+          mk.on('click', function() {
+            var label = localStop.name || '(Freier Punkt)';
+            L.popup({ closeButton: true })
+              .setLatLng([localStop.lat, localStop.lon])
+              .setContent('<b>' + (localIdx + 1) + '. ' + esc(label) + '</b><br/>' +
+                '<button onclick="removeAt(' + localIdx + ')">Stop entfernen</button>')
+              .openOn(map);
+          });
+        })(idx, s);
         stopLayers.push(mk);
       });
 
@@ -145,7 +160,6 @@ function buildPlannerHTML(listings: Listing[], stops: PublicTourStop[]): string 
         routeLine = L.polyline(latlngs, { color: '#FF6B00', weight: 4, opacity: 0.7 }).addTo(map);
       }
 
-      // Visuelles Feedback an Listing-Markern: dickerer Rand wenn Stop.
       Object.keys(listingLayers).forEach(function(id){
         var isStop = currentStops.some(function(s){ return s.listing_id === id; });
         listingLayers[id].setStyle({
@@ -155,17 +169,17 @@ function buildPlannerHTML(listings: Listing[], stops: PublicTourStop[]): string 
         });
       });
 
-      // Bei jeder Änderung die volle Stops-Liste an RN durchreichen; React
-      // hält damit den Wahrheitswert und kann ohne JS-Injection speichern.
       send({ type: 'stops_changed', count: currentStops.length, stops: currentStops });
     }
 
-    function addStop(l) {
+    function addStopById(id) {
+      var l = listingsById[id];
+      if (!l) return;
       currentStops.push({ listing_id: l.id, lat: l.lat, lon: l.lon, name: l.name });
       map.closePopup();
       redrawStops();
     }
-    function removeByListing(id) {
+    function removeByListingId(id) {
       var i = currentStops.findIndex(function(s){ return s.listing_id === id; });
       if (i >= 0) currentStops.splice(i, 1);
       map.closePopup();
@@ -176,11 +190,10 @@ function buildPlannerHTML(listings: Listing[], stops: PublicTourStop[]): string 
       map.closePopup();
       redrawStops();
     }
-    window.addStop = addStop;
-    window.removeByListing = removeByListing;
+    window.addStopById = addStopById;
+    window.removeByListingId = removeByListingId;
     window.removeAt = removeAt;
 
-    // Auf vorhandene Stops zentrieren, wenn welche da sind.
     if (currentStops.length > 0) {
       var bounds = L.latLngBounds(currentStops.map(function(s){ return [s.lat, s.lon]; }));
       map.fitBounds(bounds.pad(0.3));
@@ -197,20 +210,30 @@ interface Props {
   onSaved: (stops: PublicTourStop[]) => void;
 }
 
-/**
- * Vollbild-Planer: Admin tippt auf Listing-Marker um Stops anzulegen, auf Stops
- * um sie zu entfernen. Zustand lebt im WebView; auf „Speichern" wird er per
- * postMessage abgefragt und in `public_tour_stops` persistiert.
- */
 export function AdminTourPlanner({ tour, onClose, onSaved }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // Stops sind im WebView die Wahrheit; React mirrort sie für Header + Save.
   const [stops, setStops] = useState<PublicTourStop[]>(tour.stops);
   const [saving, setSaving] = useState(false);
+
+  // Filter / Suche – analog zur Karten-Hauptansicht.
+  const [category, setCategory] = useState<ListingCategory | 'all'>('all');
+  const [subType, setSubType] = useState<string>('all');
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+
+  // Search-Eingabe entprellen – sonst rebauen wir die HTML bei jedem Tastenanschlag.
+  useEffect(() => {
+    const id = setTimeout(() => setSearch(searchInput.trim().toLowerCase()), 250);
+    return () => clearTimeout(id);
+  }, [searchInput]);
+
+  useEffect(() => {
+    setSubType('all');
+  }, [category]);
 
   useEffect(() => {
     fetchListingsWithCoords()
@@ -219,12 +242,31 @@ export function AdminTourPlanner({ tour, onClose, onSaved }: Props) {
       .finally(() => setLoading(false));
   }, []);
 
-  // HTML wird einmalig gebaut, sobald Listings da sind. Stops werden danach
-  // ausschließlich im WebView verwaltet (sonst würde jeder Stop-Change die
-  // Karte neu laden und Zoom/Pan verlieren).
+  const filteredListings = useMemo(() => {
+    let rows = listings;
+    if (category !== 'all') rows = rows.filter((l) => l.category === category);
+    if (subType !== 'all') rows = rows.filter((l) => matchesSubType(l.sub_type, subType));
+    if (search) {
+      rows = rows.filter(
+        (l) =>
+          l.name.toLowerCase().includes(search) ||
+          (l.address ?? '').toLowerCase().includes(search),
+      );
+    }
+    return rows;
+  }, [listings, category, subType, search]);
+
+  // Stops im Ref spiegeln, damit Filter-/Suche-Rebuilds die jeweils
+  // aktuellsten Stops mitnehmen, ohne dass jeder Stop-Change die Karte
+  // neu lädt (was Zoom/Pan kosten würde).
+  const stopsRef = useRef(stops);
+  useEffect(() => {
+    stopsRef.current = stops;
+  }, [stops]);
+
   const html = useMemo(
-    () => (listings.length ? buildPlannerHTML(listings, tour.stops) : ''),
-    [listings, tour.stops],
+    () => (filteredListings.length || listings.length ? buildPlannerHTML(filteredListings, stopsRef.current) : ''),
+    [filteredListings, listings.length],
   );
 
   const handleMessage = (raw: string) => {
@@ -267,12 +309,24 @@ export function AdminTourPlanner({ tour, onClose, onSaved }: Props) {
         </TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'center' }}>
           <Text style={styles.title} numberOfLines={1}>{tour.name}</Text>
-          <Text style={styles.subtitle}>{stops.length} {stops.length === 1 ? 'Stop' : 'Stops'}</Text>
+          <Text style={styles.subtitle}>
+            {stops.length} {stops.length === 1 ? 'Stop' : 'Stops'} · {filteredListings.length} sichtbar
+          </Text>
         </View>
         <TouchableOpacity onPress={handleSave} disabled={saving} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Text style={[styles.linkText, { fontWeight: '700' }]}>{saving ? '…' : 'Speichern'}</Text>
         </TouchableOpacity>
       </View>
+
+      <SearchBar
+        value={searchInput}
+        onChangeText={setSearchInput}
+        placeholder="Listing suchen…"
+      />
+      <CategoryFilter selected={category} onSelect={setCategory} />
+      {category !== 'all' && (
+        <SubCategoryFilter category={category} selected={subType} onSelect={setSubType} />
+      )}
 
       {loading && (
         <View style={styles.center}>
