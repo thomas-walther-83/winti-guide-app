@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -25,6 +25,9 @@ export function ListingCard({ listing, isSaved, onToggleSave, onShowOnMap, dista
   const visual = getListingVisual(listing.category);
   const { open } = useDetail();
   const { t } = useTranslation();
+  const [imgFailed, setImgFailed] = useState(false);
+  const image = primaryImage(listing);
+  const showImage = !!image && !imgFailed;
 
   const openDetail = () =>
     open({ kind: 'listing', listing, isSaved, onToggleSave, onShowOnMap });
@@ -39,8 +42,13 @@ export function ListingCard({ listing, isSaved, onToggleSave, onShowOnMap, dista
     >
       {/* Foto-Hero (oder farbiger Fallback) mit Verlauf und Titel-Overlay */}
       <View style={styles.hero}>
-        {primaryImage(listing) ? (
-          <Image source={{ uri: primaryImage(listing)! }} style={styles.image} resizeMode="cover" />
+        {showImage ? (
+          <Image
+            source={{ uri: image! }}
+            style={styles.image}
+            resizeMode="cover"
+            onError={() => setImgFailed(true)}
+          />
         ) : (
           <View style={[styles.image, styles.fallback, { backgroundColor: visual.bg }]}>
             <Ionicons name={visual.icon} size={56} color="rgba(255,255,255,0.9)" />

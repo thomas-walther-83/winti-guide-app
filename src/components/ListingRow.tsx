@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
@@ -25,6 +25,9 @@ export function ListingRow({ listing, isSaved, onToggleSave, onShowOnMap, distan
   const visual = getListingVisual(listing.category);
   const { open } = useDetail();
   const { t } = useTranslation();
+  const [imgFailed, setImgFailed] = useState(false);
+  const image = primaryImage(listing);
+  const showImage = !!image && !imgFailed;
 
   const openDetail = () => open({ kind: 'listing', listing, isSaved, onToggleSave, onShowOnMap });
 
@@ -38,8 +41,13 @@ export function ListingRow({ listing, isSaved, onToggleSave, onShowOnMap, distan
       accessibilityRole="button"
       accessibilityLabel={`${listing.name} – Details öffnen`}
     >
-      {primaryImage(listing) ? (
-        <Image source={{ uri: primaryImage(listing)! }} style={styles.thumb} resizeMode="cover" />
+      {showImage ? (
+        <Image
+          source={{ uri: image! }}
+          style={styles.thumb}
+          resizeMode="cover"
+          onError={() => setImgFailed(true)}
+        />
       ) : (
         <View style={[styles.thumb, styles.thumbFallback, { backgroundColor: visual.bg }]}>
           <Ionicons name={visual.icon} size={22} color="rgba(255,255,255,0.95)" />
