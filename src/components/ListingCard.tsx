@@ -8,6 +8,7 @@ import { useDetail } from '../context/DetailContext';
 import { useTranslation } from '../hooks/useTranslation';
 import { formatDistance } from '../utils/distance';
 import { getListingVisual } from '../config/categoryVisuals';
+import { primaryImage } from '../utils/listingImage';
 import type { Listing } from '../types';
 
 interface ListingCardProps {
@@ -38,8 +39,8 @@ export function ListingCard({ listing, isSaved, onToggleSave, onShowOnMap, dista
     >
       {/* Foto-Hero (oder farbiger Fallback) mit Verlauf und Titel-Overlay */}
       <View style={styles.hero}>
-        {listing.image_url ? (
-          <Image source={{ uri: listing.image_url }} style={styles.image} resizeMode="cover" />
+        {primaryImage(listing) ? (
+          <Image source={{ uri: primaryImage(listing)! }} style={styles.image} resizeMode="cover" />
         ) : (
           <View style={[styles.image, styles.fallback, { backgroundColor: visual.bg }]}>
             <Ionicons name={visual.icon} size={56} color="rgba(255,255,255,0.9)" />

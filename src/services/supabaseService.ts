@@ -40,7 +40,7 @@ export async function fetchListings(options?: {
 export async function fetchListingsWithCoords(): Promise<Listing[]> {
   const { data, error } = await supabase
     .from('listings')
-    .select('id, name, category, sub_type, address, lat, lon, geometry, website, phone, hours, description, image_url, stars, is_premium')
+    .select('id, name, category, sub_type, address, lat, lon, geometry, website, phone, hours, description, image_url, image_urls, stars, is_premium, tags')
     .eq('is_active', true)
     .not('lat', 'is', null)
     .not('lon', 'is', null);

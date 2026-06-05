@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import type { AppTheme } from '../styles/theme';
+import { primaryImage } from '../utils/listingImage';
 import type { Listing } from '../types';
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -98,9 +99,9 @@ export function HeroCard({
 
   return (
     <View style={[styles.card, { width, height }, style]}>
-      {listing.image_url ? (
+      {primaryImage(listing) ? (
         <ImageBackground
-          source={{ uri: listing.image_url }}
+          source={{ uri: primaryImage(listing)! }}
           style={styles.colorBackground}
           imageStyle={styles.imageRadius}
           resizeMode="cover"
