@@ -7,6 +7,7 @@ import { useDetail } from '../context/DetailContext';
 import { useTranslation } from '../hooks/useTranslation';
 import { formatDistance } from '../utils/distance';
 import { getListingVisual } from '../config/categoryVisuals';
+import { primaryImage } from '../utils/listingImage';
 import type { Listing } from '../types';
 
 interface Props {
@@ -37,8 +38,8 @@ export function ListingRow({ listing, isSaved, onToggleSave, onShowOnMap, distan
       accessibilityRole="button"
       accessibilityLabel={`${listing.name} – Details öffnen`}
     >
-      {listing.image_url ? (
-        <Image source={{ uri: listing.image_url }} style={styles.thumb} resizeMode="cover" />
+      {primaryImage(listing) ? (
+        <Image source={{ uri: primaryImage(listing)! }} style={styles.thumb} resizeMode="cover" />
       ) : (
         <View style={[styles.thumb, styles.thumbFallback, { backgroundColor: visual.bg }]}>
           <Ionicons name={visual.icon} size={22} color="rgba(255,255,255,0.95)" />
