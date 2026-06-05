@@ -9,14 +9,18 @@ interface Props {
   onSelectListing?: (id: string) => void;
   /** Wird mit den aktuellen Tour-Wegpunkten aufgerufen, wenn die Route geändert wird. */
   onTourRouteChange?: (waypoints: { lat: number; lon: number; stop: boolean }[]) => void;
+  /** Generischer Empfänger für beliebige postMessage-Strings aus dem WebView/iframe. */
+  onAnyMessage?: (raw: string) => void;
 }
 
-export function MapWebView({ html, onSelectListing, onTourRouteChange }: Props) {
+export function MapWebView({ html, onSelectListing, onTourRouteChange, onAnyMessage }: Props) {
   const { t } = useTranslation();
 
   // Das Leaflet-iframe sendet Popup-Taps / Route-Änderungen via postMessage hierher.
   useEffect(() => {
     function onMsg(e: MessageEvent) {
+      const raw = typeof e.data === 'string' ? e.data : JSON.stringify(e.data);
+      onAnyMessage?.(raw);
       try {
         const m = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
         if (m && m.type === 'detail' && m.id) onSelectListing?.(String(m.id));
@@ -27,7 +31,7 @@ export function MapWebView({ html, onSelectListing, onTourRouteChange }: Props) 
     }
     window.addEventListener('message', onMsg);
     return () => window.removeEventListener('message', onMsg);
-  }, [onSelectListing, onTourRouteChange]);
+  }, [onSelectListing, onTourRouteChange, onAnyMessage]);
 
   return (
     <iframe
