@@ -30,6 +30,7 @@ import {
 import { fetchListings, setListingFeatured } from '../services/supabaseService';
 import { getErrorMessage } from '../utils/errors';
 import type { Listing, PublicTour, PublicTourStop } from '../types';
+import { AdminTourPlanner } from './AdminTourPlanner';
 
 interface Props {
   onClose?: () => void;
@@ -192,7 +193,10 @@ function TourEditor({
 }) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const isNew = !initial.id;
+  // `tourId` ist mutable: bei einer neuen Tour wird beim ersten Persist eine
+  // ID vergeben (createPublicTour), danach läuft alles als Update.
+  const [tourId, setTourId] = useState<string>(initial.id);
+  const isNew = !tourId;
   const [name, setName] = useState(initial.name);
   const [description, setDescription] = useState(initial.description ?? '');
   const [emoji, setEmoji] = useState(initial.emoji ?? '');
@@ -201,6 +205,7 @@ function TourEditor({
   const [published, setPublished] = useState(initial.published ?? true);
   const [stops, setStops] = useState<PublicTourStop[]>(initial.stops);
   const [saving, setSaving] = useState(false);
+  const [planner, setPlanner] = useState<PublicTour | null>(null);
 
   // Automatischer Slug-Vorschlag bei neuen Touren, solange der User nichts
   // Eigenes eingegeben hat (entspricht dem Tour-Namen ohne Sonderzeichen).
@@ -257,32 +262,57 @@ function TourEditor({
     }
     try {
       setSaving(true);
-      const tourId = isNew
-        ? (await createPublicTour({
-            slug: slug.trim(),
-            name: name.trim(),
-            description: description.trim(),
-            emoji: emoji.trim(),
-            sort_order: parseInt(sortOrder, 10) || 0,
-            published,
-          })).id
-        : initial.id;
-      if (!isNew) {
-        await updatePublicTour(tourId, {
-          slug: slug.trim(),
-          name: name.trim(),
-          description: description.trim(),
-          emoji: emoji.trim(),
-          sort_order: parseInt(sortOrder, 10) || 0,
-          published,
-        });
-      }
-      await replacePublicTourStops(tourId, stops);
+      const id = await persistMetadata();
+      await replacePublicTourStops(id, stops);
       onSaved();
     } catch (err) {
       Alert.alert('Fehler', getErrorMessage(err, 'Speichern fehlgeschlagen'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Schreibt Tour-Metadaten (Name, Slug, …) zurück und vergibt – falls neu –
+  // eine ID. Wird sowohl von Speichern als auch vom Map-Planer-Eintritt genutzt.
+  const persistMetadata = async (): Promise<string> => {
+    const meta = {
+      slug: slug.trim(),
+      name: name.trim(),
+      description: description.trim(),
+      emoji: emoji.trim(),
+      sort_order: parseInt(sortOrder, 10) || 0,
+      published,
+    };
+    if (!tourId) {
+      const created = await createPublicTour(meta);
+      setTourId(created.id);
+      return created.id;
+    }
+    await updatePublicTour(tourId, meta);
+    return tourId;
+  };
+
+  const openPlanner = async () => {
+    if (!name.trim() || !slug.trim()) {
+      Alert.alert('Fehlt', 'Name und Slug müssen vor dem Map-Planer ausgefüllt sein.');
+      return;
+    }
+    try {
+      // Sicherstellen, dass die Tour eine ID hat – der Planer schreibt direkt
+      // in `public_tour_stops` und braucht dafür einen FK.
+      const id = await persistMetadata();
+      setPlanner({
+        id,
+        slug: slug.trim(),
+        name: name.trim(),
+        description: description.trim(),
+        emoji: emoji.trim(),
+        sort_order: parseInt(sortOrder, 10) || 0,
+        published,
+        stops,
+      });
+    } catch (err) {
+      Alert.alert('Fehler', getErrorMessage(err, 'Map-Planer konnte nicht geöffnet werden'));
     }
   };
 
@@ -416,9 +446,14 @@ function TourEditor({
             </View>
           ))}
 
+          <TouchableOpacity style={styles.primaryBtn} onPress={openPlanner}>
+            <Ionicons name="map-outline" size={18} color="#fff" />
+            <Text style={styles.primaryBtnText}>Auf Karte planen</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.secondaryBtn} onPress={addStop}>
             <Ionicons name="add" size={18} color={theme.colors.primary} />
-            <Text style={styles.secondaryBtnText}>Stop hinzufügen</Text>
+            <Text style={styles.secondaryBtnText}>Freier Punkt (lat/lon)</Text>
           </TouchableOpacity>
 
           {!isNew && (
@@ -428,6 +463,18 @@ function TourEditor({
             </TouchableOpacity>
           )}
         </ScrollView>
+        <Modal visible={!!planner} animationType="slide" onRequestClose={() => setPlanner(null)}>
+          {planner && (
+            <AdminTourPlanner
+              tour={planner}
+              onClose={() => setPlanner(null)}
+              onSaved={(newStops) => {
+                setStops(newStops);
+                setPlanner(null);
+              }}
+            />
+          )}
+        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
