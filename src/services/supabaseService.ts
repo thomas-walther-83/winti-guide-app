@@ -62,6 +62,20 @@ export async function setListingFeatured(
   if (error) throw error;
 }
 
+/** Admin-Update für Multi-Tags + Bildergalerie. */
+export async function updateListingAdmin(
+  id: string,
+  patch: {
+    is_featured?: boolean;
+    featured_until?: string | null;
+    tags?: string[];
+    image_urls?: string[];
+  },
+): Promise<void> {
+  const { error } = await supabase.from('listings').update(patch).eq('id', id);
+  if (error) throw error;
+}
+
 /** Holt alle (aktiven) Featured-Listings — nützlich für Admin-Übersicht. */
 export async function fetchFeaturedListings(): Promise<Listing[]> {
   const { data, error } = await supabase

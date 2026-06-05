@@ -28,7 +28,7 @@ import {
   deletePublicTour,
   replacePublicTourStops,
 } from '../services/publicToursService';
-import { fetchListings, setListingFeatured } from '../services/supabaseService';
+import { fetchListings, updateListingAdmin } from '../services/supabaseService';
 import { getErrorMessage } from '../utils/errors';
 import type { Listing, PublicTour, PublicTourStop } from '../types';
 import { AdminTourPlanner } from './AdminTourPlanner';
@@ -595,6 +595,10 @@ function FeaturedEditor({
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [isFeatured, setIsFeatured] = useState(!!listing.is_featured);
   const [until, setUntil] = useState(listing.featured_until ? listing.featured_until.slice(0, 10) : '');
+  // Tags als komma-getrennt; Bilder als URL pro Zeile – beides menschen-
+  // lesbar im Editor, in der DB als text[] gespeichert.
+  const [tagsInput, setTagsInput] = useState((listing.tags ?? []).join(', '));
+  const [imagesInput, setImagesInput] = useState((listing.image_urls ?? []).join('\n'));
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
@@ -607,9 +611,26 @@ function FeaturedEditor({
       }
       untilIso = d.toISOString();
     }
+    const tags = Array.from(
+      new Set(
+        tagsInput
+          .split(',')
+          .map((t) => t.trim())
+          .filter((t) => t.length > 0),
+      ),
+    );
+    const image_urls = imagesInput
+      .split(/\r?\n/)
+      .map((u) => u.trim())
+      .filter((u) => u.length > 0);
     try {
       setSaving(true);
-      await setListingFeatured(listing.id, isFeatured, untilIso);
+      await updateListingAdmin(listing.id, {
+        is_featured: isFeatured,
+        featured_until: untilIso,
+        tags,
+        image_urls,
+      });
       onSaved();
     } catch (err) {
       Alert.alert('Fehler', getErrorMessage(err, 'Speichern fehlgeschlagen'));
@@ -645,6 +666,34 @@ function FeaturedEditor({
         />
         <Text style={styles.muted}>
           Leer lassen für unbegrenzt. Nach dem Datum verschwindet das Listing automatisch wieder aus der Empfehlung.
+        </Text>
+
+        <Text style={[styles.fieldLabel, { marginTop: 20 }]}>Tags (komma-getrennt)</Text>
+        <TextInput
+          style={styles.input}
+          value={tagsInput}
+          onChangeText={setTagsInput}
+          placeholder="z. B. Vegan, Mit Garten, Hundefreundlich"
+          placeholderTextColor={theme.colors.textMuted}
+          autoCapitalize="none"
+        />
+        <Text style={styles.muted}>
+          Mehrere Tags pro Listing. Nutzer können auf der Entdecken-Karte danach filtern.
+        </Text>
+
+        <Text style={[styles.fieldLabel, { marginTop: 20 }]}>Bilder (eine URL pro Zeile)</Text>
+        <TextInput
+          style={[styles.input, { minHeight: 96, textAlignVertical: 'top' }]}
+          value={imagesInput}
+          onChangeText={setImagesInput}
+          placeholder={'https://…/bild1.jpg\nhttps://…/bild2.jpg'}
+          placeholderTextColor={theme.colors.textMuted}
+          autoCapitalize="none"
+          multiline
+        />
+        <Text style={styles.muted}>
+          Das erste Bild wird auf der Detail-Karte zuerst gezeigt. Lass das Feld leer, damit das alte
+          Einzelbild (image_url) verwendet wird.
         </Text>
       </ScrollView>
     </SafeAreaView>

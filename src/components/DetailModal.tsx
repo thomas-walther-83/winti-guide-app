@@ -8,6 +8,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   Linking,
+  FlatList,
+  Dimensions,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -48,6 +52,52 @@ function InfoRow({ icon, children }: { icon: keyof typeof Ionicons.glyphMap; chi
   );
 }
 
+/**
+ * Wischbarer Bilder-Carousel im Hero-Bereich. Bei einem einzelnen Bild
+ * verhält er sich wie ein normales Image (ohne Dots). Die Breite wird
+ * über `onLayout` ermittelt, damit Web (responsive Modal-Breite) und
+ * Native (volle Geräte-Breite) korrekt darstellen.
+ */
+function HeroCarousel({ images }: { images: string[] }) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
+  const [width, setWidth] = useState(0);
+  const [index, setIndex] = useState(0);
+
+  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (width <= 0) return;
+    const x = e.nativeEvent.contentOffset.x;
+    const i = Math.round(x / width);
+    if (i !== index) setIndex(i);
+  };
+
+  return (
+    <View style={styles.heroImage} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+      {width > 0 && (
+        <FlatList
+          data={images}
+          keyExtractor={(u, i) => `${i}-${u}`}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          renderItem={({ item }) => (
+            <Image source={{ uri: item }} style={{ width, height: '100%' }} resizeMode="cover" />
+          )}
+        />
+      )}
+      {images.length > 1 && (
+        <View style={styles.carouselDots}>
+          {images.map((_, i) => (
+            <View key={i} style={[styles.carouselDot, i === index && styles.carouselDotActive]} />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
 function ListingDetail({
   listing, isSaved, onToggleSave, onShowOnMap, onClose,
 }: {
@@ -62,20 +112,30 @@ function ListingDetail({
   const visual = getListingVisual(listing.category);
   const { t } = useTranslation();
   const [addToTourOpen, setAddToTourOpen] = useState(false);
+
+  // Bildergalerie: bevorzugt das neue `image_urls`-Array; falls leer, fällt
+  // auf das alte Einzel-`image_url` zurück.
+  const galleryImages = useMemo(() => {
+    if (listing.image_urls && listing.image_urls.length > 0) return listing.image_urls;
+    return listing.image_url ? [listing.image_url] : [];
+  }, [listing.image_urls, listing.image_url]);
+  const tags = listing.tags ?? [];
+
   return (
     <>
       <View style={styles.hero}>
-        {listing.image_url ? (
-          <Image source={{ uri: listing.image_url }} style={styles.heroImage} resizeMode="cover" />
-        ) : (
+        {galleryImages.length === 0 ? (
           <View style={[styles.heroImage, styles.heroFallback, { backgroundColor: visual.bg }]}>
             <Ionicons name={visual.icon} size={72} color="rgba(255,255,255,0.92)" />
           </View>
+        ) : (
+          <HeroCarousel images={galleryImages} />
         )}
         <LinearGradient
           colors={['transparent', 'rgba(15,11,8,0.15)', 'rgba(15,11,8,0.82)']}
           locations={[0, 0.45, 1]}
           style={styles.heroGradient}
+          pointerEvents="none"
         />
         {listing.is_premium && (
           <View style={styles.premiumBadge}>
@@ -90,6 +150,9 @@ function ListingDetail({
         <View style={styles.tagRow}>
           {listing.sub_type ? <Text style={styles.tag}>{listing.sub_type}</Text> : null}
           {listing.stars ? <Text style={styles.tag}>⭐ {listing.stars}</Text> : null}
+          {tags.map((tg) => (
+            <Text key={tg} style={[styles.tag, styles.tagAccent]}>{tg}</Text>
+          ))}
         </View>
 
         {listing.description ? <Text style={styles.description}>{listing.description}</Text> : null}
@@ -422,6 +485,28 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
     paddingVertical: 4,
     borderRadius: theme.borderRadius.sm,
     overflow: 'hidden',
+  },
+  tagAccent: {
+    color: '#fff',
+    backgroundColor: theme.colors.primary,
+    fontWeight: '600',
+  },
+  carouselDots: {
+    position: 'absolute',
+    bottom: 8,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  carouselDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.55)',
+  },
+  carouselDotActive: {
+    backgroundColor: '#fff',
+    width: 18,
   },
   description: {
     fontSize: 15,
