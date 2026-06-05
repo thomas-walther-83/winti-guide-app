@@ -8,8 +8,8 @@ import {
   SafeAreaView,
   ScrollView,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
+import { Alert } from '../utils/alert';
 import { useAuth } from '../context/AuthContext';
 import {
   fetchMyPartnerProfile,

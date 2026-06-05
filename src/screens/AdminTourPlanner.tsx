@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -9,6 +8,8 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+
+import { Alert } from '../utils/alert';
 
 import { MapWebView } from '../components/MapWebView';
 import { CategoryFilter } from '../components/CategoryFilter';

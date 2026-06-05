@@ -8,9 +8,9 @@ import {
   SafeAreaView,
   ScrollView,
   ActivityIndicator,
-  Alert,
   Linking,
 } from 'react-native';
+import { Alert } from '../utils/alert';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useIsAdmin } from '../hooks/useIsAdmin';

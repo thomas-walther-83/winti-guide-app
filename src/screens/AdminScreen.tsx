@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -16,6 +15,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+
+import { Alert } from '../utils/alert';
 
 import { useTheme } from '../context/ThemeContext';
 import type { AppTheme } from '../styles/theme';
