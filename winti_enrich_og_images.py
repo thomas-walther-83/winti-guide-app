@@ -34,6 +34,7 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://dphhqwisluirihmahyee.supa
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
 DEBUG = os.environ.get("DEBUG", "0") == "1"
 CAP = int(os.environ.get("CAP") or "500")
+FORCE = os.environ.get("FORCE", "0") == "1"
 MAX_IMAGES = 5
 
 UA = "Mozilla/5.0 (compatible; WintiGuideBot/1.0; +https://winti-guide.app)"
@@ -122,25 +123,80 @@ def site_host(url: str) -> str:
         return ""
 
 
-def needs_enrichment(l: dict) -> bool:
-    """True, wenn das Listing sich für Re-Scrape lohnt:
-      - leeres image_urls, oder
-      - nur Picsum-Platzhalter, oder
-      - sämtliche image_urls liegen auf der Listing-eigenen Domain
-        (d. h. wahrscheinlich vom V1-Scraper gesetzt, nicht vom Admin
-        aus externer Quelle wie Unsplash).
+SKIP_REASON: dict[str, str] = {}
+
+
+def _same_or_subdomain(a: str, b: str) -> bool:
+    """True wenn a und b dieselbe registrierbare Domain teilen.
+    `cdn.boilerroom.ch` und `boilerroom.ch` zählen als gleich.
+    Sehr simple Heuristik (kein PSL), reicht aber für unsere Daten.
     """
+    if not a or not b:
+        return False
+    if a == b:
+        return True
+    # Letzte 2 Labels vergleichen (boilerroom.ch == cdn.boilerroom.ch)
+    pa = a.split(".")
+    pb = b.split(".")
+    if len(pa) < 2 or len(pb) < 2:
+        return False
+    return pa[-2:] == pb[-2:]
+
+
+# Hosts, die typische Admin-/Externe-Bildquellen sind (= NICHT enrichen).
+# Eine URL aus einer dieser Domains wird als „bewusst gesetzt" gewertet.
+TRUSTED_EXTERNAL_HOSTS = (
+    "unsplash.com",
+    "images.unsplash.com",
+    "pexels.com",
+    "wikimedia.org",
+    "wikipedia.org",
+    "drive.google.com",
+    "imgur.com",
+    "i.imgur.com",
+    "cloudinary.com",
+    "imagekit.io",
+)
+
+
+def needs_enrichment(l: dict) -> bool:
+    """True, wenn das Listing sich für Re-Scrape lohnt.
+
+    Lockerer als V2: registrierbare Domain wird verglichen, Subdomains
+    der eigenen Site (cdn.x.ch ↔ x.ch) zählen als self-hosted. Nur
+    URLs von explizit „vertrauten" externen Hosts (Unsplash, Wikimedia
+    etc.) gelten als bewusst gesetzte Admin-Edits und werden geschont.
+    """
+    name = l.get("name", "")
     if not (l.get("website") or "").strip():
+        SKIP_REASON[name] = "keine website"
         return False
     urls = [u for u in (l.get("image_urls") or []) if u]
     if not urls:
         return True
     if all("picsum.photos" in u for u in urls):
         return True
+    # Externe vertrauenswürdige Quelle vorhanden → schützen
+    for u in urls:
+        h = site_host(u)
+        if any(h.endswith(t) for t in TRUSTED_EXTERNAL_HOSTS):
+            SKIP_REASON[name] = f"externe Quelle {h}"
+            return False
     own = site_host(ensure_https(l["website"]))
     if not own:
+        SKIP_REASON[name] = "website hat keinen host"
         return False
-    return all(site_host(u).endswith(own) or own.endswith(site_host(u)) for u in urls if u)
+    # Alle URLs auf eigener (Sub-)Domain → von uns gesetzt, re-scrape
+    if all(_same_or_subdomain(site_host(u), own) for u in urls if u):
+        return True
+    # Mindestens eine URL auf fremder Domain (kein trusted host) → vermutlich
+    # bewusst gesetzt, nicht überschreiben
+    foreign = next(
+        (u for u in urls if not _same_or_subdomain(site_host(u), own)),
+        "",
+    )
+    SKIP_REASON[name] = f"fremde URL ohne trusted host: {foreign[:80]}"
+    return False
 
 
 def absify(url: str, base_url: str) -> str:
@@ -329,12 +385,23 @@ def patch_listing(listing_id: str, body: dict) -> bool:
 
 def main() -> int:
     print("═" * 60)
-    print(f"  og:image-Backfill V3 (CAP={CAP}, DEBUG={DEBUG})")
+    print(f"  og:image-Backfill V3 (CAP={CAP}, DEBUG={DEBUG}, FORCE={FORCE})")
     print("═" * 60)
 
     listings = fetch_listings()
-    candidates = [l for l in listings if needs_enrichment(l)]
+    if FORCE:
+        # Force-Modus: ALLE Listings mit Website werden neu enricht, egal
+        # was aktuell in image_urls steht. Admin-Edits gehen ggf. verloren.
+        candidates = [l for l in listings if (l.get("website") or "").strip()]
+    else:
+        candidates = [l for l in listings if needs_enrichment(l)]
     print(f"📋 {len(listings)} aktive Listings · {len(candidates)} brauchen Anreicherung")
+    if DEBUG and SKIP_REASON and not FORCE:
+        print(f"⏭  {len(SKIP_REASON)} übersprungene Listings:")
+        for name, reason in sorted(SKIP_REASON.items())[:60]:
+            print(f"    {name[:42]:42s}  ← {reason[:80]}")
+        if len(SKIP_REASON) > 60:
+            print(f"    … (+{len(SKIP_REASON)-60} weitere)")
 
     if not candidates:
         print("✅ Alles bereits angereichert – nichts zu tun.")

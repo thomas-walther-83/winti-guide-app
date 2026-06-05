@@ -32,6 +32,10 @@ on:
         description: 'og_images: max. Listings pro Lauf (Default 500)'
         type: string
         default: ''
+      force:
+        description: 'og_images: ALLE Listings neu enrichen (überschreibt auch externe URLs)? 1 = ja'
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -102,4 +106,5 @@ jobs:
         env:
           DEBUG: ${{ github.event.inputs.debug }}
           CAP: ${{ github.event.inputs.cap }}
+          FORCE: ${{ github.event.inputs.force }}
         run: python3 winti_enrich_og_images.py
