@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { useDetail } from '../context/DetailContext';
 import type { AppTheme } from '../styles/theme';
 import { primaryImage } from '../utils/listingImage';
 import type { Listing } from '../types';
@@ -57,8 +58,15 @@ export function HeroCard({
 }: HeroCardProps) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const { open } = useDetail();
   const bgColor = CATEGORY_BG[listing.category] ?? '#CC0000';
   const categoryLabel = CATEGORY_LABEL[listing.category] ?? listing.category;
+  // Image-Loadfehler (Hotlink-Protection, 404 …) → Fallback auf farbigen Block.
+  const [imgFailed, setImgFailed] = useState(false);
+  const image = primaryImage(listing);
+  const showImage = !!image && !imgFailed;
+  const openDetail = () =>
+    open({ listing, kind: 'listing', isSaved, onToggleSave });
 
   const cardContent = (
     <View style={[styles.overlay, { width, height }]}>
@@ -73,7 +81,10 @@ export function HeroCard({
       {/* Save button top-right */}
       <TouchableOpacity
         style={styles.saveButton}
-        onPress={() => onToggleSave(listing)}
+        onPress={(e) => {
+          (e as unknown as { stopPropagation?: () => void })?.stopPropagation?.();
+          onToggleSave(listing);
+        }}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
         <Ionicons
@@ -98,13 +109,20 @@ export function HeroCard({
   );
 
   return (
-    <View style={[styles.card, { width, height }, style]}>
-      {primaryImage(listing) ? (
+    <TouchableOpacity
+      style={[styles.card, { width, height }, style]}
+      onPress={openDetail}
+      activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={`${listing.name} – Details öffnen`}
+    >
+      {showImage ? (
         <ImageBackground
-          source={{ uri: primaryImage(listing)! }}
+          source={{ uri: image! }}
           style={styles.colorBackground}
           imageStyle={styles.imageRadius}
           resizeMode="cover"
+          onError={() => setImgFailed(true)}
         >
           {cardContent}
         </ImageBackground>
@@ -113,7 +131,7 @@ export function HeroCard({
           {cardContent}
         </View>
       )}
-    </View>
+    </TouchableOpacity>
   );
 }
 
