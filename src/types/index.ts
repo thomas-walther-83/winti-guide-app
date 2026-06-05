@@ -137,6 +137,10 @@ export interface Listing {
   is_active?: boolean;
   is_featured?: boolean;
   featured_until?: string | null;
+  /** Frei-form Tags („Vegan", „Mit Garten", …) – Mehrfachzuordnung pro Listing. */
+  tags?: string[];
+  /** Bildergalerie (geordnet). Fällt auf `image_url` zurück, wenn leer. */
+  image_urls?: string[];
   created_at?: string;
   updated_at?: string;
 }
