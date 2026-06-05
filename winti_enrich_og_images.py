@@ -254,18 +254,34 @@ def extract_images(html: str, base_url: str) -> list[str]:
     return urls
 
 
+# Connect-/Read-Timeout getrennt: tote Hosts geben nach 4 s Connect auf,
+# statt lange am Read zu hängen. Spart bei nicht-erreichbaren Sites massiv Zeit.
+TIMEOUT = (4, 6)
+
+
 def gather_from_site(site_url: str, debug_label: str = "") -> list[str]:
-    """Holt Bilder von der Hauptseite + bis zu MAX_SUBPAGES Subseiten."""
+    """Holt Bilder von der Hauptseite + bis zu MAX_SUBPAGES Subseiten.
+
+    Wenn die Homepage gar nicht erreichbar ist (Connection-Fehler / Timeout),
+    werden KEINE Subseiten mehr versucht – das verhindert, dass tote Hosts
+    jeweils 3× ins Timeout laufen.
+    """
     images: list[str] = []
+    home_reachable = False
     try:
-        res = requests.get(site_url, headers=HEADERS, timeout=8, allow_redirects=True)
+        res = requests.get(site_url, headers=HEADERS, timeout=TIMEOUT, allow_redirects=True)
+        home_reachable = True
         if res.status_code == 200:
             images.extend(extract_images(res.text, res.url))
             if DEBUG:
                 print(f"      home → {len(images)} Bilder")
     except Exception as e:
         if DEBUG:
-            print(f"      home: {str(e)[:60]}")
+            print(f"      home unerreichbar: {str(e)[:50]}")
+
+    # Tote Homepage → Subseiten überspringen (spart 2 weitere Timeouts).
+    if not home_reachable:
+        return []
 
     parsed = urlparse(site_url)
     if parsed.scheme and parsed.netloc:
@@ -278,7 +294,7 @@ def gather_from_site(site_url: str, debug_label: str = "") -> list[str]:
                 break
             url = f"{base}/{sub}"
             try:
-                r = requests.get(url, headers=HEADERS, timeout=6, allow_redirects=True)
+                r = requests.get(url, headers=HEADERS, timeout=TIMEOUT, allow_redirects=True)
             except Exception:
                 continue
             tried += 1
@@ -291,7 +307,7 @@ def gather_from_site(site_url: str, debug_label: str = "") -> list[str]:
             gained = len(images) - before
             if DEBUG and gained:
                 print(f"      /{sub} → +{gained} Bilder")
-            time.sleep(0.15)
+            time.sleep(0.1)
 
     return images[:MAX_IMAGES]
 
