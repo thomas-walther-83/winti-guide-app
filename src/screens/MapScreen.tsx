@@ -14,6 +14,7 @@ import { SubCategoryFilter } from '../components/SubCategoryFilter';
 import { fetchListingsWithCoords } from '../services/supabaseService';
 import { updateTourRoute } from '../services/toursService';
 import { getErrorMessage } from '../utils/errors';
+import { jsonEmbed } from '../utils/jsonEmbed';
 import { openTourInGoogleMaps, googleMapsTourUrl } from '../utils/maps';
 import { shareItem } from '../utils/share';
 import { matchesSubType } from '../config/subcategories';
@@ -80,7 +81,7 @@ function buildLeafletHTML(
     )
     .map((l) => {
       const color = CATEGORY_COLORS[l.category] ?? '#8B0000';
-      const popupLiteral = JSON.stringify(detailPopup(l));
+      const popupLiteral = jsonEmbed(detailPopup(l));
       const isFocused = focusListing != null && focusListing.id === l.id;
       return `(function(){
         var lyr = L.circleMarker([${l.lat}, ${l.lon}], {
@@ -101,8 +102,8 @@ function buildLeafletHTML(
     .filter((l) => l.geometry && Array.isArray(l.geometry.coordinates) && l.geometry.coordinates.length > 0)
     .map((l) => {
       const isFocused = focusListing != null && focusListing.id === l.id;
-      const geomLiteral = JSON.stringify(l.geometry);
-      const popupLiteral = JSON.stringify(detailPopup(l));
+      const geomLiteral = jsonEmbed(l.geometry);
+      const popupLiteral = jsonEmbed(detailPopup(l));
       return `(function(){
         L.geoJSON(${geomLiteral}, { style: { color: '#FFFFFF', weight: 7, opacity: 0.9 } }).addTo(map);
         var lyr = L.geoJSON(${geomLiteral}, { style: { color: '#1565C0', weight: 4, opacity: 1 } }).bindPopup(${popupLiteral}).addTo(map);
@@ -252,8 +253,8 @@ function buildTourHTML(
   const wpData = saved
     ? saved.map((w) => ({ lat: w.lat, lon: w.lon, stop: !!w.stop }))
     : stops.map((s) => ({ lat: s.lat, lon: s.lon, stop: true }));
-  const wpJson = JSON.stringify(wpData);
-  const stopNames = JSON.stringify(stops.map((s) => s.name));
+  const wpJson = jsonEmbed(wpData);
+  const stopNames = jsonEmbed(stops.map((s) => s.name));
 
   const hasUser =
     userCoords != null &&

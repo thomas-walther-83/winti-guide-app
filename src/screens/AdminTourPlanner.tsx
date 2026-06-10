@@ -20,6 +20,7 @@ import type { AppTheme } from '../styles/theme';
 import { fetchListingsWithCoords } from '../services/supabaseService';
 import { replacePublicTourStops } from '../services/publicToursService';
 import { getErrorMessage } from '../utils/errors';
+import { jsonEmbed } from '../utils/jsonEmbed';
 import { matchesSubType } from '../config/subcategories';
 import type { Listing, ListingCategory, PublicTour, PublicTourStop } from '../types';
 
@@ -80,10 +81,10 @@ function buildPlannerHTML(listings: Listing[], stops: PublicTourStop[]): string 
     // Listings als ID-Lookup; Popup-HTML referenziert nur die ID, damit keine
     // JSON.stringify-Werte in HTML-Attribute eingebettet werden müssen (das
     // brach mit Apostrophen / Anführungszeichen).
-    var listingsArr = ${JSON.stringify(lite)};
+    var listingsArr = ${jsonEmbed(lite)};
     var listingsById = {};
     listingsArr.forEach(function(l){ listingsById[l.id] = l; });
-    var currentStops = ${JSON.stringify(
+    var currentStops = ${jsonEmbed(
       stops.map((s) => ({
         listing_id: s.listing_id ?? null,
         lat: s.lat,
