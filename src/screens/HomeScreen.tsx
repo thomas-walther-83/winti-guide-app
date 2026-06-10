@@ -395,7 +395,7 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap, scrollTopSign
                 {t('nearby')}
               </Text>
               {nearby && locStatus === 'requesting' && (
-                <ActivityIndicator size="small" color="#FFFFFF" style={{ marginLeft: 4 }} />
+                <ActivityIndicator size="small" color={theme.colors.onPrimary} style={{ marginLeft: 4 }} />
               )}
             </TouchableOpacity>
 
@@ -505,7 +505,7 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap, scrollTopSign
               <Ionicons
                 name="image"
                 size={16}
-                color={viewMode === 'cards' ? '#FFFFFF' : theme.colors.textSecondary}
+                color={viewMode === 'cards' ? theme.colors.onPrimary : theme.colors.textSecondary}
               />
             </TouchableOpacity>
             <TouchableOpacity
@@ -518,7 +518,7 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap, scrollTopSign
               <Ionicons
                 name="list"
                 size={18}
-                color={viewMode === 'compact' ? '#FFFFFF' : theme.colors.textSecondary}
+                color={viewMode === 'compact' ? theme.colors.onPrimary : theme.colors.textSecondary}
               />
             </TouchableOpacity>
           </View>
@@ -626,7 +626,7 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
     borderColor: theme.colors.primary,
   },
   tagChipText: { fontSize: 13, color: theme.colors.textSecondary, fontWeight: '500' },
-  tagChipTextActive: { color: '#fff', fontWeight: '700' },
+  tagChipTextActive: { color: theme.colors.onPrimary, fontWeight: '700' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -727,7 +727,7 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
     color: theme.colors.primary,
   },
   nearbyTextActive: {
-    color: '#FFFFFF',
+    color: theme.colors.onPrimary,
   },
   nearbyHint: {
     flex: 1,
@@ -768,7 +768,7 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
     borderRadius: theme.borderRadius.md,
   },
   retryText: {
-    color: '#FFFFFF',
+    color: theme.colors.onPrimary,
     fontWeight: '600',
   },
   emptyState: {

@@ -427,6 +427,10 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
     borderTopRightRadius: theme.borderRadius.xl,
     maxHeight: '90%',
     overflow: 'hidden',
+    // Desktop-Browser: Sheet nicht über die volle Fensterbreite strecken.
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
   },
   closeButton: {
     position: 'absolute',
@@ -514,14 +518,14 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
   tag: {
     fontSize: 13,
     color: theme.colors.textSecondary,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.surfaceAlt,
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: 4,
     borderRadius: theme.borderRadius.sm,
     overflow: 'hidden',
   },
   tagAccent: {
-    color: '#fff',
+    color: theme.colors.onPrimary,
     backgroundColor: theme.colors.primary,
     fontWeight: '600',
   },
@@ -586,12 +590,12 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
     backgroundColor: theme.colors.primary,
   },
   actionPrimaryText: {
-    color: '#FFFFFF',
+    color: theme.colors.onPrimary,
     fontSize: 14,
     fontWeight: '700',
   },
   actionGhost: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.surfaceAlt,
   },
   actionGhostText: {
     color: theme.colors.text,

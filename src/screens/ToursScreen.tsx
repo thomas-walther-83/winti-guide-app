@@ -237,7 +237,7 @@ export function ToursScreen({ onNavigateToAccount, onShowTour }: Props) {
           onPress={() => (atTourLimit ? onNavigateToAccount?.() : setPrompt({ mode: 'create', value: '' }))}
           activeOpacity={0.8}
         >
-          <Ionicons name="add" size={20} color="#FFFFFF" />
+          <Ionicons name="add" size={20} color={theme.colors.onPrimary} />
           <Text style={styles.createBtnText}>
             {atTourLimit ? t('tours_upgrade_for_more') : t('tours_new')}
           </Text>
@@ -463,7 +463,7 @@ function TourDetail({
             onPress={() => onShowTour({ id: tour.id, name: tour.name, stops: mapStops, savedWaypoints })}
             activeOpacity={0.85}
           >
-            <Ionicons name="map" size={18} color="#FFFFFF" />
+            <Ionicons name="map" size={18} color={theme.colors.onPrimary} />
             <Text style={styles.createBtnText}>{t('show_on_map')}</Text>
           </TouchableOpacity>
         )}
@@ -552,7 +552,7 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
     paddingVertical: 12,
     borderRadius: theme.borderRadius.md,
   },
-  primaryBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
+  primaryBtnText: { color: theme.colors.onPrimary, fontWeight: '700', fontSize: 15 },
   limitBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -560,7 +560,7 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
     marginHorizontal: theme.spacing.md,
     marginBottom: theme.spacing.sm,
     padding: theme.spacing.sm,
-    backgroundColor: '#FBEAEA',
+    backgroundColor: theme.colors.primarySoft,
     borderRadius: theme.borderRadius.sm,
   },
   limitText: { fontSize: 12, color: theme.colors.primary, flex: 1 },
@@ -576,7 +576,7 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
     borderRadius: theme.borderRadius.md,
   },
   createBtnDisabled: { backgroundColor: theme.colors.textMuted },
-  createBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
+  createBtnText: { color: theme.colors.onPrimary, fontWeight: '700', fontSize: 15 },
   detailActions: { flexDirection: 'row', gap: theme.spacing.sm, paddingHorizontal: theme.spacing.md },
   detailActionFlex: { flex: 1, marginHorizontal: 0 },
   optimizeBtn: {
@@ -640,7 +640,7 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
   },
   tourIcon: {
     width: 38, height: 38, borderRadius: 19,
-    backgroundColor: '#FBEAEA',
+    backgroundColor: theme.colors.primarySoft,
     alignItems: 'center', justifyContent: 'center',
   },
   tourName: { fontSize: 16, fontWeight: '600', color: theme.colors.text },
@@ -670,13 +670,13 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
     backgroundColor: theme.colors.primary,
     alignItems: 'center', justifyContent: 'center',
   },
-  stopNumberText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
+  stopNumberText: { color: theme.colors.onPrimary, fontWeight: '700', fontSize: 14 },
   stopName: { fontSize: 15, fontWeight: '600', color: theme.colors.text },
   stopAddr: { fontSize: 13, color: theme.colors.textSecondary, marginTop: 1 },
   stopActions: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm },
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: theme.spacing.lg },
-  modalCard: { backgroundColor: theme.colors.surface, borderRadius: theme.borderRadius.lg, padding: theme.spacing.lg, gap: theme.spacing.md },
+  modalCard: { backgroundColor: theme.colors.surface, borderRadius: theme.borderRadius.lg, padding: theme.spacing.lg, gap: theme.spacing.md, width: '100%', maxWidth: 480, alignSelf: 'center' },
   modalTitle: { fontSize: 18, fontWeight: '700', color: theme.colors.text },
   input: {
     borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.borderRadius.sm,
@@ -689,5 +689,5 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
     backgroundColor: theme.colors.primary, paddingHorizontal: theme.spacing.lg, paddingVertical: 10,
     borderRadius: theme.borderRadius.sm,
   },
-  modalBtnPrimaryText: { color: '#FFFFFF', fontWeight: '700' },
+  modalBtnPrimaryText: { color: theme.colors.onPrimary, fontWeight: '700' },
 });

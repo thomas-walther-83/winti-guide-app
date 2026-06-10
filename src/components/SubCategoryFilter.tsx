@@ -81,7 +81,7 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
     borderColor: theme.colors.border,
   },
   chipActive: {
-    backgroundColor: '#FFEAEA',
+    backgroundColor: theme.colors.primarySoft,
     borderColor: theme.colors.primary,
   },
   label: {

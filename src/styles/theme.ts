@@ -55,6 +55,8 @@ const lightColors = {
   primaryLight: '#E23B3B',
   primaryDark: '#9E0000',
   primarySoft: '#F6E7E6',
+  /** Text/Icons AUF primary-Flächen — kontrastsicher in beiden Modi. */
+  onPrimary: '#FFFFFF',
   secondary: '#27323A',
   background: '#FAF8F4',
   surface: '#FFFFFF',
@@ -80,6 +82,8 @@ const darkColors: typeof lightColors = {
   primaryLight: '#FF7A7A',
   primaryDark: '#E23B3B',
   primarySoft: '#3A2422',
+  // Weiß auf #FF5A5A erreicht nur ~2.8:1 — dunkler Ton schafft >7:1.
+  onPrimary: '#2A0B06',
   secondary: '#9FB3C8',
   background: '#141210',
   surface: '#1F1C19',

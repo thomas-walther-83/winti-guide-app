@@ -63,6 +63,8 @@ export function GlobalAlertHost() {
                   style={[styles.btn, isDestructive && styles.btnDestructive, isCancel && styles.btnCancel]}
                   onPress={() => handle(b)}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={b.text ?? 'OK'}
                 >
                   <Text
                     style={[
@@ -90,7 +92,7 @@ const makeStyles = (theme: AppTheme) =>
       backgroundColor: 'rgba(0,0,0,0.45)',
       justifyContent: 'center',
       alignItems: 'center',
-      padding: 24,
+      padding: theme.spacing.lg,
     },
     card: {
       width: '100%',
@@ -101,7 +103,8 @@ const makeStyles = (theme: AppTheme) =>
       ...theme.shadow.medium,
     },
     title: {
-      fontSize: 17,
+      fontSize: 18,
+      fontFamily: theme.fonts.displayBold,
       fontWeight: '700',
       color: theme.colors.text,
       marginBottom: 6,
@@ -120,15 +123,17 @@ const makeStyles = (theme: AppTheme) =>
     },
     btn: {
       paddingVertical: 10,
-      paddingHorizontal: 16,
+      paddingHorizontal: theme.spacing.md,
       borderRadius: theme.borderRadius.md,
       backgroundColor: theme.colors.primary,
       minWidth: 80,
+      minHeight: 44,
       alignItems: 'center',
+      justifyContent: 'center',
     },
-    btnDestructive: { backgroundColor: '#C0392B' },
+    btnDestructive: { backgroundColor: theme.colors.error },
     btnCancel: { backgroundColor: theme.colors.surfaceAlt },
-    btnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-    btnTextDestructive: { color: '#fff' },
+    btnText: { color: theme.colors.onPrimary, fontWeight: '700', fontSize: 14 },
+    btnTextDestructive: { color: theme.colors.onPrimary },
     btnTextCancel: { color: theme.colors.text },
   });
