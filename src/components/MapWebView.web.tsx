@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useTranslation } from '../hooks/useTranslation';
 
 interface Props {
@@ -15,10 +15,15 @@ interface Props {
 
 export function MapWebView({ html, onSelectListing, onTourRouteChange, onAnyMessage }: Props) {
   const { t } = useTranslation();
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Das Leaflet-iframe sendet Popup-Taps / Route-Änderungen via postMessage hierher.
   useEffect(() => {
     function onMsg(e: MessageEvent) {
+      // Nur Messages aus UNSEREM iframe akzeptieren — window.message empfängt
+      // sonst Nachrichten beliebiger Fenster/Frames (z. B. Browser-Extensions),
+      // die hier Aktionen wie Routen-Speichern auslösen könnten.
+      if (!iframeRef.current || e.source !== iframeRef.current.contentWindow) return;
       const raw = typeof e.data === 'string' ? e.data : JSON.stringify(e.data);
       onAnyMessage?.(raw);
       try {
@@ -35,6 +40,7 @@ export function MapWebView({ html, onSelectListing, onTourRouteChange, onAnyMess
 
   return (
     <iframe
+      ref={iframeRef}
       srcDoc={html}
       style={{
         flex: 1,

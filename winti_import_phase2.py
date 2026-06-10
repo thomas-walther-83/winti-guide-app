@@ -1897,11 +1897,7 @@ def _on_alarm(signum, frame):
     raise _SourceTimeout()
 
 
-def run_source(label: str, fn, limit_s: int = 60) -> list[dict]:
-    """Ruft einen Scraper mit hartem Zeitlimit (SIGALRM, Unix/Hauptthread) auf und
-    misst die Dauer. Eine hängende Quelle wird abgebrochen, der Rest läuft weiter,
-    damit der Lauf garantiert zum Speichern kommt."""
-    t0 = time.time()
+def _run_source_once(label: str, fn, limit_s: int) -> list[dict]:
     evs: list[dict] = []
     has_alarm = hasattr(signal, "SIGALRM")
     if has_alarm:
@@ -1916,6 +1912,26 @@ def run_source(label: str, fn, limit_s: int = 60) -> list[dict]:
     finally:
         if has_alarm:
             signal.alarm(0)
+    return evs
+
+
+# Quellen, die nachweislich liefern, aber gelegentlich transient 0 Events
+# zurückgeben (Rate-Limit, kurzzeitige Nicht-Erreichbarkeit). Für diese
+# lohnt ein zweiter Versuch nach kurzer Pause.
+RETRY_ON_EMPTY = {"coucou", "casinotheater", "altekaserne", "musikkollegium"}
+
+
+def run_source(label: str, fn, limit_s: int = 60) -> list[dict]:
+    """Ruft einen Scraper mit hartem Zeitlimit (SIGALRM, Unix/Hauptthread) auf
+    und misst die Dauer. Eine hängende Quelle wird abgebrochen, der Rest läuft
+    weiter. Bekannt-ergiebige Quellen werden bei 0 Events einmal wiederholt
+    (transiente Aussetzer wie Rate-Limits)."""
+    t0 = time.time()
+    evs = _run_source_once(label, fn, limit_s)
+    if not evs and label in RETRY_ON_EMPTY:
+        print(f"    ↻  {label}: 0 Events – Retry in 5s …")
+        time.sleep(5)
+        evs = _run_source_once(label, fn, limit_s)
     print(f"    ⏱  {label}: {len(evs)} Events in {time.time() - t0:.1f}s")
     return evs
 

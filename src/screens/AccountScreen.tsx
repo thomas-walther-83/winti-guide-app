@@ -38,7 +38,7 @@ export function AccountScreen({ onNavigateToAdmin }: { onNavigateToAdmin?: () =>
   const { user, signIn, signUp, signOut, loading: authLoading } = useAuth();
   const { tier, isPremium, loading: tierLoading, refresh: refreshTier } = useAppTier();
   const { t } = useTranslation();
-  const isAdmin = useIsAdmin();
+  const { isAdmin } = useIsAdmin();
 
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');

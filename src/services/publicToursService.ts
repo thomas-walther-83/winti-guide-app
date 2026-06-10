@@ -124,21 +124,22 @@ export async function deletePublicTour(id: string): Promise<void> {
 }
 
 /**
- * Ersetzt alle Stops einer Tour atomar (delete + insert).
- * Einfacher als individuelle Upserts; bei <50 Stops völlig unkritisch.
+ * Ersetzt alle Stops einer Tour atomar über die Postgres-Funktion
+ * `replace_public_tour_stops` (delete + insert in EINER Transaktion —
+ * ein fehlgeschlagener Insert kann die alten Stops nicht mehr löschen).
+ * RLS gilt unverändert (SECURITY INVOKER, Admin-only-Policies).
  */
 export async function replacePublicTourStops(tourId: string, stops: PublicTourStop[]): Promise<void> {
-  const { error: delErr } = await supabase.from('public_tour_stops').delete().eq('tour_id', tourId);
-  if (delErr) throw delErr;
-  if (stops.length === 0) return;
-  const rows = stops.map((s, idx) => ({
-    tour_id: tourId,
+  const payload = stops.map((s, idx) => ({
     position: s.position ?? idx + 1,
     lat: s.lat,
     lon: s.lon,
     name: s.name,
     listing_id: s.listing_id ?? null,
   }));
-  const { error: insErr } = await supabase.from('public_tour_stops').insert(rows);
-  if (insErr) throw insErr;
+  const { error } = await supabase.rpc('replace_public_tour_stops', {
+    p_tour_id: tourId,
+    p_stops: payload,
+  });
+  if (error) throw error;
 }
