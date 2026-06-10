@@ -17,7 +17,7 @@ import { getErrorMessage } from '../utils/errors';
 import { jsonEmbed } from '../utils/jsonEmbed';
 import { openTourInGoogleMaps, googleMapsTourUrl } from '../utils/maps';
 import { shareItem } from '../utils/share';
-import { matchesSubType } from '../config/subcategories';
+import { matchesSubCategory } from '../config/subcategories';
 import { useDetail } from '../context/DetailContext';
 import { useFavorites } from '../hooks/useFavorites';
 import { useTranslation } from '../hooks/useTranslation';
@@ -503,7 +503,7 @@ export function MapScreen({
       : listings.filter((l) => l.category === selectedCategory);
 
     if (selectedSubType !== 'all') {
-      result = result.filter((l) => matchesSubType(l.sub_type, selectedSubType));
+      result = result.filter((l) => matchesSubCategory(l, selectedSubType));
     }
     return result;
   })();

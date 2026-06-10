@@ -33,7 +33,7 @@ import { distanceKm, formatDistance } from '../utils/distance';
 import { isOpenNow } from '../utils/openingHours';
 import { useTheme } from '../context/ThemeContext';
 import type { AppTheme } from '../styles/theme';
-import { matchesSubType } from '../config/subcategories';
+import { matchesSubCategory } from '../config/subcategories';
 import { getCollection, matchesCollection } from '../config/collections';
 import { INTERESTS_KEY } from './OnboardingScreen';
 import type { Listing, ListingCategory, PartnerAd } from '../types';
@@ -58,7 +58,6 @@ type HeaderSection =
   | { type: 'categories' }
   | { type: 'collections' }
   | { type: 'subcategories' }
-  | { type: 'tags' }
   | { type: 'nearby' }
   | { type: 'view-toggle' }
   | { type: 'section-title'; title: string };
@@ -72,10 +71,6 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap, scrollTopSign
   const [subType, setSubType] = useState<string>('all');
   const [activeCollection, setActiveCollection] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  // Multi-Tag-Filter (Schnittmenge: ein Listing muss ALLE aktiven Tags haben).
-  const [activeTags, setActiveTags] = useState<string[]>([]);
-  const toggleTag = (tag: string) =>
-    setActiveTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
   const { savedIds, toggle: handleToggleSave } = useFavorites();
   const [partnerAds, setPartnerAds] = useState<PartnerAd[]>([]);
 
@@ -200,13 +195,9 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap, scrollTopSign
       );
     }
     if (subType !== 'all') {
-      result = result.filter((l) => matchesSubType(l.sub_type, subType));
-    }
-    if (activeTags.length > 0) {
-      result = result.filter((l) => {
-        const tags = l.tags ?? [];
-        return activeTags.every((t) => tags.includes(t));
-      });
+      // sub_type ODER redaktionelle Tags – Chips finden damit auch Lokale,
+      // deren OSM-sub_type generisch ist, die aber passend getaggt sind.
+      result = result.filter((l) => matchesSubCategory(l, subType));
     }
     const collection = getCollection(activeCollection);
     if (collection) {
@@ -230,24 +221,7 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap, scrollTopSign
     }
     return result;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listings, search, subType, nearby, coords, category, interestSet, activeCollection, openNow, activeTags]);
-
-  // Verfügbare Tag-Chips: alle Tags der aktuell relevanten Listings
-  // (Kategorie + Sub-Type angewendet, Tag-Filter noch nicht), nach
-  // Häufigkeit absteigend sortiert; max 16, um die Zeile schlank zu halten.
-  const availableTags = useMemo(() => {
-    const base = listings.filter((l) => {
-      if (category !== 'all' && l.category !== category) return false;
-      if (subType !== 'all' && !matchesSubType(l.sub_type, subType)) return false;
-      return true;
-    });
-    const freq = new Map<string, number>();
-    for (const l of base) for (const t of l.tags ?? []) freq.set(t, (freq.get(t) ?? 0) + 1);
-    return Array.from(freq.entries())
-      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-      .slice(0, 16)
-      .map(([t]) => t);
-  }, [listings, category, subType]);
+  }, [listings, search, subType, nearby, coords, category, interestSet, activeCollection, openNow]);
 
   // Distanz pro Eintrag (nur wenn "In der Nähe" aktiv und Standort vorhanden)
   const distances = useMemo(() => {
@@ -316,11 +290,6 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap, scrollTopSign
       items.push({ type: 'subcategories' });
     }
 
-    // Tag-Chips zeigen, sobald in der aktuellen Auswahl überhaupt Tags
-    // vorhanden sind (oder bereits welche aktiv) – sonst bleibt die Zeile aus.
-    if (availableTags.length > 0 || activeTags.length > 0) {
-      items.push({ type: 'tags' });
-    }
 
     // Show featured row only when no search active
     if (!search.trim() && !loading && featuredListings.length > 0) {
@@ -444,35 +413,6 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap, scrollTopSign
             onSelect={setSubType}
           />
         ) : null;
-
-      case 'tags': {
-        // Aktive Tags zuerst, dann Vorschläge ohne Doppel.
-        const allChips = Array.from(new Set([...activeTags, ...availableTags]));
-        if (allChips.length === 0) return null;
-        return (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.tagChipRow}
-          >
-            {allChips.map((tag) => {
-              const active = activeTags.includes(tag);
-              return (
-                <TouchableOpacity
-                  key={tag}
-                  style={[styles.tagChip, active && styles.tagChipActive]}
-                  onPress={() => toggleTag(tag)}
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                >
-                  <Text style={[styles.tagChipText, active && styles.tagChipTextActive]}>{tag}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        );
-      }
 
       case 'featured':
         return (
@@ -611,26 +551,6 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  tagChipRow: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    gap: 6,
-    flexDirection: 'row',
-  },
-  tagChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  tagChipActive: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
-  },
-  tagChipText: { fontSize: 13, color: theme.colors.textSecondary, fontWeight: '500' },
-  tagChipTextActive: { color: theme.colors.onPrimary, fontWeight: '700' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
