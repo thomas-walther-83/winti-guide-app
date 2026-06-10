@@ -24,18 +24,26 @@ export const alertBus = {
   request(req: AlertRequest): void {
     if (activeListener) {
       activeListener(req);
+      return;
+    }
+    // Host (noch) nicht gemountet → Browser-Dialoge als Fallback.
+    // Wichtig: bei einer echten Wahl (z. B. Löschen-Bestätigung) MUSS
+    // window.confirm gefragt werden — die Aktion darf nie ungefragt
+    // ausgeführt werden.
+    if (typeof window === 'undefined') return;
+    const text = `${req.title}${req.message ? '\n\n' + req.message : ''}`;
+    const actionable = req.buttons.filter((b) => b.style !== 'cancel' && b.onPress);
+    if (actionable.length === 0) {
+      // eslint-disable-next-line no-alert
+      window.alert(text);
+      return;
+    }
+    // eslint-disable-next-line no-alert
+    const ok = window.confirm(text);
+    if (ok) {
+      actionable[0]?.onPress?.();
     } else {
-      // Wenn der Host (noch) nicht gemountet ist (sollte nicht vorkommen),
-      // wenigstens window.alert als Fallback.
-      if (typeof window !== 'undefined' && typeof window.alert === 'function') {
-        // eslint-disable-next-line no-alert
-        window.alert(`${req.title}${req.message ? '\n\n' + req.message : ''}`);
-        // OK-Button (default oder erster non-cancel) trotzdem feuern,
-        // damit Aktionen nicht verloren gehen.
-        const fallback =
-          req.buttons.find((b) => b.style !== 'cancel') ?? req.buttons[req.buttons.length - 1];
-        fallback?.onPress?.();
-      }
+      req.buttons.find((b) => b.style === 'cancel')?.onPress?.();
     }
   },
   setListener(l: Listener | null): void {

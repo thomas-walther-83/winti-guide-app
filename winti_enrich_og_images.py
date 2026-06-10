@@ -241,6 +241,11 @@ def absify(url: str, base_url: str) -> str:
     url = (url or "").strip()
     if not url:
         return ""
+    # Fragment abschneiden: URLs wie "https://x.ch/#logo" sind Anker auf
+    # Seiten-Elemente, keine ladbaren Bild-Dateien (Boilerroom-Fall).
+    url = url.split("#", 1)[0]
+    if not url:
+        return ""
     if url.startswith("//"):
         return "https:" + url
     if url.startswith("http"):
@@ -259,6 +264,10 @@ def is_low_quality(url: str) -> bool:
     p = urlparse(url)
     path = p.path.lower()
     host = p.netloc.lower()
+    # Leerer/Root-Pfad = die Seite selbst (z. B. nach Fragment-Strip von
+    # "https://x.ch/#logo"), keine Bild-Datei.
+    if path in ("", "/"):
+        return True
     if _host_matches(host, LOW_QUALITY_HOSTS):
         return True
     if JUNK_RE.search(path):
