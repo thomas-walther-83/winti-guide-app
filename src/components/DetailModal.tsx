@@ -27,7 +27,10 @@ import type { Listing, Event } from '../types';
 
 function openUrl(raw?: string) {
   if (!raw) return;
-  const url = raw.startsWith('http') ? raw : `https://${raw}`;
+  // Nur echte http(s)-URLs öffnen; alles andere (inkl. exotischer Schemes
+  // aus gescrapten Daten) wird als Hostname interpretiert und mit https://
+  // präfixiert.
+  const url = /^https?:\/\//i.test(raw) ? raw : `https://${raw.replace(/^[a-z+.-]+:\/*/i, '')}`;
   Linking.openURL(url).catch(() => undefined);
 }
 
@@ -58,11 +61,19 @@ function InfoRow({ icon, children }: { icon: keyof typeof Ionicons.glyphMap; chi
  * über `onLayout` ermittelt, damit Web (responsive Modal-Breite) und
  * Native (volle Geräte-Breite) korrekt darstellen.
  */
-function HeroCarousel({ images }: { images: string[] }) {
+function HeroCarousel({
+  images,
+  fallback,
+}: {
+  images: string[];
+  /** Kategorie-Farbe/-Icon für Slides, deren Bild nicht lädt (403/404). */
+  fallback: { bg: string; icon: keyof typeof Ionicons.glyphMap };
+}) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [width, setWidth] = useState(0);
   const [index, setIndex] = useState(0);
+  const [failed, setFailed] = useState<Set<number>>(new Set());
 
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (width <= 0) return;
@@ -70,6 +81,13 @@ function HeroCarousel({ images }: { images: string[] }) {
     const i = Math.round(x / width);
     if (i !== index) setIndex(i);
   };
+
+  const markFailed = (i: number) =>
+    setFailed((prev) => {
+      const next = new Set(prev);
+      next.add(i);
+      return next;
+    });
 
   return (
     <View style={styles.heroImage} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
@@ -82,9 +100,25 @@ function HeroCarousel({ images }: { images: string[] }) {
           showsHorizontalScrollIndicator={false}
           onScroll={handleScroll}
           scrollEventThrottle={16}
-          renderItem={({ item }) => (
-            <Image source={{ uri: item }} style={{ width, height: '100%' }} resizeMode="cover" />
-          )}
+          renderItem={({ item, index: i }) =>
+            failed.has(i) ? (
+              <View
+                style={[
+                  { width, height: '100%', alignItems: 'center', justifyContent: 'center' },
+                  { backgroundColor: fallback.bg },
+                ]}
+              >
+                <Ionicons name={fallback.icon} size={72} color="rgba(255,255,255,0.92)" />
+              </View>
+            ) : (
+              <Image
+                source={{ uri: item }}
+                style={{ width, height: '100%' }}
+                resizeMode="cover"
+                onError={() => markFailed(i)}
+              />
+            )
+          }
         />
       )}
       {images.length > 1 && (
@@ -129,7 +163,7 @@ function ListingDetail({
             <Ionicons name={visual.icon} size={72} color="rgba(255,255,255,0.92)" />
           </View>
         ) : (
-          <HeroCarousel images={galleryImages} />
+          <HeroCarousel images={galleryImages} fallback={{ bg: visual.bg, icon: visual.icon }} />
         )}
         <LinearGradient
           colors={['transparent', 'rgba(15,11,8,0.15)', 'rgba(15,11,8,0.82)']}

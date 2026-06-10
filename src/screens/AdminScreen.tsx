@@ -17,6 +17,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 import { Alert } from '../utils/alert';
+import { DateField } from '../components/DateField';
 
 import { useTheme } from '../context/ThemeContext';
 import type { AppTheme } from '../styles/theme';
@@ -46,8 +47,20 @@ type Mode = 'tours' | 'featured';
 export function AdminScreen({ onClose }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const isAdmin = useIsAdmin();
+  const { isAdmin, loading: adminLoading } = useIsAdmin();
   const [mode, setMode] = useState<Mode>('tours');
+
+  // Admin-Status kommt asynchron aus der DB — bis dahin Spinner statt
+  // fälschlicher „kein Zugriff"-Meldung.
+  if (adminLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!isAdmin) {
     return (
@@ -655,15 +668,8 @@ function FeaturedEditor({
           <Text style={styles.fieldLabel}>In „Empfohlen für dich" anzeigen</Text>
           <Switch value={isFeatured} onValueChange={setIsFeatured} />
         </View>
-        <Text style={styles.fieldLabel}>Empfohlen bis (optional, YYYY-MM-DD)</Text>
-        <TextInput
-          style={styles.input}
-          value={until}
-          onChangeText={setUntil}
-          placeholder="z.B. 2026-12-31"
-          placeholderTextColor={theme.colors.textMuted}
-          autoCapitalize="none"
-        />
+        <Text style={styles.fieldLabel}>Empfohlen bis (optional)</Text>
+        <DateField value={until} onChange={setUntil} placeholder="z.B. 2026-12-31" />
         <Text style={styles.muted}>
           Leer lassen für unbegrenzt. Nach dem Datum verschwindet das Listing automatisch wieder aus der Empfehlung.
         </Text>

@@ -147,10 +147,17 @@ function buildPlannerHTML(listings: Listing[], stops: PublicTourStop[]): string 
         (function(localIdx, localStop){
           mk.on('click', function() {
             var label = localStop.name || '(Freier Punkt)';
+            var nav = '';
+            if (localIdx > 0) {
+              nav += '<button onclick="moveAt(' + localIdx + ', -1)">↑ früher</button> ';
+            }
+            if (localIdx < currentStops.length - 1) {
+              nav += '<button onclick="moveAt(' + localIdx + ', 1)">↓ später</button> ';
+            }
             L.popup({ closeButton: true })
               .setLatLng([localStop.lat, localStop.lon])
               .setContent('<b>' + (localIdx + 1) + '. ' + esc(label) + '</b><br/>' +
-                '<button onclick="removeAt(' + localIdx + ')">Stop entfernen</button>')
+                nav + '<button onclick="removeAt(' + localIdx + ')">Entfernen</button>')
               .openOn(map);
           });
         })(idx, s);
@@ -192,9 +199,34 @@ function buildPlannerHTML(listings: Listing[], stops: PublicTourStop[]): string 
       map.closePopup();
       redrawStops();
     }
+    function moveAt(idx, dir) {
+      var target = idx + dir;
+      if (target < 0 || target >= currentStops.length) return;
+      var tmp = currentStops[idx];
+      currentStops[idx] = currentStops[target];
+      currentStops[target] = tmp;
+      map.closePopup();
+      redrawStops();
+    }
     window.addStopById = addStopById;
     window.removeByListingId = removeByListingId;
     window.removeAt = removeAt;
+    window.moveAt = moveAt;
+
+    // Long-Press (Desktop: Rechtsklick) auf die Karte → freien Punkt als
+    // Stop anlegen. Leaflet feuert auf Touch-Geräten 'contextmenu' bei
+    // langem Druck.
+    var freeCount = currentStops.filter(function(s){ return !s.listing_id; }).length;
+    map.on('contextmenu', function(e) {
+      freeCount += 1;
+      currentStops.push({
+        listing_id: null,
+        lat: e.latlng.lat,
+        lon: e.latlng.lng,
+        name: 'Punkt ' + freeCount,
+      });
+      redrawStops();
+    });
 
     if (currentStops.length > 0) {
       var bounds = L.latLngBounds(currentStops.map(function(s){ return [s.lat, s.lon]; }));
@@ -346,7 +378,7 @@ export function AdminTourPlanner({ tour, onClose, onSaved }: Props) {
           <View style={styles.hint} pointerEvents="none">
             <Ionicons name="information-circle-outline" size={14} color="#fff" />
             <Text style={styles.hintText}>
-              Tippe Marker = Stop hinzufügen · Tippe Stop = entfernen
+              Marker tippen = Stop · Stop tippen = ordnen/entfernen · lange drücken = freier Punkt
             </Text>
           </View>
         </View>

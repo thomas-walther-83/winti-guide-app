@@ -18,17 +18,21 @@ import type { AppTheme } from '../styles/theme';
 export function GlobalAlertHost() {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const [current, setCurrent] = useState<AlertRequest | null>(null);
+  // FIFO-Queue: feuern zwei Alerts kurz nacheinander (z. B. Bestätigung +
+  // Fehler-Toast), überschreibt der zweite den ersten nicht mehr — er wird
+  // nach dessen Schließen angezeigt.
+  const [queue, setQueue] = useState<AlertRequest[]>([]);
+  const current = queue[0] ?? null;
 
   useEffect(() => {
-    alertBus.setListener((req) => setCurrent(req));
+    alertBus.setListener((req) => setQueue((prev) => [...prev, req]));
     return () => alertBus.setListener(null);
   }, []);
 
   if (!current) return null;
 
   const handle = async (btn: AlertButton) => {
-    setCurrent(null);
+    setQueue((prev) => prev.slice(1));
     try {
       await btn.onPress?.();
     } catch {
@@ -43,7 +47,7 @@ export function GlobalAlertHost() {
       visible
       transparent
       animationType="fade"
-      onRequestClose={() => setCurrent(null)}
+      onRequestClose={() => setQueue((prev) => prev.slice(1))}
     >
       <View style={styles.overlay}>
         <View style={styles.card}>

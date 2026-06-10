@@ -7,7 +7,9 @@
 -- ═══════════════════════════════════════════════════════════════════
 
 -- ── Admin-Allowlist (zentral, in Postgres) ──────────────────────────
--- Hardcoded; bei neuen Admins hier ergänzen UND in src/config/admins.ts.
+-- EINZIGE Quelle der Allowlist: Der Client fragt den Status via
+-- supabase.rpc('is_admin') ab (src/hooks/useIsAdmin.ts) — bei neuen
+-- Admins nur hier ergänzen. (Aktuelle Fassung: 20260610_harden_is_admin)
 create or replace function public.is_admin() returns boolean
   language sql stable security definer set search_path = public, auth as $$
   select coalesce(
