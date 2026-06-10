@@ -12,7 +12,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../hooks/useTranslation';
 import { useDetail } from '../context/DetailContext';
 import type { AppTheme } from '../styles/theme';
-import { primaryImage } from '../utils/listingImage';
+import { primaryImage, isLogoUrl } from '../utils/listingImage';
 import type { Listing } from '../types';
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -121,9 +121,9 @@ export function HeroCard({
       {showImage ? (
         <ImageBackground
           source={{ uri: image! }}
-          style={styles.colorBackground}
+          style={[styles.colorBackground, { backgroundColor: bgColor }]}
           imageStyle={styles.imageRadius}
-          resizeMode="cover"
+          resizeMode={isLogoUrl(image) ? 'contain' : 'cover'}
           onError={() => setImgFailed(true)}
         >
           {cardContent}

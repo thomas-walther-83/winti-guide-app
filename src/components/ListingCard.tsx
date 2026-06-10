@@ -8,7 +8,7 @@ import { useDetail } from '../context/DetailContext';
 import { useTranslation } from '../hooks/useTranslation';
 import { formatDistance } from '../utils/distance';
 import { getListingVisual } from '../config/categoryVisuals';
-import { primaryImage } from '../utils/listingImage';
+import { primaryImage, isLogoUrl } from '../utils/listingImage';
 import type { Listing } from '../types';
 
 interface ListingCardProps {
@@ -43,10 +43,12 @@ export function ListingCard({ listing, isSaved, onToggleSave, onShowOnMap, dista
       {/* Foto-Hero (oder farbiger Fallback) mit Verlauf und Titel-Overlay */}
       <View style={styles.hero}>
         {showImage ? (
+          // Kategorie-Farbe als Unterlage (transparente Logos sichtbar machen),
+          // Logos mit contain statt cover rendern.
           <Image
             source={{ uri: image! }}
-            style={styles.image}
-            resizeMode="cover"
+            style={[styles.image, { backgroundColor: visual.bg }]}
+            resizeMode={isLogoUrl(image) ? 'contain' : 'cover'}
             onError={() => setImgFailed(true)}
           />
         ) : (
