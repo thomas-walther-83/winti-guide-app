@@ -21,7 +21,7 @@ import { fetchListingsWithCoords } from '../services/supabaseService';
 import { replacePublicTourStops } from '../services/publicToursService';
 import { getErrorMessage } from '../utils/errors';
 import { jsonEmbed } from '../utils/jsonEmbed';
-import { matchesSubType } from '../config/subcategories';
+import { matchesSubCategory } from '../config/subcategories';
 import type { Listing, ListingCategory, PublicTour, PublicTourStop } from '../types';
 
 const WINTERTHUR_LAT = 47.4994;
@@ -279,7 +279,7 @@ export function AdminTourPlanner({ tour, onClose, onSaved }: Props) {
   const filteredListings = useMemo(() => {
     let rows = listings;
     if (category !== 'all') rows = rows.filter((l) => l.category === category);
-    if (subType !== 'all') rows = rows.filter((l) => matchesSubType(l.sub_type, subType));
+    if (subType !== 'all') rows = rows.filter((l) => matchesSubCategory(l, subType));
     if (search) {
       rows = rows.filter(
         (l) =>

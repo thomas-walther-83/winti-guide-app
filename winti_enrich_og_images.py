@@ -365,6 +365,49 @@ def extract_images(html: str, base_url: str) -> list[str]:
     return urls
 
 
+def extract_logo_fallbacks(html: str, base_url: str) -> list[str]:
+    """Letzte Rettung, wenn og:image/JSON-LD nichts liefern:
+      1. <img>-Tags, deren src-Pfad 'logo' enthält (Header-Logos vieler
+         Sites, die kein og:image pflegen) — hohe Präzision, da der
+         Dateiname das Logo explizit benennt.
+      2. <link rel="apple-touch-icon"> — meist das Logo als 180px-Icon.
+    Bewusst NICHT durch is_low_quality gefiltert (Touch-Icons sind dort
+    als Junk klassifiziert, als einziger Treffer aber wertvoll).
+    """
+    if not html:
+        return []
+    out: list[str] = []
+
+    def add(u: str) -> None:
+        u = absify(u, base_url)
+        if not u or not u.startswith("http") or len(u) > 500:
+            return
+        if u.lower().endswith(".ico"):
+            return
+        if u not in out:
+            out.append(u)
+
+    img_pat = re.compile(r'<img[^>]+?src=["\']([^"\']*logo[^"\']*)["\']', re.IGNORECASE)
+    for m in img_pat.finditer(html):
+        add(m.group(1))
+
+    touch_pat = re.compile(
+        r'<link[^>]+?rel=["\']apple-touch-icon(?:-precomposed)?["\'][^>]+?href=["\']([^"\']+)["\']',
+        re.IGNORECASE,
+    )
+    for m in touch_pat.finditer(html):
+        add(m.group(1))
+    # Beide Attribut-Reihenfolgen (href vor rel)
+    touch_pat_b = re.compile(
+        r'<link[^>]+?href=["\']([^"\']+)["\'][^>]+?rel=["\']apple-touch-icon(?:-precomposed)?["\']',
+        re.IGNORECASE,
+    )
+    for m in touch_pat_b.finditer(html):
+        add(m.group(1))
+
+    return out[:2]
+
+
 # Connect-/Read-Timeout getrennt: tote Hosts geben nach 4 s Connect auf,
 # statt lange am Read zu hängen. Spart bei nicht-erreichbaren Sites massiv Zeit.
 TIMEOUT = (4, 6)
@@ -379,11 +422,13 @@ def gather_from_site(site_url: str, debug_label: str = "") -> list[str]:
     """
     images: list[str] = []
     home_reachable = False
+    home_html = ""
     try:
         res = requests.get(site_url, headers=HEADERS, timeout=TIMEOUT, allow_redirects=True)
         home_reachable = True
         if res.status_code == 200:
-            images.extend(extract_images(res.text, res.url))
+            home_html = res.text
+            images.extend(extract_images(home_html, res.url))
             if DEBUG:
                 print(f"      home → {len(images)} Bilder")
     except Exception as e:
@@ -419,6 +464,15 @@ def gather_from_site(site_url: str, debug_label: str = "") -> list[str]:
             if DEBUG and gained:
                 print(f"      /{sub} → +{gained} Bilder")
             time.sleep(0.1)
+
+    # Tier 2/3: keine regulären Bilder gefunden → Header-Logo-<img> bzw.
+    # apple-touch-icon der Homepage als Logo verwenden.
+    if not images and home_html:
+        fallbacks = extract_logo_fallbacks(home_html, site_url)
+        if fallbacks:
+            if DEBUG:
+                print(f"      logo-fallback → {len(fallbacks)} ({fallbacks[0][:60]})")
+            images.extend(fallbacks)
 
     return images[:MAX_IMAGES]
 

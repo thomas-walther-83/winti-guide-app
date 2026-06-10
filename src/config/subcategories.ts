@@ -115,3 +115,19 @@ export function matchesSubType(rawSubType: string | null | undefined, selected: 
   return tokens.some((tok) => aliases.includes(tok));
 }
 
+/**
+ * Wie matchesSubType, berücksichtigt aber zusätzlich die redaktionellen
+ * `tags` eines Listings. So findet der Chip „Italienisch" auch ein Lokal,
+ * dessen OSM-sub_type generisch ist, das aber den Tag „Italienisch" trägt.
+ * Tag-Vergleich: exakter (lowercase) Treffer auf Label oder Alias.
+ */
+export function matchesSubCategory(
+  listing: { sub_type?: string | null; tags?: string[] | null },
+  selected: string,
+): boolean {
+  if (!selected || selected === 'all') return true;
+  if (matchesSubType(listing.sub_type, selected)) return true;
+  const aliases = SUB_CATEGORY_ALIASES[selected] ?? [selected.toLowerCase()];
+  return (listing.tags ?? []).some((tag) => aliases.includes(tag.toLowerCase()));
+}
+
