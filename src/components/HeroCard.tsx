@@ -168,7 +168,7 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
     paddingVertical: 3,
   },
   categoryBadgeText: {
-    color: '#FFFFFF',
+    color: theme.colors.onPrimary,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.3,

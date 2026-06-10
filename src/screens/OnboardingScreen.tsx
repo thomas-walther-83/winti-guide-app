@@ -122,7 +122,7 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
               accessibilityRole="button"
               accessibilityLabel={t('onboarding_allow_location')}
             >
-              <Ionicons name="navigate" size={18} color="#FFFFFF" />
+              <Ionicons name="navigate" size={18} color={theme.colors.onPrimary} />
               <Text style={styles.locationBtnText}>{t('onboarding_allow_location')}</Text>
             </TouchableOpacity>
           </View>
@@ -187,19 +187,19 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
   chipActive: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
   chipEmoji: { fontSize: 16 },
   chipText: { fontSize: 14, fontWeight: '600', color: theme.colors.text },
-  chipTextActive: { color: '#FFFFFF' },
+  chipTextActive: { color: theme.colors.onPrimary },
   locationBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: theme.colors.primary, paddingVertical: 14,
     paddingHorizontal: theme.spacing.xl, borderRadius: theme.borderRadius.md,
     marginTop: theme.spacing.md, minHeight: 48,
   },
-  locationBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  locationBtnText: { color: theme.colors.onPrimary, fontSize: 15, fontWeight: '700' },
   footer: { padding: theme.spacing.lg },
   nextBtn: {
     backgroundColor: theme.colors.primary, paddingVertical: 16,
     borderRadius: theme.borderRadius.md, alignItems: 'center', minHeight: 52,
     justifyContent: 'center',
   },
-  nextBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  nextBtnText: { color: theme.colors.onPrimary, fontSize: 16, fontWeight: '700' },
 });

@@ -43,7 +43,7 @@ export function CollectionRow({ selected, onSelect }: CollectionRowProps) {
             <Ionicons
               name={col.icon}
               size={15}
-              color={isActive ? '#FFFFFF' : theme.colors.primary}
+              color={isActive ? theme.colors.onPrimary : theme.colors.primary}
             />
             <Text style={[styles.label, isActive && styles.labelActive]}>
               {t(col.labelKey as TranslationKey)}
@@ -85,6 +85,6 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
     color: theme.colors.primary,
   },
   labelActive: {
-    color: '#FFFFFF',
+    color: theme.colors.onPrimary,
   },
 });

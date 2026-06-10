@@ -183,7 +183,7 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
     color: theme.colors.text,
   },
   dayTextEndpoint: {
-    color: '#FFFFFF',
+    color: theme.colors.onPrimary,
     fontWeight: '700',
   },
   dayDisabled: {

@@ -403,7 +403,7 @@ const makeStyles = (theme: AppTheme) =>
     subtitle: { fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 },
     linkText: { color: theme.colors.primary, fontSize: 15 },
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-    errorText: { color: '#C0392B', fontSize: 13 },
+    errorText: { color: theme.colors.error, fontSize: 13 },
     hint: {
       position: 'absolute',
       left: 12,

@@ -168,7 +168,7 @@ function ToursAdmin() {
       <ScrollView contentContainerStyle={styles.scroll}>
         {error && <Text style={styles.errorText}>⚠️ {error}</Text>}
         <TouchableOpacity style={styles.primaryBtn} onPress={handleNew}>
-          <Ionicons name="add-circle-outline" size={18} color="#fff" />
+          <Ionicons name="add-circle-outline" size={18} color={theme.colors.onPrimary} />
           <Text style={styles.primaryBtnText}>Neue Tour</Text>
         </TouchableOpacity>
         {tours.map((t) => (
@@ -425,7 +425,7 @@ function TourEditor({
                 </TouchableOpacity>
                 <View style={{ flex: 1 }} />
                 <TouchableOpacity onPress={() => removeStop(idx)}>
-                  <Ionicons name="trash-outline" size={20} color="#C0392B" />
+                  <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
                 </TouchableOpacity>
               </View>
               <TextInput
@@ -461,7 +461,7 @@ function TourEditor({
           ))}
 
           <TouchableOpacity style={styles.primaryBtn} onPress={openPlanner}>
-            <Ionicons name="map-outline" size={18} color="#fff" />
+            <Ionicons name="map-outline" size={18} color={theme.colors.onPrimary} />
             <Text style={styles.primaryBtnText}>Auf Karte planen</Text>
           </TouchableOpacity>
 
@@ -472,7 +472,7 @@ function TourEditor({
 
           {!isNew && (
             <TouchableOpacity style={styles.dangerBtn} onPress={handleDelete}>
-              <Ionicons name="trash-outline" size={18} color="#fff" />
+              <Ionicons name="trash-outline" size={18} color={theme.colors.onPrimary} />
               <Text style={styles.dangerBtnText}>Tour löschen</Text>
             </TouchableOpacity>
           )}
@@ -734,7 +734,7 @@ const makeStyles = (theme: AppTheme) =>
     },
     tabBtnActive: { backgroundColor: theme.colors.primary },
     tabText: { color: theme.colors.text, fontWeight: '600' },
-    tabTextActive: { color: '#fff' },
+    tabTextActive: { color: theme.colors.onPrimary },
     scroll: { padding: 16, gap: 12, paddingBottom: 48 },
     row: {
       flexDirection: 'row',
@@ -749,7 +749,7 @@ const makeStyles = (theme: AppTheme) =>
     rowTitle: { fontSize: 15, fontWeight: '600', color: theme.colors.text },
     rowSubtle: { fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 },
     muted: { color: theme.colors.textMuted, fontSize: 12, marginTop: 8 },
-    errorText: { color: '#C0392B', fontSize: 13 },
+    errorText: { color: theme.colors.error, fontSize: 13 },
     fieldLabel: { fontSize: 13, color: theme.colors.textSecondary, marginTop: 12, marginBottom: 4 },
     input: {
       backgroundColor: theme.colors.surface,
@@ -783,7 +783,7 @@ const makeStyles = (theme: AppTheme) =>
       height: 26,
       borderRadius: 13,
       backgroundColor: theme.colors.primary,
-      color: '#fff',
+      color: theme.colors.onPrimary,
       textAlign: 'center',
       lineHeight: 26,
       fontWeight: '700',
@@ -800,7 +800,7 @@ const makeStyles = (theme: AppTheme) =>
       justifyContent: 'center',
       gap: 6,
     },
-    primaryBtnText: { color: '#fff', fontWeight: '700' },
+    primaryBtnText: { color: theme.colors.onPrimary, fontWeight: '700' },
     secondaryBtn: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -819,10 +819,10 @@ const makeStyles = (theme: AppTheme) =>
       gap: 6,
       paddingVertical: 12,
       borderRadius: 10,
-      backgroundColor: '#C0392B',
+      backgroundColor: theme.colors.error,
       marginTop: 20,
     },
-    dangerBtnText: { color: '#fff', fontWeight: '700' },
+    dangerBtnText: { color: theme.colors.onPrimary, fontWeight: '700' },
     linkText: { color: theme.colors.primary, fontSize: 15 },
     deniedText: { color: theme.colors.textSecondary, textAlign: 'center' },
     searchWrap: {

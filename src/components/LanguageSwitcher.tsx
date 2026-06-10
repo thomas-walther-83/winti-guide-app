@@ -84,6 +84,6 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   pillTextActive: {
-    color: '#FFFFFF',
+    color: theme.colors.onPrimary,
   },
 });

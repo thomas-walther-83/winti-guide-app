@@ -152,7 +152,7 @@ export function AiGuideCard() {
             <Ionicons
               name="send"
               size={18}
-              color={inputText.trim() && !isLoading ? '#FFFFFF' : theme.colors.textMuted}
+              color={inputText.trim() && !isLoading ? theme.colors.onPrimary : theme.colors.textMuted}
             />
           </TouchableOpacity>
         </View>
@@ -219,7 +219,7 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
   suggestionText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: theme.colors.onPrimary,
     textAlign: 'right',
   },
   messagesContainer: {
@@ -255,7 +255,7 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
   },
   userText: {
     backgroundColor: theme.colors.primary,
-    color: '#FFFFFF',
+    color: theme.colors.onPrimary,
     borderBottomRightRadius: 4,
   },
   assistantText: {

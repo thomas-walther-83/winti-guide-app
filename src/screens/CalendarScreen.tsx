@@ -243,7 +243,7 @@ export function CalendarScreen({ onNavigateToAccount, scrollTopSignal }: { onNav
             accessibilityLabel={t('view_cards')}
             accessibilityState={{ selected: eventView === 'cards' }}
           >
-            <Ionicons name="image" size={15} color={eventView === 'cards' ? '#FFFFFF' : theme.colors.textSecondary} />
+            <Ionicons name="image" size={15} color={eventView === 'cards' ? theme.colors.onPrimary : theme.colors.textSecondary} />
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.viewBtn, eventView === 'compact' && styles.viewBtnActive]}
@@ -252,7 +252,7 @@ export function CalendarScreen({ onNavigateToAccount, scrollTopSignal }: { onNav
             accessibilityLabel={t('view_list')}
             accessibilityState={{ selected: eventView === 'compact' }}
           >
-            <Ionicons name="list" size={17} color={eventView === 'compact' ? '#FFFFFF' : theme.colors.textSecondary} />
+            <Ionicons name="list" size={17} color={eventView === 'compact' ? theme.colors.onPrimary : theme.colors.textSecondary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -408,7 +408,7 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   quickChipTextActive: {
-    color: '#FFFFFF',
+    color: theme.colors.onPrimary,
   },
   rangeBar: {
     flexDirection: 'row',
@@ -468,7 +468,7 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
     color: theme.colors.primary,
   },
   chipLabelActive: {
-    color: '#FFFFFF',
+    color: theme.colors.onPrimary,
   },
   list: {
     paddingBottom: theme.spacing.xl,
@@ -508,7 +508,7 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
     marginTop: theme.spacing.sm,
   },
   retryText: {
-    color: '#FFFFFF',
+    color: theme.colors.onPrimary,
     fontWeight: '600',
   },
   emptyEmoji: {

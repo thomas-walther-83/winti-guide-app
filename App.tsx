@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider } from './src/context/AuthContext';
@@ -130,8 +130,12 @@ function AppContent() {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
-      <View style={styles.screen}>{renderScreen()}</View>
-      <NavigationBar tabs={tabs} activeTab={activeTab} onTabPress={handleTabPress} />
+      {/* appFrame begrenzt die Breite auf Desktop-Browsern (App-Spalte
+          mittig, Hintergrundfarbe füllt die Seitenränder). */}
+      <View style={styles.appFrame}>
+        <View style={styles.screen}>{renderScreen()}</View>
+        <NavigationBar tabs={tabs} activeTab={activeTab} onTabPress={handleTabPress} />
+      </View>
     </View>
   );
 }
@@ -162,6 +166,13 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  appFrame: {
+    flex: 1,
+    width: '100%',
+    // Auf Web (Desktop) die App als zentrierte Spalte rendern statt
+    // Cards/Listen über 1900px zu strecken. Native: volle Breite.
+    ...(Platform.OS === 'web' ? { maxWidth: 560, alignSelf: 'center' as const } : null),
   },
   screen: {
     flex: 1,

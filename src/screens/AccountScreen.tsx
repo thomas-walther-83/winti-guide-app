@@ -384,7 +384,7 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   segTextActive: {
-    color: '#FFFFFF',
+    color: theme.colors.onPrimary,
   },
   center: {
     flex: 1,
