@@ -18,6 +18,7 @@ import { EventRow } from '../components/EventRow';
 import { MonthCalendar } from '../components/MonthCalendar';
 import { ScrollTopButton } from '../components/ScrollTopButton';
 import { useTranslation } from '../hooks/useTranslation';
+import { dateLocale } from '../utils/locale';
 import { useTheme } from '../context/ThemeContext';
 import type { AppTheme } from '../styles/theme';
 import type { EventCategory, Event } from '../types';
@@ -67,9 +68,9 @@ function restOfWeek(today: string): [string, string] {
   const sun = new Date(n); sun.setDate(n.getDate() + toSun);
   return [today, fmtDate(sun)];
 }
-function formatShort(dateStr: string): string {
+function formatShort(dateStr: string, locale: string): string {
   try {
-    return new Date(dateStr + 'T00:00:00').toLocaleDateString('de-CH', { day: 'numeric', month: 'short' });
+    return new Date(dateStr + 'T00:00:00').toLocaleDateString(locale, { day: 'numeric', month: 'short' });
   } catch {
     return dateStr;
   }
@@ -80,7 +81,8 @@ export function CalendarScreen({ onNavigateToAccount, scrollTopSignal }: { onNav
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [category, setCategory] = useState<EventCategory | 'all'>('all');
   const { isPremium } = useAppTier();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const locale = dateLocale(language);
 
   const { events, loading, error, refresh } = useEvents({
     category: category === 'all' ? undefined : category,
@@ -163,8 +165,8 @@ export function CalendarScreen({ onNavigateToAccount, scrollTopSignal }: { onNav
   const rangeLabel = !rangeFrom
     ? t('ev_all_dates')
     : !rangeTo || rangeTo === rangeFrom
-      ? formatShort(rangeFrom)
-      : `${formatShort(rangeFrom)} – ${formatShort(rangeTo)}`;
+      ? formatShort(rangeFrom, locale)
+      : `${formatShort(rangeFrom, locale)} – ${formatShort(rangeTo, locale)}`;
 
   const quickChips = (
     <View style={styles.quickRow}>
@@ -204,8 +206,10 @@ export function CalendarScreen({ onNavigateToAccount, scrollTopSignal }: { onNav
               style={[styles.chip, isActive && styles.chipActive]}
               onPress={() => setCategory(cat.key)}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isActive }}
             >
-              <Ionicons name={cat.icon} size={15} color={isActive ? '#FFFFFF' : theme.colors.primary} />
+              <Ionicons name={cat.icon} size={15} color={isActive ? theme.colors.onPrimary : theme.colors.primary} />
               <Text style={[styles.chipLabel, isActive && styles.chipLabelActive]}>{t(cat.labelKey)}</Text>
             </TouchableOpacity>
           );
@@ -298,7 +302,7 @@ export function CalendarScreen({ onNavigateToAccount, scrollTopSignal }: { onNav
             <View>
               <View style={styles.dateHeader}>
                 <Text style={styles.dateHeaderText}>
-                  {item.date === today ? `🌟 ${t('today')}` : formatSectionDate(item.date)}
+                  {item.date === today ? `🌟 ${t('today')}` : formatSectionDate(item.date, locale)}
                 </Text>
               </View>
               {item.events.map((event) =>
@@ -344,10 +348,10 @@ export function CalendarScreen({ onNavigateToAccount, scrollTopSignal }: { onNav
   );
 }
 
-function formatSectionDate(dateStr: string): string {
+function formatSectionDate(dateStr: string, locale: string): string {
   try {
     const date = new Date(dateStr + 'T00:00:00');
-    return date.toLocaleDateString('de-CH', {
+    return date.toLocaleDateString(locale, {
       weekday: 'long',
       day: 'numeric',
       month: 'long',

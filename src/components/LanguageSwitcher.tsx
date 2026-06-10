@@ -30,7 +30,7 @@ export function LanguageSwitcher() {
               onPress={() => setLanguage(lang)}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
-              accessibilityLabel={`Sprache ${LABELS[lang]}`}
+              accessibilityLabel={t('a11y_language').replace('{name}', LABELS[lang])}
             >
               <Text style={[styles.pillText, active && styles.pillTextActive]}>
                 {LABELS[lang]}

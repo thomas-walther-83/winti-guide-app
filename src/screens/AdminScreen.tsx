@@ -413,10 +413,10 @@ function TourEditor({
             <View key={idx} style={styles.stopCard}>
               <View style={styles.stopHeaderRow}>
                 <Text style={styles.stopBadge}>{idx + 1}</Text>
-                <TouchableOpacity onPress={() => moveStop(idx, -1)} disabled={idx === 0}>
+                <TouchableOpacity onPress={() => moveStop(idx, -1)} disabled={idx === 0} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <Ionicons name="chevron-up" size={20} color={idx === 0 ? theme.colors.textMuted : theme.colors.text} />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => moveStop(idx, 1)} disabled={idx === stops.length - 1}>
+                <TouchableOpacity onPress={() => moveStop(idx, 1)} disabled={idx === stops.length - 1} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <Ionicons
                     name="chevron-down"
                     size={20}

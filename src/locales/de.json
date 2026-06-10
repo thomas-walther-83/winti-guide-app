@@ -249,5 +249,16 @@
   "tours_optimize": "Reihenfolge optimieren",
   "open_now": "Jetzt geöffnet",
   "tours_curated": "Empfohlene Touren",
-  "tours_my": "Meine Touren"
+  "tours_my": "Meine Touren",
+  "a11y_open_details": "{name} – Details öffnen",
+  "a11y_call": "{name} anrufen",
+  "a11y_open_website": "Website von {name} öffnen",
+  "a11y_show_on_map": "{name} auf Karte zeigen",
+  "a11y_route_to": "Route zu {name}",
+  "a11y_open_gmaps": "{name} in Google Maps öffnen",
+  "a11y_more_about": "Mehr über {name} erfahren",
+  "a11y_language": "Sprache {name}",
+  "prev_month": "Voriger Monat",
+  "next_month": "Nächster Monat",
+  "map_details": "Details"
 }

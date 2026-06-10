@@ -55,13 +55,13 @@ function htmlEscape(str: string): string {
 
 /** Tappbarer Popup-Inhalt: Name + Adresse + „Details ›". Beim Tippen wird per
  *  RN-Bridge die Listing-ID gesendet, damit nativ der Detail-Dialog öffnet. */
-function detailPopup(l: Listing): string {
+function detailPopup(l: Listing, detailsLabel: string): string {
   const name = htmlEscape(l.name);
   const addr = htmlEscape(l.address ?? '');
   return (
     `<div onclick="sel('${l.id}')" style="cursor:pointer;min-width:150px">` +
     `<b>${name}</b>${addr ? '<br><span style="color:#555">' + addr + '</span>' : ''}` +
-    `<div style="margin-top:6px;color:#8B0000;font-weight:700">Details ›</div></div>`
+    `<div style="margin-top:6px;color:#8B0000;font-weight:700">${htmlEscape(detailsLabel)} ›</div></div>`
   );
 }
 
@@ -69,7 +69,7 @@ function buildLeafletHTML(
   listings: Listing[],
   focusListing: Listing | null | undefined,
   userCoords: LatLon | null | undefined,
-  labels: { karte: string; luftbild: string },
+  labels: { karte: string; luftbild: string; details: string },
 ): string {
   const markers = listings
     .filter(
@@ -81,7 +81,7 @@ function buildLeafletHTML(
     )
     .map((l) => {
       const color = CATEGORY_COLORS[l.category] ?? '#8B0000';
-      const popupLiteral = jsonEmbed(detailPopup(l));
+      const popupLiteral = jsonEmbed(detailPopup(l, labels.details));
       const isFocused = focusListing != null && focusListing.id === l.id;
       return `(function(){
         var lyr = L.circleMarker([${l.lat}, ${l.lon}], {
@@ -103,7 +103,7 @@ function buildLeafletHTML(
     .map((l) => {
       const isFocused = focusListing != null && focusListing.id === l.id;
       const geomLiteral = jsonEmbed(l.geometry);
-      const popupLiteral = jsonEmbed(detailPopup(l));
+      const popupLiteral = jsonEmbed(detailPopup(l, labels.details));
       return `(function(){
         L.geoJSON(${geomLiteral}, { style: { color: '#FFFFFF', weight: 7, opacity: 0.9 } }).addTo(map);
         var lyr = L.geoJSON(${geomLiteral}, { style: { color: '#1565C0', weight: 4, opacity: 1 } }).bindPopup(${popupLiteral}).addTo(map);
@@ -520,6 +520,7 @@ export function MapScreen({
     : buildLeafletHTML(filteredListings, focusListing, userCoords, {
         karte: t('map_layer_map'),
         luftbild: t('map_layer_aerial'),
+        details: t('map_details'),
       });
 
   return (

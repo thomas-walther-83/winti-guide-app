@@ -249,5 +249,16 @@
   "tours_optimize": "Optimiser l'ordre",
   "open_now": "Ouvert",
   "tours_curated": "Tours recommandés",
-  "tours_my": "Mes tours"
+  "tours_my": "Mes tours",
+  "a11y_open_details": "{name} – ouvrir les détails",
+  "a11y_call": "Appeler {name}",
+  "a11y_open_website": "Ouvrir le site de {name}",
+  "a11y_show_on_map": "Afficher {name} sur la carte",
+  "a11y_route_to": "Itinéraire vers {name}",
+  "a11y_open_gmaps": "Ouvrir {name} dans Google Maps",
+  "a11y_more_about": "En savoir plus sur {name}",
+  "a11y_language": "Langue {name}",
+  "prev_month": "Mois précédent",
+  "next_month": "Mois suivant",
+  "map_details": "Détails"
 }
