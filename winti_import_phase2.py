@@ -196,15 +196,25 @@ CATEGORY_MAP = {
     "fest":      "festival",
 }
 
-def detect_category(title: str, desc: str = "") -> str:
+# Häuser mit klarem Profil: liefert ein Titel keine Keywords (häufig bei
+# reinen Künstlernamen wie "Eli Graf"), ist die QUELLE das beste Signal.
+SOURCE_DEFAULT_CAT = {
+    "casinotheater":  "theater",  # Comedy-/Kabarett-Haus
+    "musikkollegium": "musik",    # Konzerthaus
+    "stadttheater":   "theater",
+    "altekaserne":    "musik",    # Konzert-/Clublokal
+}
+
+
+def detect_category(title: str, desc: str = "", default: str = "kultur") -> str:
     """Jedes Event bekommt genau eine Kategorie (= Sub-Tag im Kalender).
-    Default ist 'kultur' — der ehrlichste Sammelbegriff. Vorher war es
-    'festival', wodurch ~75 % aller Events fälschlich dort landeten."""
+    Fallback ist `default` (Quellen-Profil oder 'kultur'). Vorher war der
+    Default 'festival', wodurch ~75 % aller Events fälschlich dort landeten."""
     text = (title + " " + desc).lower()
     for keyword, cat in CATEGORY_MAP.items():
         if keyword in text:
             return cat
-    return "kultur"
+    return default
 
 
 # ── Supabase Helper ──────────────────────────────────────────────
@@ -414,7 +424,7 @@ def parse_event_card(item, source: str, base_url: str) -> dict | None:
         "source":     source,
         "source_id":  re.sub(r"[^\w_-]", "_", source_id)[:100],
         "title":      title,
-        "cat":        detect_category(title, desc),
+        "cat":        detect_category(title, desc, SOURCE_DEFAULT_CAT.get(source, "kultur")),
         "location":   location,
         "event_date": event_date,
         "event_time": "",
@@ -475,7 +485,7 @@ def jsonld_to_event(data: dict, source: str) -> dict | None:
         "source":     source,
         "source_id":  re.sub(r"[^\w_-]", "_", source_id)[:100],
         "title":      title[:200],
-        "cat":        detect_category(title, desc),
+        "cat":        detect_category(title, desc, SOURCE_DEFAULT_CAT.get(source, "kultur")),
         "location":   location[:200],
         "event_date": event_date,
         "event_time": time_str,
@@ -836,7 +846,7 @@ def scrape_alte_kaserne() -> list[dict]:
                     "source":     "altekaserne",
                     "source_id":  source_id,
                     "title":      title[:200],
-                    "cat":        detect_category(title, desc),
+                    "cat":        detect_category(title, desc, SOURCE_DEFAULT_CAT.get("altekaserne", "kultur")),
                     "location":   "Alte Kaserne Winterthur",
                     "event_date": event_date,
                     "event_time": "",
@@ -1719,7 +1729,7 @@ def import_ical(url: str, source_name: str, default_location: str = "Winterthur"
                     "source":     source_name,
                     "source_id":  source_id[:100],
                     "title":      title[:200],
-                    "cat":        detect_category(title, desc),
+                    "cat":        detect_category(title, desc, SOURCE_DEFAULT_CAT.get(source_name, "kultur")),
                     "location":   location,
                     "event_date": event_date,
                     "event_time": time_str,
