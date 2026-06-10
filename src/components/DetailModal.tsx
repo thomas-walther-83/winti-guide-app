@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -10,6 +10,9 @@ import {
   Linking,
   FlatList,
   Dimensions,
+  Animated,
+  PanResponder,
+  Pressable,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
@@ -23,6 +26,7 @@ import { dateLocale } from '../utils/locale';
 import { shareItem } from '../utils/share';
 import { openDirections, openInGoogleMaps, listingMapsQuery } from '../utils/maps';
 import { getListingVisual, getEventVisual } from '../config/categoryVisuals';
+import { isLogoUrl } from '../utils/listingImage';
 import { AddToTourSheet } from './AddToTourSheet';
 import type { Listing, Event } from '../types';
 
@@ -112,12 +116,21 @@ function HeroCarousel({
                 <Ionicons name={fallback.icon} size={72} color="rgba(255,255,255,0.92)" />
               </View>
             ) : (
-              <Image
-                source={{ uri: item }}
-                style={{ width, height: '100%' }}
-                resizeMode="cover"
-                onError={() => markFailed(i)}
-              />
+              // Kategorie-Farbe IMMER als Unterlage: transparente Logo-PNGs
+              // wären sonst auf dem hellen Sheet unsichtbar (Technorama-Fall).
+              // Logos zusätzlich mit `contain` + verkleinert statt `cover`.
+              <View style={{ width, height: '100%', backgroundColor: fallback.bg }}>
+                <Image
+                  source={{ uri: item }}
+                  style={
+                    isLogoUrl(item)
+                      ? { width: '100%', height: '100%', transform: [{ scale: 0.6 }] }
+                      : { width: '100%', height: '100%' }
+                  }
+                  resizeMode={isLogoUrl(item) ? 'contain' : 'cover'}
+                  onError={() => markFailed(i)}
+                />
+              </View>
             )
           }
         />
@@ -378,10 +391,44 @@ export function DetailModal() {
     }
   };
 
+  // Swipe-down zum Schließen: Geste auf dem Drag-Handle oben am Sheet.
+  // (Nur dort — am Body würde sie mit dem Scrollen kollidieren.)
+  const translateY = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (visible) translateY.setValue(0);
+  }, [visible, translateY]);
+  const dismiss = () => {
+    Animated.timing(translateY, { toValue: 600, duration: 180, useNativeDriver: true }).start(() => {
+      translateY.setValue(0);
+      close();
+    });
+  };
+  const pan = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dy) > 4,
+      onPanResponderMove: (_e, g) => {
+        if (g.dy > 0) translateY.setValue(g.dy);
+      },
+      onPanResponderRelease: (_e, g) => {
+        if (g.dy > 110 || g.vy > 0.9) {
+          dismiss();
+        } else {
+          Animated.spring(translateY, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start();
+        }
+      },
+    }),
+  ).current;
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={close}>
       <View style={styles.backdrop}>
-        <View style={styles.sheet}>
+        {/* Tap auf den freien Bereich über dem Sheet schließt ebenfalls. */}
+        <Pressable style={styles.backdropTouch} onPress={close} accessibilityRole="button" accessibilityLabel={t('close_detail')} />
+        <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
+          <View style={styles.dragZone} {...pan.panHandlers}>
+            <View style={styles.dragHandle} />
+          </View>
           <TouchableOpacity
             style={styles.shareButton}
             onPress={handleShare}
@@ -411,7 +458,7 @@ export function DetailModal() {
             />
           )}
           {payload?.kind === 'event' && <EventDetail event={payload.event} />}
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -422,6 +469,29 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
+  },
+  backdropTouch: {
+    // Füllt den freien Bereich über dem Sheet (Tap = schließen).
+    flex: 1,
+  },
+  dragZone: {
+    // Greifzone für Swipe-down — großzügige 44px Höhe; seitlich ausgespart,
+    // damit Share-/Close-Buttons (oben rechts) klickbar bleiben.
+    position: 'absolute',
+    top: 0,
+    left: 104,
+    right: 104,
+    height: 44,
+    zIndex: 11,
+    alignItems: 'center',
+    paddingTop: 8,
+  },
+  dragHandle: {
+    width: 44,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    ...theme.shadow.small,
   },
   sheet: {
     backgroundColor: theme.colors.surface,

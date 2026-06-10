@@ -149,27 +149,62 @@ def extract_image_from_html(soup, base_url: str = "") -> str:
 
 # Kategorie-Mapping: Schlüsselwörter → Winti-Guide-Kategorie
 CATEGORY_MAP = {
+    # Musik (inkl. Club/Party — am häufigsten falsch einsortiert)
     "konzert":   "musik",   "musik":     "musik",   "band":      "musik",
     "jazz":      "musik",   "rock":      "musik",   "classical": "musik",
-    "festival":  "festival","fest":      "festival","albanifest":"festival",
+    "klassik":   "musik",   "chor":      "musik",   "orchester": "musik",
+    "oper":      "musik",   "sinfonie":  "musik",   "symphonie": "musik",
+    "party":     "musik",   "clubbing":  "musik",   "dj ":       "musik",
+    "dj-set":    "musik",   "disco":     "musik",   "rap":       "musik",
+    "hip-hop":   "musik",   "hip hop":   "musik",   "punk":      "musik",
+    "blues":     "musik",   "soul":      "musik",
+    "singer":    "musik",   "songwriter":"musik",   "akustik":   "musik",
+    "livemusik": "musik",   "live-musik":"musik",
+    # Festival (nur echte Feste)
+    "festival":  "festival","albanifest":"festival","openair":   "festival",
+    "open air":  "festival","stadtfest": "festival","quartierfest":"festival",
+    # Theater / Bühne
     "theater":   "theater", "kabarett":  "theater", "comedy":    "theater",
+    "bühne":     "theater", "impro":     "theater", "schauspiel":"theater",
+    "tanz":      "theater", "ballett":   "theater", "musical":   "theater",
+    "zirkus":    "theater", "varieté":   "theater", "poetry":    "theater",
+    # Kultur (Ausstellung, Film, Literatur, Workshop …)
     "ausstellung":"kultur", "museum":    "kultur",  "vernissage":"kultur",
-    "kunst":     "kultur",  "foto":      "kultur",
+    "kunst":     "kultur",  "foto":      "kultur",  "galerie":   "kultur",
+    "kino":      "kultur",  "film":      "kultur",  "lesung":    "kultur",
+    "literatur": "kultur",  "vortrag":   "kultur",
+    "workshop":  "kultur",  "talk":      "kultur",
+    "podium":    "kultur",  "diskussion":"kultur",  "quiz":      "kultur",
+    "spielabend":"kultur",  "familien":  "kultur",  "kinder":    "kultur",
+    # Markt
     "markt":     "markt",   "flohmarkt": "markt",   "märit":     "markt",
+    "basar":     "markt",   "brocante":  "markt",
+    # Sport
     "sport":     "sport",   "lauf":      "sport",   "triathlon": "sport",
     "turnier":   "sport",   "schwimm":   "sport",   "yoga":      "sport",
+    "match":     "sport",   "fussball":  "sport",   "hockey":    "sport",
+    "rennen":    "sport",   "marathon":  "sport",   "fitness":   "sport",
+    # Tour / Führung
     "tour":      "tour",    "führung":   "tour",    "wanderung": "tour",
-    "velo":      "tour",    "bike":      "tour",
+    "velo":      "tour",    "bike":      "tour",    "exkursion": "tour",
+    "rundgang":  "tour",    "spaziergang":"tour",
+    # Kulinarik
     "kulinarik": "kulinarik","wein":     "kulinarik","food":     "kulinarik",
-    "degustation":"kulinarik",
+    "degustation":"kulinarik","brunch":  "kulinarik","dinner":   "kulinarik",
+    "tasting":   "kulinarik","apéro":    "kulinarik",
+    # Generisches "fest" zuletzt, damit spezifischere Treffer vorgehen
+    "fest":      "festival",
 }
 
 def detect_category(title: str, desc: str = "") -> str:
+    """Jedes Event bekommt genau eine Kategorie (= Sub-Tag im Kalender).
+    Default ist 'kultur' — der ehrlichste Sammelbegriff. Vorher war es
+    'festival', wodurch ~75 % aller Events fälschlich dort landeten."""
     text = (title + " " + desc).lower()
     for keyword, cat in CATEGORY_MAP.items():
         if keyword in text:
             return cat
-    return "festival"  # Default
+    return "kultur"
 
 
 # ── Supabase Helper ──────────────────────────────────────────────
