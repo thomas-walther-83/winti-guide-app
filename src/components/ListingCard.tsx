@@ -38,7 +38,7 @@ export function ListingCard({ listing, isSaved, onToggleSave, onShowOnMap, dista
       onPress={openDetail}
       activeOpacity={0.85}
       accessibilityRole="button"
-      accessibilityLabel={`${listing.name} – Details öffnen`}
+      accessibilityLabel={t('a11y_open_details').replace('{name}', listing.name)}
     >
       {/* Foto-Hero (oder farbiger Fallback) mit Verlauf und Titel-Overlay */}
       <View style={styles.hero}>

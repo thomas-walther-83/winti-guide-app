@@ -19,6 +19,7 @@ import { useTheme } from '../context/ThemeContext';
 import type { AppTheme } from '../styles/theme';
 import { useDetail } from '../context/DetailContext';
 import { useTranslation } from '../hooks/useTranslation';
+import { dateLocale } from '../utils/locale';
 import { shareItem } from '../utils/share';
 import { openDirections, openInGoogleMaps, listingMapsQuery } from '../utils/maps';
 import { getListingVisual, getEventVisual } from '../config/categoryVisuals';
@@ -34,9 +35,9 @@ function openUrl(raw?: string) {
   Linking.openURL(url).catch(() => undefined);
 }
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: string, locale: string): string {
   try {
-    return new Date(dateStr + 'T00:00:00').toLocaleDateString('de-CH', {
+    return new Date(dateStr + 'T00:00:00').toLocaleDateString(locale, {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
     });
   } catch {
@@ -204,7 +205,7 @@ function ListingDetail({
               style={[styles.actionBtn, styles.actionGhost]}
               onPress={() => openUrl(`tel:${listing.phone}`)}
               accessibilityRole="button"
-              accessibilityLabel={`${listing.name} anrufen`}
+              accessibilityLabel={t('a11y_call').replace('{name}', listing.name)}
             >
               <Ionicons name="call-outline" size={16} color={theme.colors.text} />
               <Text style={styles.actionGhostText}>{t('call')}</Text>
@@ -215,7 +216,7 @@ function ListingDetail({
               style={[styles.actionBtn, styles.actionPrimary]}
               onPress={() => openUrl(listing.website)}
               accessibilityRole="button"
-              accessibilityLabel={`Website von ${listing.name} öffnen`}
+              accessibilityLabel={t('a11y_open_website').replace('{name}', listing.name)}
             >
               <Ionicons name="globe-outline" size={16} color="#FFFFFF" />
               <Text style={styles.actionPrimaryText}>{t('website')}</Text>
@@ -228,7 +229,7 @@ function ListingDetail({
               style={[styles.actionBtn, styles.actionOutline]}
               onPress={() => { onShowOnMap(listing); onClose(); }}
               accessibilityRole="button"
-              accessibilityLabel={`${listing.name} auf Karte zeigen`}
+              accessibilityLabel={t('a11y_show_on_map').replace('{name}', listing.name)}
             >
               <Ionicons name="map-outline" size={16} color={theme.colors.primary} />
               <Text style={styles.actionOutlineText}>{t('show_on_map')}</Text>
@@ -266,7 +267,7 @@ function ListingDetail({
                 openDirections(listing.lat, listing.lon, `${listing.name} ${listing.address ?? ''}`.trim())
               }
               accessibilityRole="button"
-              accessibilityLabel={`Route zu ${listing.name}`}
+              accessibilityLabel={t('a11y_route_to').replace('{name}', listing.name)}
             >
               <Ionicons name="navigate" size={16} color="#FFFFFF" />
               <Text style={styles.actionPrimaryText}>{t('route')}</Text>
@@ -277,7 +278,7 @@ function ListingDetail({
                 openInGoogleMaps(null, null, listingMapsQuery(listing.name, listing.address))
               }
               accessibilityRole="button"
-              accessibilityLabel={`${listing.name} in Google Maps öffnen`}
+              accessibilityLabel={t('a11y_open_gmaps').replace('{name}', listing.name)}
             >
               <Ionicons name="map" size={16} color={theme.colors.text} />
               <Text style={styles.actionGhostText}>{t('open_in_maps')}</Text>
@@ -299,7 +300,8 @@ function EventDetail({ event }: { event: Event }) {
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const visual = getEventVisual(event.cat);
   const isFree = event.price && ['kostenlos', 'free', '0'].includes(event.price.toLowerCase());
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const locale = dateLocale(language);
   return (
     <>
       <View style={styles.hero}>
@@ -319,7 +321,7 @@ function EventDetail({ event }: { event: Event }) {
       </View>
       <ScrollView contentContainerStyle={styles.body}>
         <View style={styles.infoBlock}>
-          <InfoRow icon="calendar-outline">{formatDate(event.event_date)}</InfoRow>
+          <InfoRow icon="calendar-outline">{formatDate(event.event_date, locale)}</InfoRow>
           {event.event_time ? <InfoRow icon="time-outline">{event.event_time}</InfoRow> : null}
           {event.location ? <InfoRow icon="location-outline">{event.location}</InfoRow> : null}
           <InfoRow icon="pricetag-outline">{isFree ? t('free') : event.price || t('price_on_request')}</InfoRow>
@@ -333,7 +335,7 @@ function EventDetail({ event }: { event: Event }) {
               style={[styles.actionBtn, styles.actionPrimary]}
               onPress={() => openUrl(event.url)}
               accessibilityRole="button"
-              accessibilityLabel={`Mehr über ${event.title} erfahren`}
+              accessibilityLabel={t('a11y_more_about').replace('{name}', event.title)}
             >
               <Text style={styles.actionPrimaryText}>{t('more_info')}</Text>
               <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
@@ -348,7 +350,7 @@ function EventDetail({ event }: { event: Event }) {
               style={[styles.actionBtn, styles.actionGhost]}
               onPress={() => openInGoogleMaps(null, null, `${event.location} Winterthur`)}
               accessibilityRole="button"
-              accessibilityLabel={`${event.location} in Google Maps öffnen`}
+              accessibilityLabel={t('a11y_open_gmaps').replace('{name}', event.location ?? '')}
             >
               <Ionicons name="map" size={16} color={theme.colors.text} />
               <Text style={styles.actionGhostText}>{t('open_in_maps')}</Text>

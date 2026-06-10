@@ -37,6 +37,8 @@ export function SubCategoryFilter({ category, selected, onSelect }: SubCategoryF
         style={[styles.chip, selected === 'all' && styles.chipActive]}
         onPress={() => onSelect('all')}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityState={{ selected: selected === 'all' }}
       >
         <Text style={[styles.label, selected === 'all' && styles.labelActive]}>
           {t('all_categories')}
@@ -51,6 +53,8 @@ export function SubCategoryFilter({ category, selected, onSelect }: SubCategoryF
             style={[styles.chip, isActive && styles.chipActive]}
             onPress={() => onSelect(sub)}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityState={{ selected: isActive }}
           >
             <Text style={[styles.label, isActive && styles.labelActive]}>
               {sub}

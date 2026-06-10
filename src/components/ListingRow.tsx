@@ -39,7 +39,7 @@ export function ListingRow({ listing, isSaved, onToggleSave, onShowOnMap, distan
       onPress={openDetail}
       activeOpacity={0.7}
       accessibilityRole="button"
-      accessibilityLabel={`${listing.name} – Details öffnen`}
+      accessibilityLabel={t('a11y_open_details').replace('{name}', listing.name)}
     >
       {showImage ? (
         <Image

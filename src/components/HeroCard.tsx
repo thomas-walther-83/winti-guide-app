@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { useTranslation } from '../hooks/useTranslation';
 import { useDetail } from '../context/DetailContext';
 import type { AppTheme } from '../styles/theme';
 import { primaryImage } from '../utils/listingImage';
@@ -59,6 +60,7 @@ export function HeroCard({
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { open } = useDetail();
+  const { t } = useTranslation();
   const bgColor = CATEGORY_BG[listing.category] ?? '#CC0000';
   const categoryLabel = CATEGORY_LABEL[listing.category] ?? listing.category;
   // Image-Loadfehler (Hotlink-Protection, 404 …) → Fallback auf farbigen Block.
@@ -114,7 +116,7 @@ export function HeroCard({
       onPress={openDetail}
       activeOpacity={0.85}
       accessibilityRole="button"
-      accessibilityLabel={`${listing.name} – Details öffnen`}
+      accessibilityLabel={t('a11y_open_details').replace('{name}', listing.name)}
     >
       {showImage ? (
         <ImageBackground

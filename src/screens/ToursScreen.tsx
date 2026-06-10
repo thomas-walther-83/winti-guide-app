@@ -512,10 +512,10 @@ function TourDetail({
                 ) : null}
               </TouchableOpacity>
               <View style={styles.stopActions}>
-                <TouchableOpacity onPress={() => move(index, -1)} disabled={index === 0}>
+                <TouchableOpacity onPress={() => move(index, -1)} disabled={index === 0} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <Ionicons name="chevron-up" size={20} color={index === 0 ? theme.colors.border : theme.colors.textSecondary} />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => move(index, 1)} disabled={index === stops.length - 1}>
+                <TouchableOpacity onPress={() => move(index, 1)} disabled={index === stops.length - 1} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <Ionicons name="chevron-down" size={20} color={index === stops.length - 1 ? theme.colors.border : theme.colors.textSecondary} />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => remove(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>

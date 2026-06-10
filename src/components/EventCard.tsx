@@ -12,6 +12,7 @@ import { useTheme } from '../context/ThemeContext';
 import type { AppTheme } from '../styles/theme';
 import { useDetail } from '../context/DetailContext';
 import { useTranslation } from '../hooks/useTranslation';
+import { dateLocale } from '../utils/locale';
 import { getEventVisual } from '../config/categoryVisuals';
 import type { Event } from '../types';
 
@@ -19,10 +20,10 @@ interface EventCardProps {
   event: Event;
 }
 
-function formatWeekday(dateStr: string): string {
+function formatWeekday(dateStr: string, locale: string): string {
   try {
     const date = new Date(dateStr + 'T00:00:00');
-    return date.toLocaleDateString('de-CH', { weekday: 'short' }).toUpperCase();
+    return date.toLocaleDateString(locale, { weekday: 'short' }).toUpperCase();
   } catch {
     return '';
   }
@@ -37,10 +38,10 @@ function formatDay(dateStr: string): string {
   }
 }
 
-function formatMonth(dateStr: string): string {
+function formatMonth(dateStr: string, locale: string): string {
   try {
     const date = new Date(dateStr + 'T00:00:00');
-    return date.toLocaleDateString('de-CH', { month: 'short' }).toUpperCase();
+    return date.toLocaleDateString(locale, { month: 'short' }).toUpperCase();
   } catch {
     return '';
   }
@@ -51,7 +52,8 @@ export function EventCard({ event }: EventCardProps) {
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const visual = getEventVisual(event.cat);
   const { open } = useDetail();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const locale = dateLocale(language);
 
   const handleUrl = () => {
     if (event.url) {
@@ -68,13 +70,13 @@ export function EventCard({ event }: EventCardProps) {
       onPress={() => open({ kind: 'event', event })}
       activeOpacity={0.7}
       accessibilityRole="button"
-      accessibilityLabel={`${event.title} – Details öffnen`}
+      accessibilityLabel={t('a11y_open_details').replace('{name}', event.title)}
     >
       {/* Date column */}
       <View style={styles.dateColumn}>
-        <Text style={styles.weekday}>{formatWeekday(event.event_date)}</Text>
+        <Text style={styles.weekday}>{formatWeekday(event.event_date, locale)}</Text>
         <Text style={styles.dayNumber}>{formatDay(event.event_date)}</Text>
-        <Text style={styles.month}>{formatMonth(event.event_date)}</Text>
+        <Text style={styles.month}>{formatMonth(event.event_date, locale)}</Text>
         {isToday && (
           <View style={styles.todayBadge}>
             <Text style={styles.todayText}>{t('today').toUpperCase()}</Text>

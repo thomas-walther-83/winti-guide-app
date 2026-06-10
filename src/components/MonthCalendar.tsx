@@ -2,6 +2,8 @@ import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { useTranslation } from '../hooks/useTranslation';
+import { dateLocale, weekdaysShort } from '../utils/locale';
 import type { AppTheme } from '../styles/theme';
 
 interface Props {
@@ -20,7 +22,6 @@ interface Props {
   onSelectDay: (date: string) => void;
 }
 
-const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
 function pad(n: number): string {
   return String(n).padStart(2, '0');
@@ -34,7 +35,9 @@ export function MonthCalendar({
 }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const monthLabel = new Date(year, month, 1).toLocaleDateString('de-CH', {
+  const { t, language } = useTranslation();
+  const weekdays = weekdaysShort(language);
+  const monthLabel = new Date(year, month, 1).toLocaleDateString(dateLocale(language), {
     month: 'long',
     year: 'numeric',
   });
@@ -53,17 +56,17 @@ export function MonthCalendar({
   return (
     <View style={styles.wrap}>
       <View style={styles.head}>
-        <TouchableOpacity onPress={onPrev} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="Voriger Monat">
+        <TouchableOpacity onPress={onPrev} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('prev_month')} accessibilityRole="button">
           <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
         </TouchableOpacity>
         <Text style={styles.monthLabel}>{monthLabel}</Text>
-        <TouchableOpacity onPress={onNext} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="Nächster Monat">
+        <TouchableOpacity onPress={onNext} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('next_month')} accessibilityRole="button">
           <Ionicons name="chevron-forward" size={22} color={theme.colors.text} />
         </TouchableOpacity>
       </View>
 
       <View style={styles.weekRow}>
-        {WEEKDAYS.map((w) => (
+        {weekdays.map((w) => (
           <Text key={w} style={styles.weekday}>{w}</Text>
         ))}
       </View>

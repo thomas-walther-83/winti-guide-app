@@ -27,6 +27,7 @@ import { FeaturedRow } from '../components/FeaturedRow';
 import { SectionHeader } from '../components/SectionHeader';
 import { AiGuideCard } from '../components/AiGuideCard';
 import { useTranslation } from '../hooks/useTranslation';
+import { dateLocale } from '../utils/locale';
 import { useLocation } from '../hooks/useLocation';
 import { distanceKm, formatDistance } from '../utils/distance';
 import { isOpenNow } from '../utils/openingHours';
@@ -41,8 +42,8 @@ const AD_FREQUENCY = 5; // Show an ad every N listings
 const VIEW_MODE_KEY = 'winti_view_mode';
 type ViewMode = 'cards' | 'compact';
 
-function getFormattedDate(): string {
-  return new Date().toLocaleDateString('de-CH', {
+function getFormattedDate(locale: string): string {
+  return new Date().toLocaleDateString(locale, {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -105,7 +106,8 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap, scrollTopSign
   }, [scrollTopSignal]);
 
   const { isPremium } = useAppTier();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const locale = dateLocale(language);
   const { coords, status: locStatus, request: requestLocation } = useLocation();
 
   const toggleNearby = () => {
@@ -355,7 +357,7 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap, scrollTopSign
               <Text style={styles.logo}>🦁</Text>
               <View>
                 <Text style={styles.appName}>Winti Guide</Text>
-                <Text style={styles.headerDate}>{getFormattedDate()}</Text>
+                <Text style={styles.headerDate}>{getFormattedDate(locale)}</Text>
               </View>
             </View>
             {!isPremium && (
@@ -461,6 +463,8 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap, scrollTopSign
                   style={[styles.tagChip, active && styles.tagChipActive]}
                   onPress={() => toggleTag(tag)}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
                 >
                   <Text style={[styles.tagChipText, active && styles.tagChipTextActive]}>{tag}</Text>
                 </TouchableOpacity>

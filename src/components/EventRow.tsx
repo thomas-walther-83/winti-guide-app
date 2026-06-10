@@ -27,7 +27,7 @@ export function EventRow({ event }: { event: Event }) {
       onPress={() => open({ kind: 'event', event })}
       activeOpacity={0.7}
       accessibilityRole="button"
-      accessibilityLabel={`${event.title} – Details öffnen`}
+      accessibilityLabel={t('a11y_open_details').replace('{name}', event.title)}
     >
       {event.image_url ? (
         <Image source={{ uri: event.image_url }} style={styles.thumb} resizeMode="cover" />

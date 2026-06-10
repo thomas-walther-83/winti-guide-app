@@ -249,5 +249,16 @@
   "tours_optimize": "Optimize order",
   "open_now": "Open now",
   "tours_curated": "Featured tours",
-  "tours_my": "My tours"
+  "tours_my": "My tours",
+  "a11y_open_details": "{name} – open details",
+  "a11y_call": "Call {name}",
+  "a11y_open_website": "Open website of {name}",
+  "a11y_show_on_map": "Show {name} on the map",
+  "a11y_route_to": "Route to {name}",
+  "a11y_open_gmaps": "Open {name} in Google Maps",
+  "a11y_more_about": "Learn more about {name}",
+  "a11y_language": "Language {name}",
+  "prev_month": "Previous month",
+  "next_month": "Next month",
+  "map_details": "Details"
 }

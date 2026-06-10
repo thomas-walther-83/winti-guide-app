@@ -45,6 +45,9 @@ export function NavigationBar({ tabs, activeTab, onTabPress }: NavigationBarProp
             style={styles.tab}
             onPress={() => onTabPress(tab.key)}
             activeOpacity={0.7}
+            accessibilityRole="tab"
+            accessibilityLabel={tab.label}
+            accessibilityState={{ selected: isActive }}
           >
             {isActive && <View style={styles.indicator} />}
             <Ionicons

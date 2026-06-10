@@ -21,6 +21,7 @@ import {
 } from '../services/supabaseService';
 import { getErrorMessage } from '../utils/errors';
 import { useTranslation } from '../hooks/useTranslation';
+import { dateLocale } from '../utils/locale';
 import { useTheme } from '../context/ThemeContext';
 import type { AppTheme } from '../styles/theme';
 import type {
@@ -77,7 +78,8 @@ export function PartnerPortalScreen() {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { user } = useAuth();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const locale = dateLocale(language);
   const [view, setView] = useState<PortalView>('dashboard');
   const [partner, setPartner] = useState<Partner | null>(null);
   const [subscriptions, setSubscriptions] = useState<PartnerSubscription[]>([]);
@@ -204,7 +206,7 @@ export function PartnerPortalScreen() {
             </Text>
             {activeSub.ends_at && (
               <Text style={styles.subDetails}>
-                {t('runs_until')} {new Date(activeSub.ends_at).toLocaleDateString('de-CH')}
+                {t('runs_until')} {new Date(activeSub.ends_at).toLocaleDateString(locale)}
               </Text>
             )}
           </View>
@@ -266,7 +268,7 @@ export function PartnerPortalScreen() {
                 <View style={styles.invoiceInfo}>
                   <Text style={styles.invoiceAmount}>CHF {Number(inv.amount_chf).toFixed(2)}</Text>
                   <Text style={styles.invoiceMeta}>
-                    {t('due')} {new Date(inv.due_date).toLocaleDateString('de-CH')}
+                    {t('due')} {new Date(inv.due_date).toLocaleDateString(locale)}
                   </Text>
                 </View>
                 <View style={[styles.invoiceStatus, inv.status === 'paid' ? styles.invoicePaid : styles.invoiceUnpaid]}>

@@ -58,6 +58,8 @@ export function CategoryFilter({ selected, onSelect }: CategoryFilterProps) {
             style={[styles.chip, isActive && styles.chipActive]}
             onPress={() => onSelect(cat.key)}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityState={{ selected: isActive }}
           >
             <Ionicons
               name={cat.icon}
