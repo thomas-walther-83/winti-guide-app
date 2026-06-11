@@ -42,6 +42,8 @@ export function ListingRow({ listing, isSaved, onToggleSave, onShowOnMap, distan
       accessibilityLabel={t('a11y_open_details').replace('{name}', listing.name)}
     >
       {showImage ? (
+        // Im kleinen 54px-Thumb wirkt 'contain' bei Logos winzig und unscharf.
+        // Foto → cover; Logo → contain auf farbigem Grund.
         <Image
           source={{ uri: image! }}
           style={[styles.thumb, { backgroundColor: visual.bg }]}
