@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, createContext, useContext } from 'react';
 import {
   Modal,
   View,
@@ -21,6 +21,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../context/ThemeContext';
 import type { AppTheme } from '../styles/theme';
 import { useDetail } from '../context/DetailContext';
+
+// Reicht den onScroll-Handler von der äußeren DetailModal-Shell an die
+// inneren ScrollViews durch (Swipe-down-Geste erkennt damit, ob die
+// Liste am Top steht, ohne props durch zwei Detail-Komponenten zu
+// pipen).
+const ScrollSyncContext = createContext<((e: NativeSyntheticEvent<NativeScrollEvent>) => void) | undefined>(undefined);
 import { useTranslation } from '../hooks/useTranslation';
 import { dateLocale } from '../utils/locale';
 import { shareItem } from '../utils/share';
@@ -194,7 +200,7 @@ function ListingDetail({
         <Text style={styles.heroName} numberOfLines={3}>{listing.name}</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.body}>
+      <ScrollView contentContainerStyle={styles.body} onScroll={useContext(ScrollSyncContext)} scrollEventThrottle={16}>
         <View style={styles.tagRow}>
           {listing.sub_type ? <Text style={styles.tag}>{listing.sub_type}</Text> : null}
           {listing.stars ? <Text style={styles.tag}>⭐ {listing.stars}</Text> : null}
@@ -332,7 +338,7 @@ function EventDetail({ event }: { event: Event }) {
         />
         <Text style={styles.heroName} numberOfLines={3}>{event.title}</Text>
       </View>
-      <ScrollView contentContainerStyle={styles.body}>
+      <ScrollView contentContainerStyle={styles.body} onScroll={useContext(ScrollSyncContext)} scrollEventThrottle={16}>
         <View style={styles.infoBlock}>
           <InfoRow icon="calendar-outline">{formatDate(event.event_date, locale)}</InfoRow>
           {event.event_time ? <InfoRow icon="time-outline">{event.event_time}</InfoRow> : null}
@@ -391,42 +397,57 @@ export function DetailModal() {
     }
   };
 
-  // Swipe-down zum Schließen: Geste auf dem Drag-Handle oben am Sheet.
-  // (Nur dort — am Body würde sie mit dem Scrollen kollidieren.)
+  // Swipe-down zum Schließen vom GANZEN Sheet aus — nicht nur dem Drag-Handle.
+  // Damit der Drag nicht mit der Body-ScrollView kollidiert, nimmt das
+  // PanResponder die Geste nur an, wenn die Liste oben steht (atTop) UND
+  // klar nach unten gewischt wird. So scrollt der Body normal, sobald er
+  // weg vom Top ist, und gibt erst beim Top wieder die Drag-Geste frei.
   const translateY = useRef(new Animated.Value(0)).current;
+  const atTopRef = useRef(true);
   useEffect(() => {
-    if (visible) translateY.setValue(0);
+    if (visible) {
+      translateY.setValue(0);
+      atTopRef.current = true;
+    }
   }, [visible, translateY]);
   const dismiss = () => {
-    Animated.timing(translateY, { toValue: 600, duration: 180, useNativeDriver: true }).start(() => {
+    Animated.timing(translateY, { toValue: 700, duration: 180, useNativeDriver: true }).start(() => {
       translateY.setValue(0);
       close();
     });
   };
   const pan = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dy) > 4,
+      // Tap (kein Move) NIE als Geste beanspruchen → Buttons im Body bleiben klickbar.
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_e, g) =>
+        atTopRef.current && g.dy > 6 && Math.abs(g.dy) > Math.abs(g.dx),
       onPanResponderMove: (_e, g) => {
         if (g.dy > 0) translateY.setValue(g.dy);
       },
       onPanResponderRelease: (_e, g) => {
-        if (g.dy > 110 || g.vy > 0.9) {
-          dismiss();
-        } else {
-          Animated.spring(translateY, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start();
-        }
+        if (g.dy > 90 || g.vy > 0.7) dismiss();
+        else Animated.spring(translateY, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start();
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(translateY, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start();
       },
     }),
   ).current;
+  const handleBodyScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    atTopRef.current = e.nativeEvent.contentOffset.y <= 2;
+  };
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={close}>
       <View style={styles.backdrop}>
         {/* Tap auf den freien Bereich über dem Sheet schließt ebenfalls. */}
         <Pressable style={styles.backdropTouch} onPress={close} accessibilityRole="button" accessibilityLabel={t('close_detail')} />
-        <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
-          <View style={styles.dragZone} {...pan.panHandlers}>
+        <Animated.View
+          style={[styles.sheet, { transform: [{ translateY }] }]}
+          {...pan.panHandlers}
+        >
+          <View style={styles.dragZone} pointerEvents="none">
             <View style={styles.dragHandle} />
           </View>
           <TouchableOpacity
@@ -448,16 +469,18 @@ export function DetailModal() {
             <Ionicons name="close" size={22} color="#1C1A17" />
           </TouchableOpacity>
 
-          {payload?.kind === 'listing' && (
-            <ListingDetail
-              listing={payload.listing}
-              isSaved={payload.isSaved}
-              onToggleSave={payload.onToggleSave}
-              onShowOnMap={payload.onShowOnMap}
-              onClose={close}
-            />
-          )}
-          {payload?.kind === 'event' && <EventDetail event={payload.event} />}
+          <ScrollSyncContext.Provider value={handleBodyScroll}>
+            {payload?.kind === 'listing' && (
+              <ListingDetail
+                listing={payload.listing}
+                isSaved={payload.isSaved}
+                onToggleSave={payload.onToggleSave}
+                onShowOnMap={payload.onShowOnMap}
+                onClose={close}
+              />
+            )}
+            {payload?.kind === 'event' && <EventDetail event={payload.event} />}
+          </ScrollSyncContext.Provider>
         </Animated.View>
       </View>
     </Modal>

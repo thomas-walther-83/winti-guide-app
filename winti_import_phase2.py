@@ -707,9 +707,12 @@ def scrape_coucou() -> list[dict]:
                     events.append({
                         "source": "coucou", "source_id": sid, "title": title[:200],
                         "event_date": current, "location": "Winterthur",
-                        "cat": detect_category(title), "url": url, "image_url": "",
+                        "cat": detect_category(title, "", "kultur"), "url": url, "image_url": "",
                     })
-                    if len(events) >= 200:
+                    # Hartes Cap als Endlos-Schutz; vorher 200 — das schnitt
+                    # Termine ab der zweiten Kalenderwoche ab, weil coucou
+                    # chronologisch ausliefert (User-Beschwerde „Sa nur 2 Events").
+                    if len(events) >= 800:
                         break
     except Exception as e:
         print(f"  ⚠️  coucou Fehler: {e}")
@@ -1495,57 +1498,73 @@ def _ef_to_event(it: dict) -> dict | None:
 
 def scrape_eventfrog() -> list[dict]:
     """Holt Winterthur-Events über die öffentliche Eventfrog-API.
-    Selbst-diagnostizierend: loggt HTTP-Status, Antwort-Form und Beispiel-Felder,
-    damit das Mapping bei Bedarf über CI-Logs verfeinert werden kann."""
+    Paginiert (perPage 100, max 5 Seiten) damit auch viele Events der
+    nächsten Wochen reinkommen."""
     print("  → Eventfrog API abfragen…")
     events: list[dict] = []
     if not EVENTFROG_API_KEY:
         print("  ⚠️  EVENTFROG_API_KEY fehlt – übersprungen")
         return events
+    base_url = f"{EVENTFROG_BASE}/events"
+    headers = {
+        "Accept": "application/json",
+        "Authorization": f"Bearer {EVENTFROG_API_KEY}",
+        **HEADERS,
+    }
+    seen_ids: set[str] = set()
     try:
-        url = f"{EVENTFROG_BASE}/events"
-        # Eventfrog erwartet den Public-API-Key als Bearer-Token im
-        # Authorization-Header, nicht als Query-Param.
-        params = {"perPage": 100, "text": "Winterthur"}
-        res = requests.get(
-            url,
-            params=params,
-            headers={
-                "Accept": "application/json",
-                "Authorization": f"Bearer {EVENTFROG_API_KEY}",
-                **HEADERS,
-            },
-            timeout=25,
-        )
-        print(f"    HTTP {res.status_code} @ {EVENTFROG_BASE}/events")
-        if res.status_code != 200:
-            print(f"    Antwort: {res.text[:200]}")
-            return events
-        try:
-            data = res.json()
-        except Exception:
-            print(f"    Keine JSON-Antwort: {res.text[:160]}")
-            return events
-        if isinstance(data, dict):
-            print(f"    Top-Level-Keys: {list(data.keys())[:15]}")
-            items = (data.get("datasets") or data.get("events")
-                     or data.get("items") or data.get("data") or [])
-        elif isinstance(data, list):
-            items = data
-        else:
-            items = []
-        if items:
-            print(f"    {len(items)} Einträge, Felder (1.): {list(items[0].keys())[:20]}")
-        for it in items:
-            ev = _ef_to_event(it)
-            if ev and "winterthur" in (ev["location"] + " " + ev["title"]).lower():
-                events.append(ev)
-        # Falls Ortsfilter zu strikt war, ohne Filter erneut bewerten
-        if not events and items:
+        for page in range(1, 6):  # max 5 Seiten = bis zu 500 Events
+            params = {"perPage": 100, "page": page, "text": "Winterthur"}
+            res = requests.get(base_url, params=params, headers=headers, timeout=25)
+            if page == 1:
+                print(f"    HTTP {res.status_code} @ {base_url}")
+            if res.status_code != 200:
+                if page == 1:
+                    print(f"    Antwort: {res.text[:200]}")
+                break
+            try:
+                data = res.json()
+            except Exception:
+                print(f"    Keine JSON-Antwort: {res.text[:160]}")
+                break
+            if isinstance(data, dict):
+                if page == 1:
+                    print(f"    Top-Level-Keys: {list(data.keys())[:15]}")
+                items = (data.get("datasets") or data.get("events")
+                         or data.get("items") or data.get("data") or [])
+            elif isinstance(data, list):
+                items = data
+            else:
+                items = []
+            if not items:
+                break
+            page_added = 0
             for it in items:
                 ev = _ef_to_event(it)
-                if ev:
+                if not ev:
+                    continue
+                if ev["source_id"] in seen_ids:
+                    continue
+                if "winterthur" in (ev["location"] + " " + ev["title"]).lower():
+                    seen_ids.add(ev["source_id"])
                     events.append(ev)
+                    page_added += 1
+            if DEBUG:
+                print(f"    page {page}: +{page_added} (insgesamt {len(events)})")
+            if len(items) < 100:
+                break  # letzte Seite
+        # Ortsfilter zu strikt? Ohne Filter erneut bewerten (nur Seite 1).
+        if not events:
+            res = requests.get(base_url, params={"perPage": 100, "text": "Winterthur"}, headers=headers, timeout=25)
+            if res.status_code == 200:
+                data = res.json()
+                items = (data.get("datasets") or data.get("events")
+                         or data.get("items") or data.get("data") or []) if isinstance(data, dict) else (data if isinstance(data, list) else [])
+                for it in items:
+                    ev = _ef_to_event(it)
+                    if ev and ev["source_id"] not in seen_ids:
+                        seen_ids.add(ev["source_id"])
+                        events.append(ev)
     except Exception as e:
         print(f"  ⚠️  Eventfrog: {str(e)[:120]}")
     print(f"  ✓ {len(events)} Events von Eventfrog")
