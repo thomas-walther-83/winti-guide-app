@@ -82,7 +82,10 @@ function HeroCarousel({
 }) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const [width, setWidth] = useState(0);
+  // Initial mit Window-Breite, damit der FlatList-Carousel sofort rendert.
+  // Sonst bleibt er auf react-native-web im Animated-Sheet manchmal bei
+  // width=0 hängen (onLayout feuert spät oder mit 0) — Hero blieb leer.
+  const [width, setWidth] = useState(() => Dimensions.get('window').width);
   const [index, setIndex] = useState(0);
   const [failed, setFailed] = useState<Set<number>>(new Set());
 
@@ -101,7 +104,13 @@ function HeroCarousel({
     });
 
   return (
-    <View style={styles.heroImage} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+    <View
+      style={styles.heroImage}
+      onLayout={(e) => {
+        const w = e.nativeEvent.layout.width;
+        if (w > 0 && Math.abs(w - width) > 1) setWidth(w);
+      }}
+    >
       {width > 0 && (
         <FlatList
           data={images}

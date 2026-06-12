@@ -1456,21 +1456,26 @@ def _ef_first(d: dict, keys: list[str], default=""):
     return default
 
 
-def _ef_to_event(it: dict) -> dict | None:
-    """Mappt einen Eventfrog-Datensatz defensiv auf unser Event-Format.
-    Feldnamen sind über mehrere Kandidaten abgesichert, da das genaue Schema
-    erst aus den CI-Logs verifiziert wird."""
+def _ef_to_events(it: dict) -> list[dict]:
+    """Mappt einen Eventfrog-Datensatz auf eine LISTE unserer Events.
+    Mehrtägige Events (Ausstellungen, Märkte) werden auf einzelne Tage
+    expandiert (Hard-Cap 30 Tage) — sonst fielen sie nach dem Eröffnungstag
+    aus der Kalender-Liste, obwohl sie noch laufen.
+    """
     if not isinstance(it, dict):
-        return None
+        return []
     title = _ef_first(it, ["name", "title", "eventName"])
     if isinstance(title, dict):
         title = title.get("de") or title.get("default") or next(iter(title.values()), "")
     if not title:
-        return None
+        return []
     start = _ef_first(it, ["start", "startDate", "dateFrom", "begin", "from", "startsAt"])
-    event_date = parse_date(str(start))
-    if not event_date:
-        return None
+    start_date = parse_date(str(start))
+    if not start_date:
+        return []
+    end = _ef_first(it, ["end", "endDate", "dateTo", "until", "to", "endsAt"], "")
+    end_date = parse_date(str(end)) if end else None
+
     # Ort / Stadt
     loc = _ef_first(it, ["location", "venue", "place", "city"], "")
     if isinstance(loc, dict):
@@ -1479,21 +1484,45 @@ def _ef_to_event(it: dict) -> dict | None:
     url = _ef_first(it, ["url", "link", "permalink", "detailUrl"], "")
     image_url = image_from_jsonld(_ef_first(it, ["image", "imageUrl", "img", "picture"], ""))
     desc = str(_ef_first(it, ["description", "text", "subtitle"], ""))[:500]
-    sid = f"eventfrog_{str(title)[:50]}_{event_date}"
-    return {
-        "source":     "eventfrog",
-        "source_id":  re.sub(r"[^\w_-]", "_", sid)[:100],
-        "title":      str(title)[:200],
-        "cat":        detect_category(str(title), desc),
-        "location":   location[:200],
-        "event_date": event_date,
-        "event_time": str(start)[11:16] if len(str(start)) > 10 else "",
-        "price":      "",
-        "description": re.sub(r"<[^>]+>", "", desc).strip(),
-        "url":        str(url)[:300],
-        "image_url":  str(image_url)[:500],
-        "is_active":  True,
-    }
+    cat = detect_category(str(title), desc)
+    base_sid = re.sub(r"[^\w_-]", "_", f"eventfrog_{str(title)[:50]}")[:80]
+
+    def make(d: str) -> dict:
+        return {
+            "source":     "eventfrog",
+            "source_id":  f"{base_sid}_{d}"[:100],
+            "title":      str(title)[:200],
+            "cat":        cat,
+            "location":   location[:200],
+            "event_date": d,
+            "event_time": str(start)[11:16] if d == start_date and len(str(start)) > 10 else "",
+            "price":      "",
+            "description": re.sub(r"<[^>]+>", "", desc).strip(),
+            "url":        str(url)[:300],
+            "image_url":  str(image_url)[:500],
+            "is_active":  True,
+        }
+
+    # Tage zwischen start und end (inkl.); ohne end-Datum nur start.
+    if not end_date or end_date <= start_date:
+        return [make(start_date)]
+    from datetime import date as date_type, timedelta
+    try:
+        s = date_type.fromisoformat(start_date)
+        e = date_type.fromisoformat(end_date)
+    except Exception:
+        return [make(start_date)]
+    days = (e - s).days
+    if days > 30:
+        days = 30  # Cap: lange Dauer-Ausstellungen nicht über Monate spammen
+    return [make((s + timedelta(days=i)).isoformat()) for i in range(days + 1)]
+
+
+def _ef_to_event(it: dict) -> dict | None:
+    """Backwards-compat: gibt den ersten Tag zurück. Aufrufer sollten
+    _ef_to_events() nutzen, um Mehrtages-Events korrekt zu expandieren."""
+    out = _ef_to_events(it)
+    return out[0] if out else None
 
 
 def scrape_eventfrog() -> list[dict]:
@@ -1540,14 +1569,18 @@ def scrape_eventfrog() -> list[dict]:
                 break
             page_added = 0
             for it in items:
-                ev = _ef_to_event(it)
-                if not ev:
+                expanded = _ef_to_events(it)
+                if not expanded:
                     continue
-                if ev["source_id"] in seen_ids:
+                ev_first = expanded[0]
+                if "winterthur" not in (ev_first["location"] + " " + ev_first["title"]).lower():
                     continue
-                if "winterthur" in (ev["location"] + " " + ev["title"]).lower():
+                for ev in expanded:
+                    if ev["source_id"] in seen_ids:
+                        continue
                     seen_ids.add(ev["source_id"])
                     events.append(ev)
+                    page_added += 1
                     page_added += 1
             if DEBUG:
                 print(f"    page {page}: +{page_added} (insgesamt {len(events)})")
@@ -1561,8 +1594,9 @@ def scrape_eventfrog() -> list[dict]:
                 items = (data.get("datasets") or data.get("events")
                          or data.get("items") or data.get("data") or []) if isinstance(data, dict) else (data if isinstance(data, list) else [])
                 for it in items:
-                    ev = _ef_to_event(it)
-                    if ev and ev["source_id"] not in seen_ids:
+                    for ev in _ef_to_events(it):
+                        if ev["source_id"] in seen_ids:
+                            continue
                         seen_ids.add(ev["source_id"])
                         events.append(ev)
     except Exception as e:
