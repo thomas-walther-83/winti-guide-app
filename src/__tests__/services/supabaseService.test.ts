@@ -32,6 +32,7 @@ function makeBuilder(result: { data: any; error: any }) {
   const builder: any = {};
   const chainMethods = [
     'select', 'eq', 'neq', 'ilike', 'order', 'not', 'gte', 'or',
+    'limit', 'range',
     'insert', 'update', 'upsert',
   ];
   chainMethods.forEach((m) => {

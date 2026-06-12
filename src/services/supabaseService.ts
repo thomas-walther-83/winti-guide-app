@@ -98,7 +98,13 @@ export async function fetchEvents(options?: {
     .from('events')
     .select('*')
     .eq('is_active', true)
-    .order('event_date');
+    .order('event_date')
+    // PostgREST cappt ohne explizites Limit auf 1000 Rows. Mit
+    // Multi-Day-Expansion (Eventfrog 30-Tage-Cap pro Ausstellung)
+    // landen wir leicht über 1000 — und der 1000er-Cut schneidet
+    // ausgerechnet die spätesten Termine (Wochenenden, kommende
+    // Wochen) ab. 5000 reicht für >12 Wochen Vorlauf.
+    .limit(5000);
 
   if (options?.category) {
     query = query.eq('cat', options.category);

@@ -82,20 +82,43 @@ function HeroCarousel({
 }) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  // Initial mit Window-Breite, damit der FlatList-Carousel sofort rendert.
-  // Sonst bleibt er auf react-native-web im Animated-Sheet manchmal bei
-  // width=0 hängen (onLayout feuert spät oder mit 0) — Hero blieb leer.
-  const [width, setWidth] = useState(() => Dimensions.get('window').width);
   const [index, setIndex] = useState(0);
   const [failed, setFailed] = useState<Set<number>>(new Set());
 
+  // Bei nur einem Bild komplett auf ScrollView/FlatList verzichten — das
+  // war der eigentliche Bug: die FlatList hing bei width=0 fest. Ein
+  // einzelnes Bild braucht keine Carousel-Mechanik.
+  if (images.length === 1) {
+    const only = images[0];
+    return (
+      <View style={[styles.heroImage, { backgroundColor: fallback.bg }]}>
+        {failed.has(0) ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name={fallback.icon} size={72} color="rgba(255,255,255,0.92)" />
+          </View>
+        ) : (
+          <Image
+            source={{ uri: only }}
+            style={{ width: '100%', height: '100%', transform: isLogoUrl(only) ? [{ scale: 0.6 }] : undefined }}
+            resizeMode={isLogoUrl(only) ? 'contain' : 'cover'}
+            onError={() => setFailed(new Set([0]))}
+          />
+        )}
+      </View>
+    );
+  }
+
+  // Mehrere Bilder → horizontal scrollender Carousel mit Snap pro Seite.
+  // ScrollView (statt FlatList) braucht keine width-Berechnung im Voraus —
+  // jede Slide bekommt einfach `flex: 1` Sheet-Breite per onLayout vom
+  // Container. Auch bei width === 0 im ersten Render sind die Slides
+  // sichtbar (mit Background), sobald der Layout-Pass durch ist.
+  const [width, setWidth] = useState(() => Dimensions.get('window').width || 360);
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (width <= 0) return;
-    const x = e.nativeEvent.contentOffset.x;
-    const i = Math.round(x / width);
+    const i = Math.round(e.nativeEvent.contentOffset.x / width);
     if (i !== index) setIndex(i);
   };
-
   const markFailed = (i: number) =>
     setFailed((prev) => {
       const next = new Set(prev);
@@ -111,52 +134,36 @@ function HeroCarousel({
         if (w > 0 && Math.abs(w - width) > 1) setWidth(w);
       }}
     >
-      {width > 0 && (
-        <FlatList
-          data={images}
-          keyExtractor={(u, i) => `${i}-${u}`}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onScroll={handleScroll}
-          scrollEventThrottle={16}
-          renderItem={({ item, index: i }) =>
-            failed.has(i) ? (
-              <View
-                style={[
-                  { width, height: '100%', alignItems: 'center', justifyContent: 'center' },
-                  { backgroundColor: fallback.bg },
-                ]}
-              >
+      <ScrollView
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        style={{ flex: 1 }}
+      >
+        {images.map((item, i) => (
+          <View key={`${i}-${item}`} style={{ width, height: '100%', backgroundColor: fallback.bg }}>
+            {failed.has(i) ? (
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                 <Ionicons name={fallback.icon} size={72} color="rgba(255,255,255,0.92)" />
               </View>
             ) : (
-              // Kategorie-Farbe IMMER als Unterlage: transparente Logo-PNGs
-              // wären sonst auf dem hellen Sheet unsichtbar (Technorama-Fall).
-              // Logos zusätzlich mit `contain` + verkleinert statt `cover`.
-              <View style={{ width, height: '100%', backgroundColor: fallback.bg }}>
-                <Image
-                  source={{ uri: item }}
-                  style={
-                    isLogoUrl(item)
-                      ? { width: '100%', height: '100%', transform: [{ scale: 0.6 }] }
-                      : { width: '100%', height: '100%' }
-                  }
-                  resizeMode={isLogoUrl(item) ? 'contain' : 'cover'}
-                  onError={() => markFailed(i)}
-                />
-              </View>
-            )
-          }
-        />
-      )}
-      {images.length > 1 && (
-        <View style={styles.carouselDots}>
-          {images.map((_, i) => (
-            <View key={i} style={[styles.carouselDot, i === index && styles.carouselDotActive]} />
-          ))}
-        </View>
-      )}
+              <Image
+                source={{ uri: item }}
+                style={{ width: '100%', height: '100%', transform: isLogoUrl(item) ? [{ scale: 0.6 }] : undefined }}
+                resizeMode={isLogoUrl(item) ? 'contain' : 'cover'}
+                onError={() => markFailed(i)}
+              />
+            )}
+          </View>
+        ))}
+      </ScrollView>
+      <View style={styles.carouselDots}>
+        {images.map((_, i) => (
+          <View key={i} style={[styles.carouselDot, i === index && styles.carouselDotActive]} />
+        ))}
+      </View>
     </View>
   );
 }
