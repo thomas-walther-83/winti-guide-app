@@ -32,12 +32,19 @@ export function AiGuideCard() {
 
   const showSuggestions = messages.length === 0;
 
+  // Hartes Fenster auf die letzten 12 Bubbles (= 6 Turns) — verhindert
+  // unbegrenztes Wachstum der Render-Liste, das auf iOS-PWA WebView-
+  // Memory-Pressure auslösen kann.
+  const MAX_VISIBLE_MESSAGES = 12;
+  const capMessages = (msgs: ChatMessage[]): ChatMessage[] =>
+    msgs.length > MAX_VISIBLE_MESSAGES ? msgs.slice(-MAX_VISIBLE_MESSAGES) : msgs;
+
   const sendMessage = async (question: string) => {
     const trimmed = question.trim();
     if (!trimmed || isLoading) return;
 
     const userMsg: ChatMessage = { role: 'user', text: trimmed };
-    const nextMessages = [...messages, userMsg];
+    const nextMessages = capMessages([...messages, userMsg]);
     setMessages(nextMessages);
     setInputText('');
     setIsLoading(true);
@@ -45,19 +52,27 @@ export function AiGuideCard() {
     setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
 
     try {
-      const reply = await askAiGuide(trimmed, messages, { locale: language });
+      // Nur die letzten 6 Turns als History übergeben (Server cappt nochmal,
+      // aber wir wollen nicht unnötige Bytes senden).
+      const historySlice = messages.slice(-6);
+      const reply = await askAiGuide(trimmed, historySlice, { locale: language });
       const assistantMsg: ChatMessage = { role: 'assistant', text: reply };
-      setMessages([...nextMessages, assistantMsg]);
+      setMessages(capMessages([...nextMessages, assistantMsg]));
     } catch (err) {
       const errorMsg: ChatMessage = {
         role: 'assistant',
         text: err instanceof Error ? err.message : t('ai_error'),
       };
-      setMessages([...nextMessages, errorMsg]);
+      setMessages(capMessages([...nextMessages, errorMsg]));
     } finally {
       setIsLoading(false);
       setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
     }
+  };
+
+  const resetChat = () => {
+    setMessages([]);
+    setInputText('');
   };
 
   return (
@@ -72,6 +87,16 @@ export function AiGuideCard() {
             <Text style={styles.headerTitle}>{t('ai_question_title')}</Text>
             <Text style={styles.headerSubtitle}>{t('ai_question_subtitle')}</Text>
           </View>
+          {messages.length > 0 && (
+            <TouchableOpacity
+              onPress={resetChat}
+              accessibilityLabel="Chat zurücksetzen"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={styles.resetButton}
+            >
+              <Ionicons name="refresh" size={18} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Quick Suggestions */}
@@ -203,6 +228,9 @@ const makeStyles = (theme: AppTheme) => StyleSheet.create({
     fontSize: 13,
     color: theme.colors.textSecondary,
     marginTop: 1,
+  },
+  resetButton: {
+    padding: 4,
   },
   suggestions: {
     paddingHorizontal: theme.spacing.md,
