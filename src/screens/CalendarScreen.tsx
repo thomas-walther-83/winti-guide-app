@@ -26,7 +26,7 @@ import type { EventCategory, Event } from '../types';
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 type TranslationKey = Parameters<ReturnType<typeof useTranslation>['t']>[0];
 
-const FREE_TIER_DAYS = 7; // Free users see events for the next 7 days
+const FREE_TIER_DAYS = 180; // Free users see events for the next ~6 months
 
 const EVENT_CATEGORIES: { key: EventCategory | 'all'; labelKey: TranslationKey; icon: IoniconName }[] = [
   { key: 'all', labelKey: 'all_categories', icon: 'calendar-outline' },

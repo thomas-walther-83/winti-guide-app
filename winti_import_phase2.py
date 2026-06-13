@@ -278,6 +278,38 @@ class Supabase:
             return {r["source_id"] for r in res.json()}
         return set()
 
+    def delete_past_events(self) -> int:
+        """Löscht alle Events mit event_date < heute. Multi-Day-Expansion
+        schreibt jeden Tag als eigene Row, also entfällt damit nur das
+        wirklich Vergangene; laufende Mehrtages-Events bleiben sichtbar
+        bis zum letzten Tag."""
+        today = date_type.today().strftime("%Y-%m-%d")
+        res = requests.delete(
+            f"{self.url}/rest/v1/events?event_date=lt.{today}",
+            headers={**self.hdrs, "Prefer": "return=representation,count=exact"},
+        )
+        if res.status_code in (200, 204):
+            rng = res.headers.get("Content-Range", "")
+            try:
+                count = int(rng.split("/")[-1])
+            except (ValueError, IndexError):
+                count = 0
+            return count
+        print(f"  ⚠️  Cleanup-Fehler {res.status_code}: {res.text[:200]}")
+        return 0
+
+    def fetch_latest_event_titles(self, limit: int = 25) -> list[dict]:
+        """Liest die N am weitesten in der Zukunft liegenden Events
+        (für Verifikations-Print am Ende des Imports)."""
+        res = requests.get(
+            f"{self.url}/rest/v1/events?select=event_date,title,location,source"
+            f"&order=event_date.desc&limit={limit}",
+            headers=self.hdrs,
+        )
+        if res.status_code == 200:
+            return res.json()
+        return []
+
 
 # ── Scraper 1: winterthur.com ────────────────────────────────────
 def scrape_winterthur_com() -> list[dict]:
@@ -2122,6 +2154,12 @@ def run():
     print("\n💾 In Supabase speichern…")
     n = db.upsert_events(unique)
 
+    # Vergangene Termine aufräumen (Multi-Day-Rows pro Tag → laufende
+    # Veranstaltungen bleiben sichtbar bis zum letzten Tag).
+    print("\n🧹 Vergangene Events aufräumen…")
+    deleted = db.delete_past_events()
+    print(f"  ✓ {deleted} vergangene Events entfernt")
+
     print("\n" + "═" * 60)
     print(f"  ✅ {n} Events importiert / aktualisiert")
     print(f"  🕐 {datetime.now().strftime('%d.%m.%Y %H:%M')}")
@@ -2150,6 +2188,18 @@ def run():
     if unique:
         pct = round(with_img / len(unique) * 100)
         print(f"\n  🖼️  Mit Bild: {with_img}/{len(unique)} Events ({pct}%)")
+
+    # Verifikations-Sample: die 25 am weitesten in der Zukunft liegenden
+    # Termine — Nutzer kann diese im Kalender suchen.
+    sample = db.fetch_latest_event_titles(25)
+    if sample:
+        print("\n  🔭 Letzte 25 Termine (nach Datum absteigend, zur Verifikation):")
+        for ev in sample:
+            d = ev.get("event_date", "")
+            t = (ev.get("title") or "").strip()[:80]
+            loc = (ev.get("location") or "").strip()[:40]
+            src = ev.get("source", "")
+            print(f"    {d}  [{src:14}]  {t}  @ {loc}")
 
 
 if __name__ == "__main__":
