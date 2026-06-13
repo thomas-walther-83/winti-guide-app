@@ -1,4 +1,5 @@
-// Mock Supabase so that fetchListingsContext resolves immediately with empty data.
+// Mock Supabase so that fetchListingsContext resolves immediately with empty data
+// and the Edge-Function invocation always fails (triggering the offline fallback).
 // This prevents real network calls and keeps the test suite fast.
 jest.mock('../../config/supabase', () => {
   const builder: any = {};
@@ -11,6 +12,14 @@ jest.mock('../../config/supabase', () => {
   return {
     supabase: {
       from: jest.fn().mockReturnValue(builder),
+      functions: {
+        // Simuliert "Edge Function nicht verfügbar" → askAiGuide fällt auf
+        // die lokalen Template-Antworten zurück.
+        invoke: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'mocked: function unavailable', context: { status: 503 } },
+        }),
+      },
     },
   };
 });
