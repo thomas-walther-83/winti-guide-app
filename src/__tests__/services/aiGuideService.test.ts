@@ -12,6 +12,9 @@ jest.mock('../../config/supabase', () => {
   return {
     supabase: {
       from: jest.fn().mockReturnValue(builder),
+      auth: {
+        getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: null }),
+      },
       functions: {
         // Simuliert "Edge Function nicht verfügbar" → askAiGuide fällt auf
         // die lokalen Template-Antworten zurück.
