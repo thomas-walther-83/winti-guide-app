@@ -40,6 +40,22 @@ export function getAiGuideSessionId(): string {
   return SESSION_ID;
 }
 
+// User-ID einmal pro Session cachen. Vorher rief jeder Chat-Turn
+// supabase.auth.getUser() auf, was einen Server-Roundtrip kostet und
+// auf iOS-PWA über mehrere Turns die WebView-Lebenszeit unter Druck
+// setzen kann (Memory + Network-Handles akkumulieren).
+let cachedUserId: string | null | undefined = undefined;
+async function getCachedUserId(): Promise<string | null> {
+  if (cachedUserId !== undefined) return cachedUserId;
+  try {
+    const { data } = await supabase.auth.getUser();
+    cachedUserId = data?.user?.id ?? null;
+  } catch {
+    cachedUserId = null;
+  }
+  return cachedUserId;
+}
+
 const CATEGORY_KEYWORDS: Array<{ keywords: string[]; category: ListingCategory }> = [
   { keywords: ['restaurant', 'essen', 'speisen', 'pizza', 'italienisch', 'sushi', 'küche', 'mittag', 'abendessen'], category: 'restaurants' },
   { keywords: ['café', 'cafe', 'kaffee', 'frühstück'], category: 'cafes' },
@@ -125,8 +141,7 @@ async function askEdgeFunction(
 ): Promise<string | null> {
   // user_id kommt aus der Auth-Session, damit der Server Favoriten holen
   // und (mit Opt-out-Check) die Konversation loggen kann.
-  const { data: userData } = await supabase.auth.getUser();
-  const userId = userData?.user?.id ?? null;
+  const userId = await getCachedUserId();
 
   const { data, error } = await supabase.functions.invoke('ai-guide', {
     body: {
