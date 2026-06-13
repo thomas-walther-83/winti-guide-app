@@ -26,6 +26,7 @@ import { SearchBar } from '../components/SearchBar';
 import { FeaturedRow } from '../components/FeaturedRow';
 import { SectionHeader } from '../components/SectionHeader';
 import { AiGuideCard } from '../components/AiGuideCard';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useTranslation } from '../hooks/useTranslation';
 import { dateLocale } from '../utils/locale';
 import { useLocation } from '../hooks/useLocation';
@@ -427,7 +428,11 @@ export function HomeScreen({ onNavigateToAccount, onNavigateToMap, scrollTopSign
         );
 
       case 'ai-guide':
-        return <AiGuideCard />;
+        return (
+          <ErrorBoundary fallbackLabel="Der KI-Guide ist gerade kurz ausser Tritt.">
+            <AiGuideCard />
+          </ErrorBoundary>
+        );
 
       case 'section-title':
         return (

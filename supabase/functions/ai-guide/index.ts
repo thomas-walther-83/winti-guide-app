@@ -27,7 +27,9 @@ const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
-const MAX_TOKENS = 380;
+// Antwortlänge bewusst knapp — kleinere Responses entlasten iOS-PWA WebView
+// und sind passend zum Use Case (3-5 Sätze, max 1-3 konkrete Namen).
+const MAX_TOKENS = 280;
 const TEMPERATURE = 0.6;
 
 // Per-IP-Budget: 30 Anfragen / Stunde / IP.
@@ -111,11 +113,14 @@ function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number)
 }
 
 async function fetchListings(category: Category | undefined, geo?: { lat: number; lon: number }): Promise<ListingRow[]> {
+  // Bewusst nicht zu viele Listings ziehen — der system_prompt wird sonst
+  // schnell sehr lang, was die LLM-Latenz hochtreibt und die Response
+  // teurer macht (mehr Memory im Client beim Halten der RAG-Spuren).
   let q = sb
     .from('listings')
     .select('id, name, sub_type, address, hours, description, stars, tags, is_premium, lat, lon, category')
     .eq('is_active', true)
-    .limit(category ? 60 : 80);
+    .limit(category ? 35 : 50);
   if (category) q = q.eq('category', category);
   const { data, error } = await q;
   if (error || !data) return [];
