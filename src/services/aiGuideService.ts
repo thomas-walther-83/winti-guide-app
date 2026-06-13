@@ -6,6 +6,15 @@ import type { ListingCategory } from '../types';
 // im Client-Bundle. Bei fehlender oder fehlerhafter Server-Antwort fällt
 // dieser Client automatisch auf die lokale Template-Antwort zurück.
 
+// URL + öffentlicher Key — gleiche Defaults wie config/supabase.ts.
+// Hier direkt referenziert für den fetch()-Pfad, der das supabase-js
+// functions.invoke umgeht (vermeidet kumulative Memory-Last auf iOS-PWA).
+const SUPABASE_URL =
+  process.env.EXPO_PUBLIC_SUPABASE_URL ?? 'https://dphhqwisluirihmahyee.supabase.co';
+const SUPABASE_ANON_KEY =
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??
+  'sb_publishable_-VhbMGsUIHDW_Z0U4v9iQw_qw0xiSTf';
+
 const CATEGORY_LISTINGS_LIMIT = 40;
 const ALL_LISTINGS_LIMIT = 60;
 
@@ -133,7 +142,7 @@ async function fetchListingsContext(category?: ListingCategory): Promise<Listing
   }
 }
 
-/** Fragt die ai-guide Edge Function. Wirft bei Provider-Fehler. */
+/** Fragt die ai-guide Edge Function via direktes fetch. Wirft bei Provider-Fehler. */
 async function askEdgeFunction(
   question: string,
   history: ChatMessage[],
@@ -143,35 +152,65 @@ async function askEdgeFunction(
   // und (mit Opt-out-Check) die Konversation loggen kann.
   const userId = await getCachedUserId();
 
-  const { data, error } = await supabase.functions.invoke('ai-guide', {
-    body: {
-      question,
-      history,
-      locale: ctx?.locale ?? 'de',
-      session_id: ctx?.sessionId ?? SESSION_ID,
-      user_id: userId,
-      user_lat: ctx?.userLat,
-      user_lon: ctx?.userLon,
-    },
-  });
+  // WICHTIG: kein supabase.functions.invoke — der SDK-Wrapper hat in der
+  // Vergangenheit auf iOS-PWA Response-Objekte länger gehalten, was über
+  // mehrere Turns kumulativ die WebView-Memory drückte. Direktes fetch
+  // gibt uns volle Kontrolle: Body sofort lesen, JSON parsen, fertig.
+  const url = `${SUPABASE_URL}/functions/v1/ai-guide`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 25_000);
 
-  if (error) {
-    // FunctionsHttpError trägt den Status. 503 = kein Provider, 429 = Rate-Limit,
-    // 502 = Provider-Fehler. Bei 503 ist Fallback ok; bei 429 lieber Hinweis zeigen.
-    const status = (error as { context?: { status?: number } })?.context?.status;
-    if (status === 429) {
-      throw new Error(
-        'Der AI-Guide ist gerade überlastet. Bitte versuche es in ein paar Minuten erneut.',
-      );
-    }
-    return null; // → trigger lokalen Fallback
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({
+        question,
+        history,
+        locale: ctx?.locale ?? 'de',
+        session_id: ctx?.sessionId ?? SESSION_ID,
+        user_id: userId,
+        user_lat: ctx?.userLat,
+        user_lon: ctx?.userLon,
+      }),
+      signal: controller.signal,
+    });
+  } catch {
+    clearTimeout(timeoutId);
+    return null; // Netzwerk-Fehler / Abort → Fallback
+  }
+  clearTimeout(timeoutId);
+
+  if (response.status === 429) {
+    throw new Error(
+      'Der AI-Guide ist gerade überlastet. Bitte versuche es in ein paar Minuten erneut.',
+    );
+  }
+  if (!response.ok) {
+    return null; // 5xx / 503 → Fallback
   }
 
-  if (data && typeof data === 'object' && 'answer' in data) {
-    const ans = String((data as { answer?: unknown }).answer ?? '').trim();
-    if (ans) return ans;
+  // Body komplett lesen und dann sofort verwerfen — wichtig, damit iOS
+  // den Response-Stream nicht in einem Puffer hält.
+  const text = await response.text();
+  let data: { answer?: unknown } | null = null;
+  try {
+    data = JSON.parse(text) as { answer?: unknown };
+  } catch {
+    return null;
   }
-  return null;
+  const ans = String(data?.answer ?? '').trim();
+  // Control-Chars entfernen (außer \n \t) — Schutz gegen iOS-WebKit
+  // Render-Bugs mit exotischen Steuerzeichen aus dem LLM-Output.
+  // Control-Chars 0x00-0x1F (ausser \n und \t) sowie 0x7F entfernen.
+  const ctrlRe = new RegExp("[\u0000-\u0008\u000B-\u001F\u007F]", "g");
+  const clean = ans.replace(ctrlRe, '');
+  return clean || null;
 }
 
 /** Öffentliche API: stellt die Frage an Thomas. */
