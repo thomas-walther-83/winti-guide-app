@@ -15,11 +15,13 @@ import { useTheme } from '../context/ThemeContext';
 import type { AppTheme } from '../styles/theme';
 import { askAiGuide, ChatMessage } from '../services/aiGuideService';
 import { useTranslation } from '../hooks/useTranslation';
+import { useLocation } from '../hooks/useLocation';
 
 export function AiGuideCard() {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const { coords, status: locStatus, request: requestLocation } = useLocation();
   const QUICK_SUGGESTIONS = [
     t('ai_suggestion_1'),
     t('ai_suggestion_2'),
@@ -31,6 +33,10 @@ export function AiGuideCard() {
   const scrollViewRef = useRef<ScrollView>(null);
 
   const showSuggestions = messages.length === 0;
+
+  // Wenn die Frage geo-relevant klingt, einmal Standort anfragen.
+  const wantsGeo = (q: string): boolean =>
+    /\b(nähe|nahe|in der nähe|nearby|near me|um mich|near|close to|bei mir|hier|um die ecke)\b/i.test(q);
 
   const sendMessage = async (question: string) => {
     const trimmed = question.trim();
@@ -44,14 +50,23 @@ export function AiGuideCard() {
 
     setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
 
+    // Geo nur anfragen, wenn die Frage es nahelegt und wir noch nichts haben.
+    if (wantsGeo(trimmed) && !coords && (locStatus === 'idle' || locStatus === 'denied')) {
+      requestLocation();
+    }
+
     try {
-      const reply = await askAiGuide(trimmed, messages);
+      const reply = await askAiGuide(trimmed, messages, {
+        locale: language,
+        userLat: coords?.lat,
+        userLon: coords?.lon,
+      });
       const assistantMsg: ChatMessage = { role: 'assistant', text: reply };
       setMessages([...nextMessages, assistantMsg]);
-    } catch {
+    } catch (err) {
       const errorMsg: ChatMessage = {
         role: 'assistant',
-        text: t('ai_error'),
+        text: err instanceof Error ? err.message : t('ai_error'),
       };
       setMessages([...nextMessages, errorMsg]);
     } finally {

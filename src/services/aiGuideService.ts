@@ -17,6 +17,29 @@ export interface ChatMessage {
   text: string;
 }
 
+/** Zusätzlicher Kontext, den Aufrufer (z.B. AiGuideCard) durchreichen können. */
+export interface AiGuideContext {
+  /** ISO-639-1 Sprachcode, z.B. 'de' | 'en' | 'fr' | 'it'. Default 'de'. */
+  locale?: string;
+  /** Letzte bekannte Position, wenn der Nutzer Standort freigegeben hat. */
+  userLat?: number;
+  userLon?: number;
+  /** Gruppiert Q&A einer Chat-Session — clientseitig erzeugt. */
+  sessionId?: string;
+}
+
+/** Session-ID lebt für die Lebensdauer des JS-Kontexts (= eine App-Sitzung). */
+const SESSION_ID = (() => {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return (crypto as Crypto).randomUUID();
+  }
+  return `s_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+})();
+
+export function getAiGuideSessionId(): string {
+  return SESSION_ID;
+}
+
 const CATEGORY_KEYWORDS: Array<{ keywords: string[]; category: ListingCategory }> = [
   { keywords: ['restaurant', 'essen', 'speisen', 'pizza', 'italienisch', 'sushi', 'küche', 'mittag', 'abendessen'], category: 'restaurants' },
   { keywords: ['café', 'cafe', 'kaffee', 'frühstück'], category: 'cafes' },
@@ -95,9 +118,26 @@ async function fetchListingsContext(category?: ListingCategory): Promise<Listing
 }
 
 /** Fragt die ai-guide Edge Function. Wirft bei Provider-Fehler. */
-async function askEdgeFunction(question: string, history: ChatMessage[]): Promise<string | null> {
+async function askEdgeFunction(
+  question: string,
+  history: ChatMessage[],
+  ctx?: AiGuideContext,
+): Promise<string | null> {
+  // user_id kommt aus der Auth-Session, damit der Server Favoriten holen
+  // und (mit Opt-out-Check) die Konversation loggen kann.
+  const { data: userData } = await supabase.auth.getUser();
+  const userId = userData?.user?.id ?? null;
+
   const { data, error } = await supabase.functions.invoke('ai-guide', {
-    body: { question, history },
+    body: {
+      question,
+      history,
+      locale: ctx?.locale ?? 'de',
+      session_id: ctx?.sessionId ?? SESSION_ID,
+      user_id: userId,
+      user_lat: ctx?.userLat,
+      user_lon: ctx?.userLon,
+    },
   });
 
   if (error) {
@@ -123,6 +163,7 @@ async function askEdgeFunction(question: string, history: ChatMessage[]): Promis
 export async function askAiGuide(
   question: string,
   history: ChatMessage[] = [],
+  ctx?: AiGuideContext,
 ): Promise<string> {
   // Lokaler Off-Topic-Filter, damit auch ohne Server-Roundtrip eine
   // saubere Ablehnung kommt (spart Tokens, schnellere UX).
@@ -131,7 +172,7 @@ export async function askAiGuide(
   }
 
   try {
-    const remote = await askEdgeFunction(question, history);
+    const remote = await askEdgeFunction(question, history, ctx);
     if (remote) return remote;
   } catch (err) {
     // Echte Fehler (Rate-Limit etc.) weiterreichen, Soft-Fail (return null)
@@ -141,8 +182,8 @@ export async function askAiGuide(
 
   // Fallback: lokale Template-Antwort mit DB-Listing.
   const category = detectCategory(question);
-  const ctx = await fetchListingsContext(category);
-  return getOfflineResponse(question, ctx);
+  const listingsCtx = await fetchListingsContext(category);
+  return getOfflineResponse(question, listingsCtx);
 }
 
 function isObviouslyOffTopic(question: string): boolean {
